@@ -115,6 +115,149 @@ export const evaluateAnswer = createServerFn({ method: "POST" })
     return { score, feedback: result.feedback };
   });
 
+const SendMessageSchema = z.object({
+  questionId: z.string().uuid(),
+  content: z.string().trim().min(1).max(5000),
+});
+
+export const sendMessage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => SendMessageSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { callAI } = await import("./ai-gateway.server");
+    const { supabase } = context;
+
+    const { data: q, error } = await supabase
+      .from("interview_questions")
+      .select("id, question, answer, session_id, interview_sessions(position, difficulty)")
+      .eq("id", data.questionId)
+      .single();
+    if (error || !q) throw new Error("题目未找到");
+
+    const sess = (q as unknown as { interview_sessions: { position: string; difficulty: string } }).interview_sessions;
+
+    // Get existing conversation from answer field (stored as JSON array)
+    let conversation: Array<{ role: string; content: string }> = [];
+    if (q.answer) {
+      try { conversation = JSON.parse(q.answer); } catch { conversation = []; }
+    }
+
+    // Add user message
+    conversation.push({ role: "user", content: data.content });
+
+    // Build conversation history for the AI
+    const conversationText = conversation
+      .map((m) => `${m.role === "user" ? "候选人" : "面试官"}: ${m.content}`)
+      .join("\n\n");
+
+    const systemPrompt = `你是一位资深面试官，正在与候选人进行面试对话。
+
+岗位: ${sess.position}
+难度: ${sess.difficulty}
+
+当前题目: ${q.question}
+
+面试对话规则:
+- 你以面试官的身份与候选人进行自然的对话
+- 对候选人的回答给出简短回应（肯定、追问、澄清等）
+- 可以追问候选人的技术细节、项目经验、决策过程
+- 可以引导候选人展开更深入的回答
+- 如果候选人回答不够完整，可以追问或提示
+- 保持专业、友好的面试官语气
+- 使用中文回答
+- 每次回复控制在 100-200 字，不要一次性给出评分或总结
+- 当候选人已经回答得足够充分时，可以表示"好的，我对这个问题的回答有了充分了解"来暗示可以结束本话题`;
+
+    const userPrompt = `以下是之前的对话:
+
+${conversationText}
+
+${conversationText ? "\n" : ""}候选人最新回答: ${data.content}
+
+请根据上述对话规则做出回应。`;
+
+    const aiResponse = await callAI([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ]);
+
+    // Add AI response
+    conversation.push({ role: "assistant", content: aiResponse });
+
+    // Save conversation back to answer field as JSON
+    const { error: updErr } = await supabase
+      .from("interview_questions")
+      .update({ answer: JSON.stringify(conversation) })
+      .eq("id", data.questionId);
+    if (updErr) throw new Error(updErr.message);
+
+    return { response: aiResponse };
+  });
+
+const EvaluateConvSchema = z.object({ questionId: z.string().uuid() });
+
+export const evaluateConversation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => EvaluateConvSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { callAI, parseJsonFromAI } = await import("./ai-gateway.server");
+    const { supabase } = context;
+
+    const { data: q, error } = await supabase
+      .from("interview_questions")
+      .select("id, question, answer, session_id, interview_sessions(position, difficulty)")
+      .eq("id", data.questionId)
+      .single();
+    if (error || !q) throw new Error("题目未找到");
+
+    const sess = (q as unknown as { interview_sessions: { position: string; difficulty: string } }).interview_sessions;
+
+    // Read conversation from answer field
+    let messages: Array<{ role: string; content: string }> = [];
+    if (q.answer) {
+      try { messages = JSON.parse(q.answer); } catch {}
+    }
+
+    const conversationText = messages
+      .map((m) => `${m.role === "user" ? "候选人" : "面试官"}: ${m.content}`)
+      .join("\n\n");
+
+    const userMessages = messages.filter((m) => m.role === "user").map((m) => m.content);
+    const combinedAnswer = userMessages.join("\n\n");
+
+    const prompt = `作为面试官，请评估以下面试对话中候选人的表现：
+
+岗位: ${sess.position}
+难度: ${sess.difficulty}
+题目: ${q.question}
+
+完整的面试对话:
+${conversationText}
+
+请给出:
+1. score: 1-100 分的整数评分（考虑回答的准确性、深度、逻辑性、沟通能力）
+2. feedback: 详细的评价与改进建议（300-500字，包含优点、不足、具体的改进建议）
+
+严格以如下 JSON 格式返回:
+{"score": 85, "feedback": "..."}`;
+
+    const text = await callAI([
+      { role: "system", content: "你是严谨的面试评审官，输出必须是有效 JSON。" },
+      { role: "user", content: prompt },
+    ]);
+
+    const result = parseJsonFromAI<{ score: number; feedback: string }>(text);
+    const score = Math.max(1, Math.min(100, Math.round(result.score)));
+
+    // Save score, feedback, and store combined answer
+    const { error: updErr } = await supabase
+      .from("interview_questions")
+      .update({ answer: combinedAnswer, score, feedback: result.feedback })
+      .eq("id", data.questionId);
+    if (updErr) throw new Error(updErr.message);
+
+    return { score, feedback: result.feedback };
+  });
 const FinishSchema = z.object({ sessionId: z.string().uuid() });
 
 export const finishSession = createServerFn({ method: "POST" })

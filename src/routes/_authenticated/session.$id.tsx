@@ -1,14 +1,16 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { getSession, evaluateAnswer, finishSession } from "@/lib/interview.functions";
-import { Loader2, CheckCircle2, ArrowRight, Trophy } from "lucide-react";
+
+import { getSession, finishSession, sendMessage, evaluateConversation } from "@/lib/interview.functions";
+import { Loader2, CheckCircle2, ArrowRight, Trophy, Send, Sparkles, User, Bot } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/session/$id")({
   component: SessionPage,
@@ -30,20 +32,31 @@ type Session = {
   overall_score: number | null;
   overall_feedback: string | null;
 };
+type Message = {
+  id: string;
+  question_id?: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+};
 
 function SessionPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const load = useServerFn(getSession);
-  const evaluate = useServerFn(evaluateAnswer);
+  const send = useServerFn(sendMessage);
+  const evalConv = useServerFn(evaluateConversation);
   const finish = useServerFn(finishSession);
 
   const [session, setSession] = useState<Session | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [current, setCurrent] = useState(0);
-  const [answer, setAnswer] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [sending, setSending] = useState(false);
+  const [evaluating, setEvaluating] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async () => {
     const res = await load({ data: { sessionId: id } });
@@ -53,7 +66,25 @@ function SessionPage() {
     setCurrent(firstUnanswered >= 0 ? firstUnanswered : (res.questions as Question[]).length - 1);
   }, [id, load]);
 
+  // Fetch messages when current question changes
+
+
   useEffect(() => { refresh(); }, [refresh]);
+
+  const q = questions[current];
+
+  useEffect(() => {
+    if (q && q.score == null && q.answer) {
+      try { setMessages(JSON.parse(q.answer)); } catch { setMessages([]); }
+    } else {
+      setMessages([]);
+    }
+  }, [current, q?.id, q?.score]);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   if (!session) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="animate-spin" /></div>;
@@ -61,25 +92,59 @@ function SessionPage() {
 
   const isComplete = session.status === "completed";
   const allAnswered = questions.length > 0 && questions.every((q) => q.score != null);
-  const q = questions[current];
   const answeredCount = questions.filter((qq) => qq.score != null).length;
   const progress = questions.length ? (answeredCount / questions.length) * 100 : 0;
 
-  async function submitAnswer() {
-    if (!q || !answer.trim()) {
+  async function handleSendMessage() {
+    if (!q || !message.trim()) {
       toast.error("请输入你的回答");
       return;
     }
-    setSubmitting(true);
+    const text = message.trim();
+    setMessage("");
+    setSending(true);
+
+    // Optimistically add user message
+    const tempUserMsg: Message = {
+      id: "temp-" + Date.now(),
+      role: "user",
+      content: text,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, tempUserMsg]);
+
     try {
-      await evaluate({ data: { questionId: q.id, answer } });
-      toast.success("已评分");
-      setAnswer("");
+      const result = await send({ data: { questionId: q.id, content: text } });
+
+      // Add AI response
+      const tempAiMsg: Message = {
+        id: "temp-" + Date.now(),
+        role: "assistant",
+        content: result.response,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, tempAiMsg]);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "发送失败");
+      // Re-fetch to revert optimistic update
+      await fetchMessages(q.id);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleEvaluate() {
+    if (!q) return;
+    setEvaluating(true);
+    try {
+      await evalConv({ data: { questionId: q.id } });
+      toast.success("评分完成");
       await refresh();
+      setMessages([]);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "评分失败");
     } finally {
-      setSubmitting(false);
+      setEvaluating(false);
     }
   }
 
@@ -96,6 +161,17 @@ function SessionPage() {
     }
   }
 
+  function nextQuestion() {
+    if (current < questions.length - 1) {
+      setCurrent(current + 1);
+      setMessage("");
+    }
+  }
+
+  // Check if AI has indicated the conversation is ready to conclude
+  const canConclude = messages.length >= 2 && !evaluating;
+
+  // ====== COMPLETED VIEW ======
   if (isComplete) {
     return (
       <div className="space-y-6">
@@ -157,8 +233,9 @@ function SessionPage() {
     );
   }
 
+  // ====== ACTIVE SESSION VIEW ======
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
         <div className="flex items-center gap-2 mb-2">
           <Badge>{session.position}</Badge>
@@ -174,8 +251,9 @@ function SessionPage() {
         {questions.map((qq, i) => (
           <button
             key={qq.id}
-            onClick={() => { setCurrent(i); setAnswer(""); }}
-            className={`w-9 h-9 rounded-md border text-sm font-medium transition-colors ${
+            onClick={() => { setCurrent(i); setMessage(""); }}
+            disabled={qq.score == null && i > current + 1}
+            className={`w-9 h-9 rounded-md border text-sm font-medium transition-colors disabled:opacity-30 ${
               i === current ? "bg-primary text-primary-foreground border-primary" :
               qq.score != null ? "bg-primary/10 text-primary border-primary/30" :
               "bg-card hover:bg-accent"
@@ -187,56 +265,133 @@ function SessionPage() {
       </div>
 
       {q && (
-        <Card>
-          <CardHeader>
+        <Card className="flex flex-col">
+          <CardHeader className="pb-3">
             <Badge variant="outline" className="w-fit">第 {current + 1} 题</Badge>
             <CardTitle className="text-lg leading-relaxed">{q.question}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {q.score != null ? (
-              <>
-                <div>
-                  <div className="text-xs font-semibold text-muted-foreground mb-1">你的回答</div>
-                  <p className="text-sm whitespace-pre-wrap bg-muted/50 rounded-md p-3">{q.answer}</p>
-                </div>
-                <div className="rounded-lg border bg-primary/5 p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm font-semibold">AI 评分与反馈</div>
-                    <div className="text-2xl font-bold text-primary">{q.score}</div>
+
+          {q.score != null ? (
+            // ====== ANSWERED VIEW ======
+            <CardContent className="space-y-4">
+              <div className="rounded-lg border bg-muted/30 p-4 max-h-60 overflow-y-auto space-y-3">
+                {messages.map((msg, i) => (
+                  <div key={msg.id || i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+                    <Avatar className="w-8 h-8 flex-shrink-0">
+                      <AvatarFallback className={msg.role === "user" ? "bg-primary/10 text-primary" : "bg-accent text-accent-foreground"}>
+                        {msg.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap leading-relaxed ${
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
+                    }`}>
+                      {msg.content}
+                    </div>
                   </div>
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{q.feedback}</p>
+                ))}
+              </div>
+              <div className="rounded-lg border bg-primary/5 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-semibold">AI 评分与反馈</div>
+                  <div className="text-2xl font-bold text-primary">{q.score}</div>
                 </div>
-                <div className="flex gap-2">
-                  {current < questions.length - 1 && (
-                    <Button onClick={() => { setCurrent(current + 1); setAnswer(""); }}>
-                      下一题 <ArrowRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  )}
-                  {allAnswered && (
-                    <Button onClick={handleFinish} disabled={finishing}>
-                      {finishing ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />总结中…</> : "完成面试并生成总结"}
-                    </Button>
-                  )}
-                </div>
-              </>
-            ) : (
-              <>
-                <Textarea
-                  placeholder="在此输入你的回答…"
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  rows={8}
-                  maxLength={5000}
-                />
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">{answer.length}/5000</span>
-                  <Button onClick={submitAnswer} disabled={submitting}>
-                    {submitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />AI 评分中…</> : "提交回答"}
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{q.feedback}</p>
+              </div>
+              <div className="flex gap-2">
+                {current < questions.length - 1 && (
+                  <Button onClick={nextQuestion}>
+                    下一题 <ArrowRight className="w-4 h-4 ml-1" />
                   </Button>
+                )}
+                {allAnswered && (
+                  <Button onClick={handleFinish} disabled={finishing}>
+                    {finishing ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />总结中…</> : "完成面试并生成总结"}
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          ) : (
+            // ====== CONVERSATION VIEW (unanswered) ======
+            <CardContent className="space-y-4">
+              <div className="rounded-lg border bg-card max-h-[400px] min-h-[200px] overflow-y-auto p-4 space-y-3">
+                {messages.length === 0 ? (
+                  <div className="text-center py-10 text-muted-foreground text-sm">
+                    <Sparkles className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    开始你的回答，面试官会与你进行多轮对话
+                  </div>
+                ) : (
+                  <>
+                    {messages.map((msg, i) => (
+                      <div key={msg.id || i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+                        <Avatar className="w-8 h-8 flex-shrink-0">
+                          <AvatarFallback className={msg.role === "user" ? "bg-primary/10 text-primary" : "bg-accent text-accent-foreground"}>
+                            {msg.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap leading-relaxed ${
+                          msg.role === "user"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted"
+                        }`}>
+                          {msg.content}
+                        </div>
+                      </div>
+                    ))}
+                    {sending && (
+                      <div className="flex gap-3">
+                        <Avatar className="w-8 h-8 flex-shrink-0">
+                          <AvatarFallback className="bg-accent text-accent-foreground">
+                            <Bot className="w-4 h-4" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="bg-muted rounded-lg px-3 py-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <div className="space-y-3">
+                <Textarea
+                  placeholder="输入你的回答…面试官会针对你的回答继续追问"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  rows={3}
+                  maxLength={5000}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                />
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground">{message.length}/5000</span>
+                  <div className="flex items-center gap-2">
+                    {canConclude && (
+                      <Button variant="outline" onClick={handleEvaluate} disabled={evaluating}>
+                        {evaluating ? (
+                          <><Loader2 className="w-4 h-4 mr-1 animate-spin" />AI 评分中…</>
+                        ) : "结束对话并评分"}
+                      </Button>
+                    )}
+                    <Button onClick={handleSendMessage} disabled={sending || !message.trim()}>
+                      {sending ? (
+                        <><Loader2 className="w-4 h-4 mr-1 animate-spin" />发送中…</>
+                      ) : (
+                        <><Send className="w-4 h-4 mr-1" />发送</>
+                      )}
+                    </Button>
+                  </div>
                 </div>
-              </>
-            )}
-          </CardContent>
+              </div>
+            </CardContent>
+          )}
         </Card>
       )}
     </div>
