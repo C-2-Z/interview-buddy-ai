@@ -14,7 +14,101 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      interview_questions: {
+        Row: {
+          answer: string | null
+          created_at: string
+          feedback: string | null
+          id: string
+          order_index: number
+          question: string
+          score: number | null
+          session_id: string
+        }
+        Insert: {
+          answer?: string | null
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          order_index: number
+          question: string
+          score?: number | null
+          session_id: string
+        }
+        Update: {
+          answer?: string | null
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          order_index?: number
+          question?: string
+          score?: number | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_questions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "interview_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_sessions: {
+        Row: {
+          background: string | null
+          created_at: string
+          difficulty: string
+          id: string
+          overall_feedback: string | null
+          overall_score: number | null
+          position: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          background?: string | null
+          created_at?: string
+          difficulty: string
+          id?: string
+          overall_feedback?: string | null
+          overall_score?: number | null
+          position: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          background?: string | null
+          created_at?: string
+          difficulty?: string
+          id?: string
+          overall_feedback?: string | null
+          overall_score?: number | null
+          position?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
