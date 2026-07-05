@@ -1,0 +1,112 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { createInterviewSession } from "@/lib/interview.functions";
+import { Loader2, Sparkles } from "lucide-react";
+
+export const Route = createFileRoute("/_authenticated/new")({
+  component: NewInterview,
+});
+
+function NewInterview() {
+  const navigate = useNavigate();
+  const create = useServerFn(createInterviewSession);
+  const [position, setPosition] = useState("");
+  const [difficulty, setDifficulty] = useState<"初级" | "中级" | "高级">("中级");
+  const [background, setBackground] = useState("");
+  const [count, setCount] = useState(5);
+  const [loading, setLoading] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!position.trim()) {
+      toast.error("请填写面试岗位");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { sessionId } = await create({ data: { position, difficulty, background, questionCount: count } });
+      toast.success("题目已生成");
+      navigate({ to: "/session/$id", params: { id: sessionId } });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "生成失败");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Card className="max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>配置面试</CardTitle>
+        <CardDescription>告诉 AI 你想练习的方向，它会为你量身定制题目。</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={submit} className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="position">面试岗位 *</Label>
+            <Input
+              id="position"
+              placeholder="例如：前端工程师 / 数据分析师 / 产品经理"
+              value={position}
+              maxLength={100}
+              onChange={(e) => setPosition(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>难度</Label>
+              <Select value={difficulty} onValueChange={(v) => setDifficulty(v as typeof difficulty)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="初级">初级</SelectItem>
+                  <SelectItem value="中级">中级</SelectItem>
+                  <SelectItem value="高级">高级</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>题目数量</Label>
+              <Select value={String(count)} onValueChange={(v) => setCount(Number(v))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[3, 5, 7, 10].map((n) => (
+                    <SelectItem key={n} value={String(n)}>{n} 题</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="bg">个人情况 <span className="text-muted-foreground text-xs">(选填)</span></Label>
+            <Textarea
+              id="bg"
+              placeholder="例如：3 年前端经验，熟悉 React/TypeScript，正在寻找中级前端岗位…"
+              value={background}
+              rows={5}
+              maxLength={2000}
+              onChange={(e) => setBackground(e.target.value)}
+            />
+          </div>
+
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />AI 生成中…</>
+            ) : (
+              <><Sparkles className="w-4 h-4 mr-2" />生成面试题</>
+            )}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
