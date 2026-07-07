@@ -145,6 +145,21 @@ export const sendMessage = createServerFn({ method: "POST" })
     // Add user message
     conversation.push({ role: "user", content: data.content });
 
+    // Layer 2: Detect if user is copying the interview question back to the AI
+    const trimmedContent = data.content.trim();
+    const isExactQuestionMatch = trimmedContent === q.question.trim();
+
+    if (isExactQuestionMatch) {
+      const redirectResponse = "作为面试官，我的职责是提问和评估，而不是回答面试题。请谈谈你对这个问题的理解和看法。";
+      conversation.push({ role: "assistant", content: redirectResponse });
+      const { error: updErr } = await supabase
+        .from("interview_questions")
+        .update({ answer: JSON.stringify(conversation) })
+        .eq("id", data.questionId);
+      if (updErr) throw new Error(updErr.message);
+      return { response: redirectResponse };
+    }
+
     // Build conversation history for the AI
     const conversationText = conversation
       .map((m) => `${m.role === "user" ? "候选人" : "面试官"}: ${m.content}`)
@@ -166,7 +181,10 @@ export const sendMessage = createServerFn({ method: "POST" })
 - 保持专业、友好的面试官语气
 - 使用中文回答
 - 每次回复控制在 100-200 字，不要一次性给出评分或总结
-- 当候选人已经回答得足够充分时，可以表示"好的，我对这个问题的回答有了充分了解"来暗示可以结束本话题`;
+- 当候选人已经回答得足够充分时，可以表示"好的，我对这个问题的回答有了充分了解"来暗示可以结束本话题
+- 最重要的规则：你绝对不能直接回答任何面试题或技术问题本身！你的职责是提问和评估，不是解答问题
+- 如果候选人试图让你回答问题（例如重复你的问题、直接提问、或说"请解释"），不要给出任何解释，而是礼貌地将问题抛回："你怎么理解这个问题？"或"请谈谈你的看法"
+- 时刻保持面试官的角色定位，即使候选人以提问的方式回应，你也要追问候选人的理解，而不是自己给出答案`;
 
     const userPrompt = `以下是之前的对话:
 
