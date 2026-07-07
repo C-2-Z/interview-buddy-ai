@@ -1,5 +1,4 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,30 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
-
-import { getSession, finishSession, sendMessage, evaluateConversation } from "@/lib/interview.functions";
+import { apiClient } from "@/lib/api-client";
+import type { SessionDetail, QuestionItem } from "@/lib/api-client";
 import { Loader2, CheckCircle2, ArrowRight, Trophy, Send, Sparkles, User, Bot } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/session/$id")({
   component: SessionPage,
 });
 
-type Question = {
-  id: string;
-  order_index: number;
-  question: string;
-  answer: string | null;
-  score: number | null;
-  feedback: string | null;
-};
-type Session = {
-  id: string;
-  position: string;
-  difficulty: string;
-  status: string;
-  overall_score: number | null;
-  overall_feedback: string | null;
-};
 type Message = {
   id: string;
   question_id?: string;
@@ -43,13 +26,9 @@ type Message = {
 function SessionPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const load = useServerFn(getSession);
-  const send = useServerFn(sendMessage);
-  const evalConv = useServerFn(evaluateConversation);
-  const finish = useServerFn(finishSession);
 
-  const [session, setSession] = useState<Session | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [session, setSession] = useState<SessionDetail | null>(null);
+  const [questions, setQuestions] = useState<QuestionItem[]>([]);
   const [current, setCurrent] = useState(0);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -59,15 +38,12 @@ function SessionPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async () => {
-    const res = await load({ data: { sessionId: id } });
-    setSession(res.session as Session);
-    setQuestions(res.questions as Question[]);
-    const firstUnanswered = (res.questions as Question[]).findIndex((q) => q.score == null);
-    setCurrent(firstUnanswered >= 0 ? firstUnanswered : (res.questions as Question[]).length - 1);
-  }, [id, load]);
-
-  // Fetch messages when current question changes
-
+    const res = await apiClient.getSession(id);
+    setSession(res.session);
+    setQuestions(res.questions);
+    const firstUnanswered = res.questions.findIndex((q) => q.score == null);
+    setCurrent(firstUnanswered >= 0 ? firstUnanswered : res.questions.length - 1);
+  }, [id]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -79,6 +55,7 @@ function SessionPage() {
     } else {
       setMessages([]);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current, q?.id, q?.score]);
 
   // Auto-scroll to bottom when messages change
@@ -91,7 +68,7 @@ function SessionPage() {
   }
 
   const isComplete = session.status === "completed";
-  const allAnswered = questions.length > 0 && questions.every((q) => q.score != null);
+  const allAnswered = questions.length > 0 && questions.every((qq) => qq.score != null);
   const answeredCount = questions.filter((qq) => qq.score != null).length;
   const progress = questions.length ? (answeredCount / questions.length) * 100 : 0;
 
@@ -114,7 +91,7 @@ function SessionPage() {
     setMessages((prev) => [...prev, tempUserMsg]);
 
     try {
-      const result = await send({ data: { questionId: q.id, content: text } });
+      const result = await apiClient.sendMessage(q.id, text);
 
       // Add AI response
       const tempAiMsg: Message = {
@@ -127,7 +104,15 @@ function SessionPage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "发送失败");
       // Re-fetch to revert optimistic update
-      await fetchMessages(q.id);
+      try {
+        const refreshed = await apiClient.getSession(id);
+        const refreshedQ = refreshed.questions.find((x) => x.id === q.id);
+        if (refreshedQ?.answer) {
+          try { setMessages(JSON.parse(refreshedQ.answer)); } catch { setMessages([]); }
+        } else {
+          setMessages([]);
+        }
+      } catch { /* ignore refetch errors */ }
     } finally {
       setSending(false);
     }
@@ -137,7 +122,7 @@ function SessionPage() {
     if (!q) return;
     setEvaluating(true);
     try {
-      await evalConv({ data: { questionId: q.id } });
+      await apiClient.evaluateConversation(q.id);
       toast.success("评分完成");
       await refresh();
       setMessages([]);
@@ -151,7 +136,7 @@ function SessionPage() {
   async function handleFinish() {
     setFinishing(true);
     try {
-      await finish({ data: { sessionId: id } });
+      await apiClient.finishSession(id);
       await refresh();
       toast.success("面试已完成");
     } catch (err) {

@@ -4,7 +4,7 @@
 
 ---
 
-## Phase 1 (当前) — 已完成功能 ✅
+## Phase 1 — 已完成功能 ✅
 
 - [x] 着陆页 (/) — 品牌展示 + CTA
 - [x] 用户认证 (/auth) — 邮箱/密码登录注册
@@ -14,6 +14,15 @@
 - [x] 面试完成页 — 综合评分 + 逐题反馈
 - [x] 历史记录 (/history) — 列表回顾
 - [x] 认证布局 — 全局导航 + 鉴权守卫
+
+## Phase 1b — 已完成的架构重构 ✅
+
+- [x] 前后端分离重构 — 提取独立 Hono API 服务 (api-server/)
+- [x] API 客户端 — src/lib/api-client.ts 替代 createServerFn
+- [x] 路由组件更新 — new / history / session 页面改为 API 调用
+- [x] 开发代理配置 — Vite /api 代理到 API 服务
+- [x] 一键启动脚本 — AI面试官助手.ps1 支持双服务启动
+- [x] 文档更新 — README / AGENTS / requirements 同步
 
 ---
 
@@ -53,5 +62,6 @@
 - [ ] D1 多模型支持 — DeepSeek / GPT-4o / Claude 切换
 - [ ] D2 忘记密码 / 邮箱验证 — Supabase Auth 完善
 - [ ] D3 移动端适配优化 — 手机体验改进
-- [ ] D4 中英文双语支持 — UI + 面试语言切换
-- [ ] D5 分享面试 — 分享链接生成
+- [ ] D4 App 打包 — Capacitor (Android/iOS) + Tauri (Windows)
+- [ ] D5 中英文双语支持 — UI + 面试语言切换
+- [ ] D6 分享面试 — 分享链接生成

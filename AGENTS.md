@@ -6,7 +6,7 @@ AI 驱动的面试练习平台。用户选择岗位和难度，AI 出题、进�
 
 ## 技术栈
 
-- **框架**: TanStack React Start (SSR, React 19)
+- **前端框架**: TanStack React Start (SSR, React 19)
 - **路由**: TanStack Router (文件路由，自动生成 routeTree.gen.ts)
 - **数据获取**: TanStack React Query 5
 - **样式**: Tailwind CSS 4 + shadcn/ui (Radix UI 原语)
@@ -14,81 +14,177 @@ AI 驱动的面试练习平台。用户选择岗位和难度，AI 出题、进�
 - **数据库**: Supabase (PostgreSQL)
 - **认证**: Supabase Auth (邮箱/密码)
 - **AI**: DeepSeek Chat (OpenAI 兼容 API)
-- **部署**: Vercel (Nitro SSR)
+- **API 服务**: Hono (独立后端服务)
+- **部署**: Vercel (前端 SSR) + 独立 API 服务
+
+## 项目结构
+
+```
+interview-buddy-ai/
+├── src/                    # 前端 (TanStack React Start SSR)
+│   ├── lib/
+│   │   ├── api-client.ts   # API 客户端，调用远程 API 服务
+│   │   └── ...
+│   ├── routes/             # 页面路由组件
+│   └── ...
+├── api-server/             # 独立后端 API 服务 (Hono)
+│   ├── src/
+│   │   ├── index.ts        # Hono 入口
+│   │   ├── serve.ts        # Node.js 服务器启动
+│   │   ├── routes/
+│   │   │   ├── sessions.ts # 面试会话 CRUD
+│   │   │   └── questions.ts# 对话消息与评分
+│   │   ├── middleware/
+│   │   │   └── auth.ts     # JWT 认证中间件
+│   │   └── lib/
+│   │       ├── ai-gateway.ts  # DeepSeek API 封装
+│   │       └── supabase.ts    # Supabase 客户端工厂
+│   └── ...
+└── ...
+```
+
+## 前后端架构
+
+前端通过 `src/lib/api-client.ts` 调用后端 API，完全替代了原有的 `createServerFn`。
+
+```
+[浏览器] ──→ Vite 代理 (开发) / 直接 API 地址 (生产) ──→ API 服务 (Hono) ──→ Supabase + DeepSeek
+```
+
+- **开发环境**: Vite 开发服务器自动代理 `/api/*` 到 `localhost:3001`
+- **生产环境**: 通过 `VITE_API_URL` 环境变量指定 API 服务地址
+- **认证**: API 客户端自动从 Supabase session 获取 access_token，附加到请求头
 
 ## 关键架构模式
 
-### 1. Server Functions
+### 1. API 客户端 (`src/lib/api-client.ts`)
 
-所有后端业务逻辑通过 `createServerFn` 定义，位于 `src/lib/interview.functions.ts`。
+所有后端业务逻辑通过 `apiClient` 对象调用：
 
-- Server Fn 用 `.middleware([requireSupabaseAuth])` 保护，自动从请求头提取 Bearer token 完成认证
-- 服务端代码通过 `*.server.ts` 后缀隔离（如 `ai-gateway.server.ts`），避免泄漏到客户端
-- 输入校验使用 `zod` schema 通过 `.inputValidator()` 执行
-- 客户端通过 `useServerFn()` 调用
+```ts
+import { apiClient } from "@/lib/api-client";
 
-### 2. 认证体系
+// 创建面试会话
+const { sessionId } = await apiClient.createInterviewSession({
+  position: "前端工程师",
+  difficulty: "中级",
+  background: "3 年经验",
+  questionCount: 5,
+});
+
+// 发送对话消息
+const { response } = await apiClient.sendMessage(questionId, "我的回答是...");
+
+// 获取面试会话
+const { session, questions } = await apiClient.getSession(sessionId);
+
+// 评价对话
+const { score, feedback } = await apiClient.evaluateConversation(questionId);
+
+// 完成面试
+const { overallScore, overallFeedback } = await apiClient.finishSession(sessionId);
+```
+
+### 2. API 服务 (`api-server/`)
+
+Hono 框架提供的 REST API：
+
+| 方法 | 路径                        | 说明                    |
+| ---- | --------------------------- | ----------------------- |
+| POST | /api/sessions               | 创建面试会话 + 生成题目 |
+| GET  | /api/sessions               | 列出所有面试            |
+| GET  | /api/sessions/:id           | 获取面试详情 + 题目列表 |
+| POST | /api/sessions/:id/finish    | 完成面试并生成总结      |
+| POST | /api/questions/:id/message  | 发送对话消息            |
+| POST | /api/questions/:id/evaluate | 评价对话并评分          |
+
+### 3. 认证体系
 
 两层认证机制：
-1. **客户端**: `auth-attacher.ts` 作为全局 `functionMiddleware`，自动从 Supabase session 提取 access_token 附加到所有 server fn 请求头
-2. **服务端**: `auth-middleware.ts` 校验 Bearer token，解析 claims，创建带认证的 Supabase 客户端注入 context
 
-### 3. 数据库访问
+1. **客户端**: `auth-attacher.ts` 作为全局 `functionMiddleware`，自动从 Supabase session 提取 access_token
+2. **API 服务端**: `auth.ts` Hono 中间件校验 Bearer token，解析 claims，创建带认证的 Supabase 客户端注入 context
+
+### 4. 数据库访问
 
 三种 Supabase 客户端：
-- `client.ts` (integrations/supabase/) — 浏览器端，通过 localStorage 持久化 session
-- `client.server.ts` (integrations/supabase/) — 服务端 Service Role 客户端（绕过 RLS），仅用于管理操作
-- auth middleware 内建 (auth-middleware.ts) — 服务端认证客户端，通过 Bearer token 鉴权
+
+- `client.ts` — 浏览器端，通过 localStorage 持久化 session
+- `client.server.ts` — 服务端 Service Role 客户端（绕过 RLS），仅用于管理操作
+- API 服务内建 — 通过 Bearer token 鉴权，RLS 隔离
 
 所有表均启用 RLS，通过用户 ID 进行数据隔离。
 
-### 4. AI 集成
+### 5. AI 集成
 
-`src/lib/ai-gateway.server.ts` 封装 DeepSeek Chat API：
+`api-server/src/lib/ai-gateway.ts` 封装 DeepSeek Chat API：
+
 - `callAI(messages, model?)` — 发送消息，返回文本
 - `parseJsonFromAI<T>(text)` — 从 AI 的 markdown 响应中提取 JSON
 
-模型默认 `deepseek-chat`。
-
-### 5. 面试流程
+### 6. 面试流程
 
 ```
-new.tsx → createInterviewSession → AI 出题 → 存入 DB
-     → session.$id.tsx (多轮对话 / 评分 / 完成)
-         → sendMessage → AI 对话（多轮）
-         → evaluateConversation → AI 评分（单题）
-         → finishSession → AI 综合总结
+前端 (new.tsx) → API POST /api/sessions → AI 出题 → 存入 DB → 重定向到 /session/:id
+  → 多轮对话 (POST /api/questions/:id/message) → 评价 (POST /api/questions/:id/evaluate)
+  → 完成 (POST /api/sessions/:id/finish) → AI 综合总结
 ```
-
-### 6. 错误处理
-
-`server.ts` 包装全局 fetch handler，捕获 h3 吞掉的 SSR 错误。`error-capture.ts` 捕获全局 `error` 和 `unhandledrejection` 事件供后续恢复。
 
 ## 路由表
 
-| 路径 | 文件 | 认证 | 说明 |
-|------|------|------|------|
-| / | routes/index.tsx | 否 | 着陆页 |
-| /auth | routes/auth.tsx | 否 | 登录 / 注册 |
-| /dashboard | routes/_authenticated/dashboard.tsx | 是 | 仪表盘 |
-| /new | routes/_authenticated/new.tsx | 是 | 创建新面试 |
-| /history | routes/_authenticated/history.tsx | 是 | 历史记录 |
-| /session/$id | routes/_authenticated/session.$id.tsx | 是 | 面试会话页 |
+| 路径                                                   | 文件                                | 认证       | 说明        |
+| ------------------------------------------------------ | ----------------------------------- | ---------- | ----------- |
+| /                                                      | routes/index.tsx                    | 否         | 着陆页      |
+| /auth                                                  | routes/auth.tsx                     | 否         | 登录 / 注册 |
+| /dashboard                                             | routes/_authenticated/dashboard.tsx | 是         | 仪表盘      |
+| /new                                                   | routes/_authenticated/new.tsx       | 是         | 创建新面试  |
+| /history                                               | routes/_authenticated/history.tsx   | 是         | 历史记录    |
+| /session/$id | routes/_authenticated/session.$id.tsx | 是                                  | 面试会话页 |             |
+
+## 本地开发
+
+```bash
+# 安装依赖
+npm install
+cd api-server && npm install && cd ..
+
+# 启动开发 (两个终端)
+npm run dev          # 前端开发服务器 (localhost:3000)
+npm run api:dev      # API 服务 (localhost:3001)
+
+# 或同时启动
+npm run dev:all      # 需要先安装 concurrently: npm install -g concurrently
+
+# 构建
+npm run build        # 构建前端
+
+# 验证 API 服务
+curl http://localhost:3001/api/health
+```
+
+## 部署
+
+### 前端 (Vercel)
+
+- 保持现有 Vercel 配置 (`vercel.json`)
+- 设置 `VITE_API_URL` 环境变量指向生产 API 地址
+
+### API 服务
+
+- 可部署到 Railway、Render、Fly.io 等 Node.js 平台
+- 环境变量: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `DEEPSEEK_API_KEY`, `PORT`
+- 启动命令: `cd api-server && npm run start`
+
+### App 打包 (后续)
+
+- Android/iOS: Capacitor (构建 SPA 后 `npx cap copy`)
+- Windows: Tauri (构建 SPA 后 `npx tauri build`)
 
 ## 开发约定
 
 - 新增路由文件后运行 `npm run dev` 自动生成 `routeTree.gen.ts`
 - 服务端专用模块命名 `*.server.ts`；客户端模块不用后缀
-- 所有 Server Function 集中写在 `interview.functions.ts` 中
-- 数据库 migration 放在 `supabase/migrations/`，按时间戳命名
+- API 路由逻辑写在 `api-server/src/routes/` 下
 - 使用 `@/` 别名引用 `src/` 下的模块
 - 环境变量前缀 `VITE_` 暴露给客户端，纯服务端变量不用前缀
-
-## 本地开发
-
-```
-npm install        # 安装依赖
-npm run dev        # 启动开发服务器 (localhost:3000)
-npm run build      # 构建生产包
-npm run preview    # 本地预览构建产物
-```
+- API 服务通过 `.env` 文件加载环境变量

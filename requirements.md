@@ -1,6 +1,6 @@
 # AI 面试模拟器 — 已完成功能需求文档
 
-> 版本: v1.0 | 最后更新: 2026-07-07
+> 版本: v2.0 | 最后更新: 2026-07-07
 
 ---
 
@@ -52,7 +52,7 @@ AI 面试模拟器是一个基于 AI 的面试练习平台，帮助求职者通�
 #### 后端逻辑
 - `supabase.auth.signInWithPassword()` — 登录
 - `supabase.auth.signUp()` — 注册，自动创建 profile（通过 DB trigger `handle_new_user`）
-- 全局 `auth-attacher.ts` 自动将 access_token 附加到所有 server fn 请求头
+- 全局 `auth-attacher.ts` 自动将 access_token 附加到所有请求头
 
 ---
 
@@ -63,7 +63,7 @@ AI 面试模拟器是一个基于 AI 的面试练习平台，帮助求职者通�
 登录后的首页，提供新面试和查看历史的入口。
 
 #### 界面要素
-- 欢迎语 "欢迎回来 👋"
+- 欢迎语 "欢迎回来"
 - 两个功能卡片：
   - "开始新面试" — 描述 + "立即开始"按钮
   - "历史面试" — 描述 + "查看历史"按钮
@@ -85,17 +85,18 @@ AI 面试模拟器是一个基于 AI 的面试练习平台，帮助求职者通�
 - 难度选择器：初级 / 中级 / 高级（默认中级）
 - 题目数量选择器：3 / 5 / 7 / 10 题（默认 5 题）
 - 个人情况文本框（选填，最长 2000 字）
-- "生成面试题" 提交按钮（带 loading 状态 + Sparkles 图标）
+- "生成面试题" 提交按钮（带 loading 状态）
 
 #### 交互行为
 - 岗位为空时提交触发 toast 提示
-- 提交后按钮进入 loading 状态："AI 生成中…"
+- 提交后按钮进入 loading 状态
 - 生成成功 toast 提示 + 自动跳转面试会话页
 - 生成失败 toast 提示错误信息
 
-#### 后端逻辑 (`createInterviewServerFn`)
+#### 后端逻辑
+- **API 调用**: `apiClient.createInterviewSession()` → POST `/api/sessions`
 - **输入校验**: Zod schema（position, difficulty, background, questionCount）
-- **认证**: 通过 `requireSupabaseAuth` 中间件
+- **认证**: Hono 中间件验证 Bearer token
 - **AI 调用**: 调用 DeepSeek API 生成题目 JSON 数组
 - **数据持久化**: 创建 `interview_sessions` 记录 + 批量插入 `interview_questions`
 - **返回**: 新创建的 sessionId
@@ -115,20 +116,20 @@ AI 面试模拟器是一个基于 AI 的面试练习平台，帮助求职者通�
 #### 界面要素 — 题目导航
 - 每题一个编号按钮
 - 已完成题目显示 CheckCircle2 图标，当前题高亮
-- 未评分题目只能按顺序回答（`i > current + 1` 的按钮禁用）
+- 未评分题目只能按顺序回答
 
 #### 界面要素 — 未回答题目（多轮对话模式）
 - 对话气泡区域：
   - 用户消息右对齐（蓝色底色），AI 消息左对齐（灰色底色）
   - 头像显示 User / Bot 图标
   - 打字 loading 动画
-  - 空状态提示："开始你的回答，面试官会与你进行多轮对话"
+  - 空状态提示
   - 自动滚动到底部
 - 输入区域：
   - Textarea（3行高，最长 5000 字）
   - 字符计数器
   - Enter 发送（Shift+Enter 换行）
-  - "发送"按钮 + "结束对话并评分"按钮（对话达到 2 条以上时显示）
+  - "发送"按钮 + "结束对话并评分"按钮
 
 #### 界面要素 — 已评分题目（回看模式）
 - 对话历史回顾（只读）
@@ -136,25 +137,25 @@ AI 面试模拟器是一个基于 AI 的面试练习平台，帮助求职者通�
 - "下一题"按钮 / "完成面试并生成总结"按钮
 
 #### 交互行为
-- 发送消息：调用 `sendMessage`，AI 以面试官身份回复
-- 结束对话评分：调用 `evaluateConversation`，AI 给出 1-100 评分和反馈
-- 完成面试：调用 `finishSession`，AI 生成综合总结
+- 发送消息：调用 `apiClient.sendMessage()` → POST `/api/questions/:id/message`
+- 结束对话评分：调用 `apiClient.evaluateConversation()` → POST `/api/questions/:id/evaluate`
+- 完成面试：调用 `apiClient.finishSession()` → POST `/api/sessions/:id/finish`
 - 所有操作均有 loading 状态和 toast 反馈
 
 #### 后端逻辑
 
-**`sendMessage`**
+**POST /api/questions/:id/message**
 - 读取当前题目的历史对话（存储在 `answer` 字段的 JSON 中）
 - 追加用户消息
 - 构建面试官角色的系统 Prompt，调用 AI
 - 保存 AI 回复到对话历史
 
-**`evaluateConversation`**
+**POST /api/questions/:id/evaluate**
 - 读取完整对话历史
 - 调用 AI 评分（1-100）+ 反馈（300-500 字）
 - 保存评分和反馈到 `interview_questions`
 
-**`finishSession`**
+**POST /api/sessions/:id/finish**
 - 汇总所有已评分题目的得分和反馈
 - 调用 AI 生成综合总结（200-300 字）
 - 计算平均分
@@ -163,7 +164,7 @@ AI 面试模拟器是一个基于 AI 的面试练习平台，帮助求职者通�
 ---
 
 ### 2.6 面试完成页 (Completed Session)
-**路由**: `/session/$id` (与活跃会话共用一个页面) | **文件**: `routes/_authenticated/session.$id.tsx`
+**路由**: `/session/$id` | **文件**: `routes/_authenticated/session.$id.tsx`
 
 #### 功能描述
 面试完成后的结果展示页面。
@@ -174,9 +175,7 @@ AI 面试模拟器是一个基于 AI 的面试练习平台，帮助求职者通�
   - 岗位 · 难度
   - 综合评分（大号数字）
   - AI 综合评价文本
-- 逐题回顾卡片列表：
-  - 每题显示题号 Badge、题目文本、你的回答、AI 反馈
-  - 每题右侧显示评分
+- 逐题回顾卡片列表
 - 底部操作按钮："再来一次" + "查看历史"
 
 ---
@@ -190,39 +189,16 @@ AI 面试模拟器是一个基于 AI 的面试练习平台，帮助求职者通�
 #### 界面要素
 - 页面标题 + 记录总数
 - "新面试"按钮
-- 记录列表（卡片样式）：
-  - 岗位名称
-  - 难度 Badge + 状态 Badge（已完成 / 进行中）
-  - 创建时间（zh-CN 格式）
-  - 如果有综合评分，右侧显示大号分数
+- 记录列表（卡片样式）
 - 空状态：引导用户"立即开始"
 
 #### 交互行为
 - 点击任意记录 → 跳转对应会话页
 - 点击"新面试" → 跳转 `/new`
 
-#### 后端逻辑 (`listSessions`)
-- 查询当前用户的所有 `interview_sessions`，按时间降序排列
-- 返回 id, position, difficulty, status, overall_score, created_at
-
----
-
-### 2.8 认证布局 (Authenticated Layout)
-**路由**: `/_authenticated` | **文件**: `routes/_authenticated/route.tsx`
-
-#### 功能描述
-所有需要登录的路由的公共布局。
-
-#### 界面要素
-- 顶部粘性导航栏：
-  - 产品名称（链接到首页）
-  - 导航项：主页 / 新面试 / 历史
-  - 登出按钮
-- 内容区（max-w-5xl 居中）
-
-#### 交互行为
-- 未登录用户访问子路由时自动重定向 `/auth`
-- 登出后跳转 `/auth`
+#### 后端逻辑
+- 调用 `apiClient.listSessions()` → GET `/api/sessions`
+- 返回当前用户的所有会话记录，按时间降序
 
 ---
 
@@ -280,24 +256,67 @@ AI 面试模拟器是一个基于 AI 的面试练习平台，帮助求职者通�
 
 ## 4. 已实现的技术基础设施
 
-### 4.1 AI 网关 (`ai-gateway.server.ts`)
+### 4.1 架构概览
+
+前后端分离架构：
+
+```
+[浏览器] → api-client.ts (fetch) → Hono API 服务 → Supabase + DeepSeek
+```
+
+- **前端**: TanStack React Start SSR，通过 `api-client.ts` 调用后端 API
+- **后端**: Hono 独立 API 服务，处理所有业务逻辑和 AI 调用
+- **认证**: Supabase Auth JWT，通过 `Authorization: Bearer <token>` 传递
+
+### 4.2 API 客户端 (`src/lib/api-client.ts`)
+
+统一的前端 HTTP 客户端，替代了原有的 `createServerFn` 机制：
+- 自动从 Supabase session 获取 access_token
+- 附加到所有请求的 Authorization 头
+- 统一错误处理
+- 完整的 TypeScript 类型支持
+
+### 4.3 API 服务 (`api-server/`)
+
+Hono 框架提供的 REST API，端点包括：
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | /api/sessions | 创建面试 + AI 出题 |
+| GET | /api/sessions | 列出所有面试 |
+| GET | /api/sessions/:id | 获取面试详情 + 题目 |
+| POST | /api/sessions/:id/finish | 完成面试并生成总结 |
+| POST | /api/questions/:id/message | 发送对话消息 |
+| POST | /api/questions/:id/evaluate | 评价对话并评分 |
+
+### 4.4 认证中间件
+
+两层认证机制：
+1. **客户端**: `auth-attacher.ts` 自动从 Supabase session 提取 access_token
+2. **API 服务端**: `auth.ts` Hono 中间件（从 `auth-middleware.ts` 逻辑移植），校验 Bearer token，解析 claims，创建带认证的 Supabase 客户端
+
+### 4.5 AI 网关 (`api-server/src/lib/ai-gateway.ts`)
+
 - DeepSeek Chat API 调用封装（OpenAI 兼容协议）
 - JSON 提取工具：自动清理 markdown 代码块包裹
+- 从 `src/lib/ai-gateway.server.ts` 移植，保持逻辑一致
 
-### 4.2 认证中间件
-- 客户端 `auth-attacher.ts`: 全局 functionMiddleware，自动附加 Bearer token
-- 服务端 `auth-middleware.ts`: 校验 token 并注入认证后的 Supabase 客户端
-
-### 4.3 错误处理
+### 4.6 错误处理
 - `error-capture.ts`: 全局 error / unhandledrejection 捕获
 - `server.ts`: SSR 层错误处理，捕获 h3 吞掉的异常
 - `error-page.ts`: 友好错误页面 HTML
 - Root route: ErrorComponent + NotFoundComponent
+- API 服务: Hono 内置错误处理 + HTTP 状态码
 
-### 4.4 部署配置
+### 4.7 开发代理
+- Vite 配置 `/api` 代理到 `localhost:3001`
+- 开发时无需配置跨域
+- 生产环境通过 `VITE_API_URL` 配置 API 地址
+
+### 4.8 部署配置
 - `vercel.json`: 所有路径重写到 `/api/ssr` 的 SSR handler
-- `api/ssr.js`: Vercel Serverless Function 入口
-- `.output/`: 构建产物包含完整 Nitro SSR server
+- API 服务可独立部署到 Railway / Render / Fly.io
+- `AI面试官助手.ps1`: 一键同时启动前端和 API 服务
 
 ---
 
@@ -320,6 +339,7 @@ AI 面试模拟器是一个基于 AI 的面试练习平台，帮助求职者通�
                     ▼                        │
              ┌──────────────┐                │
              │ AI 生成题目   │                │
+             │ POST /sessions               │
              └──────┬───────┘                │
                     │                        │
                     ▼                        ▼
@@ -328,20 +348,19 @@ AI 面试模拟器是一个基于 AI 的面试练习平台，帮助求职者通�
              │                                  │
              │ ┌─ 逐题多轮对话 ──────────────┐  │
              │ │ 用户回答 → AI 面试官追问    │  │
+             │ │ POST /questions/:id/message │  │
              │ │ ↕ 多轮对话 × N             │  │
-             │ │ → 结束对话并评分           │  │
+             │ │ → POST /questions/:id/eval  │  │
              │ └────────────────────────────┘  │
              │                                  │
              │ ┌─ 所有题目完成后 ────────────┐  │
-             │ │ 生成综合总结 + 综合评分     │  │
-             │ │ session → completed         │  │
+             │ │ POST /sessions/:id/finish   │  │
+             │ │ → completed                 │  │
              │ └────────────────────────────┘  │
              │                                  │
              │ ┌─ 完成后 ────────────────────┐  │
              │ │ 展示：综合评分 + AI 总结    │  │
              │ │ + 逐题评分 + AI 反馈        │  │
-             │ │ + "再来一次" + "查看历史"   │  │
-             │ └────────────────────────────┘  │
              └──────────────────────────────────┘
 ```
 
@@ -397,7 +416,7 @@ AI 自动识别频出的问题点，推荐针对性的练习方向。
 ### D. 平台与基础设施
 
 #### D1. 多模型支持
-支持切换 DeepSeek / GPT-4o / Claude 等模型，用户可选择或配置兜底模型。
+支持切换 DeepSeek / GPT-4o / Claude 等模型。
 
 #### D2. 忘记密码 / 邮箱验证
 完善 Supabase Auth 的密码重置和邮箱验证标准流程。
@@ -405,8 +424,11 @@ AI 自动识别频出的问题点，推荐针对性的练习方向。
 #### D3. 移动端适配优化
 优化手机端的对话区域、导航和操作体验。
 
-#### D4. 中英文双语支持
+#### D4. App 打包
+通过 Capacitor（Android / iOS）和 Tauri（Windows）打包为原生 App。
+
+#### D5. 中英文双语支持
 面试语言和 UI 语言可独立切换。
 
-#### D5. 分享面试
+#### D6. 分享面试
 生成分享链接，让他人（导师 / 朋友）查看面试表现。

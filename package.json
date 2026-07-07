@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "start": "node dist/server/server.js"
+    "start": "node dist/server/server.js",
+    "api:dev": "cd api-server && npm run dev",
+    "api:install": "cd api-server && npm install",
+    "dev:all": "concurrently \"npm run dev\" \"npm run api:dev\""
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

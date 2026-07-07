@@ -1,5 +1,4 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { createInterviewSession } from "@/lib/interview.functions";
+import { apiClient } from "@/lib/api-client";
 import { Loader2, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/new")({
@@ -17,7 +16,6 @@ export const Route = createFileRoute("/_authenticated/new")({
 
 function NewInterview() {
   const navigate = useNavigate();
-  const create = useServerFn(createInterviewSession);
   const [position, setPosition] = useState("");
   const [difficulty, setDifficulty] = useState<"初级" | "中级" | "高级">("中级");
   const [background, setBackground] = useState("");
@@ -32,7 +30,12 @@ function NewInterview() {
     }
     setLoading(true);
     try {
-      const { sessionId } = await create({ data: { position, difficulty, background, questionCount: count } });
+      const { sessionId } = await apiClient.createInterviewSession({
+        position,
+        difficulty,
+        background,
+        questionCount: count,
+      });
       toast.success("题目已生成");
       navigate({ to: "/session/$id", params: { id: sessionId } });
     } catch (err) {

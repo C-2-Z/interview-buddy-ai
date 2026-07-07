@@ -1,32 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus } from "lucide-react";
-import { listSessions } from "@/lib/interview.functions";
+import { apiClient } from "@/lib/api-client";
+import type { SessionItem } from "@/lib/api-client";
 
 export const Route = createFileRoute("/_authenticated/history")({
   component: History,
 });
 
-type Row = {
-  id: string;
-  position: string;
-  difficulty: string;
-  status: string;
-  overall_score: number | null;
-  created_at: string;
-};
-
 function History() {
-  const list = useServerFn(listSessions);
-  const [rows, setRows] = useState<Row[] | null>(null);
+  const [rows, setRows] = useState<SessionItem[] | null>(null);
 
   useEffect(() => {
-    list().then((r) => setRows(r as Row[])).catch(() => setRows([]));
-  }, [list]);
+    apiClient.listSessions().then(setRows).catch(() => setRows([]));
+  }, []);
 
   if (rows === null) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="animate-spin" /></div>;

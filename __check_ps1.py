@@ -1,12 +1,12 @@
-﻿<#
+<#
 .SYNOPSIS
   AI面试官助手 - 一键启动脚本 (前后端分离版)
 .DESCRIPTION
-  自动检测端口 -> 启动 API 服务 + 前端 -> 就绪后打开浏览器
+  自动检测端口 → 启动 API 服务 + 前端 → 就绪后打开浏览器
   项目: AI 面试模拟器 (TanStack Start + Hono API + Supabase + DeepSeek)
 
   使用方法:
-  方法1) 右键 -> "使用 PowerShell 运行"
+  方法1) 右键 → "使用 PowerShell 运行"
   方法2) 在终端执行: powershell -ExecutionPolicy Bypass -File .\AI面试官助手.ps1
 
   停止服务: 按 Ctrl+C 或 按 Enter 键
