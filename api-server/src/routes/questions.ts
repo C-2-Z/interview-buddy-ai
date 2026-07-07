@@ -21,12 +21,12 @@ questions.post("/:questionId/message", async (c) => {
 
   const { data: q, error } = await supabase
     .from("interview_questions")
-    .select("id, question, answer, session_id, interview_sessions(position, difficulty)")
+    .select("id, question, answer, session_id, interview_sessions(position, difficulty, background)")
     .eq("id", questionId)
     .single();
   if (error || !q) return c.json({ error: "题目未找到" }, 404);
 
-  const sess = (q as unknown as { interview_sessions: { position: string; difficulty: string } }).interview_sessions;
+  const sess = (q as unknown as { interview_sessions: { position: string; difficulty: string; background: string | null } }).interview_sessions;
 
   // Read existing conversation from answer field (stored as JSON array)
   let conversation: Array<{ role: string; content: string }> = [];
@@ -52,10 +52,14 @@ questions.post("/:questionId/message", async (c) => {
     .map((m) => `${m.role === "user" ? "候选人" : "面试官"}: ${m.content}`)
     .join("\n\n");
 
-  const systemPrompt = `你是一位资深面试官，正在与候选人进行面试对话。
+  const backgroundInfo = sess.background?.trim()
+      ? `\n岗位需求描述: ${sess.background}`
+      : "";
+
+    const systemPrompt = `你是一位资深面试官，正在与候选人进行面试对话。
 
 岗位: ${sess.position}
-难度: ${sess.difficulty}
+难度: ${sess.difficulty}${backgroundInfo}
 
 当前题目: ${q.question}
 
@@ -103,12 +107,12 @@ questions.post("/:questionId/evaluate", async (c) => {
 
   const { data: q, error } = await supabase
     .from("interview_questions")
-    .select("id, question, answer, session_id, interview_sessions(position, difficulty)")
+    .select("id, question, answer, session_id, interview_sessions(position, difficulty, background)")
     .eq("id", questionId)
     .single();
   if (error || !q) return c.json({ error: "题目未找到" }, 404);
 
-  const sess = (q as unknown as { interview_sessions: { position: string; difficulty: string } }).interview_sessions;
+  const sess = (q as unknown as { interview_sessions: { position: string; difficulty: string; background: string | null } }).interview_sessions;
 
   let messages: Array<{ role: string; content: string }> = [];
   if (q.answer) {
@@ -122,10 +126,14 @@ questions.post("/:questionId/evaluate", async (c) => {
   const userMessages = messages.filter((m) => m.role === "user").map((m) => m.content);
   const combinedAnswer = userMessages.join("\n\n");
 
-  const prompt = `作为面试官，请评估以下面试对话中候选人的表现：
+  const backgroundInfo = sess.background?.trim()
+      ? `\n岗位需求描述: ${sess.background}`
+      : "";
+
+    const prompt = `作为面试官，请参考岗位需求评估以下面试对话中候选人的表现：
 
 岗位: ${sess.position}
-难度: ${sess.difficulty}
+难度: ${sess.difficulty}${backgroundInfo}
 题目: ${q.question}
 
 完整的面试对话:

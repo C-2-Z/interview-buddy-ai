@@ -24,14 +24,15 @@ sessions.post("/", async (c) => {
 
   const body = schema.parse(await c.req.json());
 
-  const prompt = `你是一位资深的技术面试官。请为以下候选人生成 ${body.questionCount} 道面试题。
+  const prompt = `你是一位资深的技术面试官。请为以下岗位的招聘生成 ${body.questionCount} 道面试题。
 
 岗位: ${body.position}
 难度: ${body.difficulty}
-候选人背景: ${body.background || "未提供"}
+岗位需求描述: ${body.background || "未提供"}
 
 要求:
 - 题目要贴合岗位和难度
+- 紧扣岗位职责和技术要求，确保能筛选出符合该岗位要求的候选人
 - 涵盖技术、行为、场景等不同类型
 - 每道题独立、清晰、具体
 

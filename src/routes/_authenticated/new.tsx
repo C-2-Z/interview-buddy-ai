@@ -90,10 +90,10 @@ function NewInterview() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="bg">个人情况 <span className="text-muted-foreground text-xs">(选填)</span></Label>
+            <Label htmlFor="bg">岗位需求描述 <span className="text-muted-foreground text-xs">(选填)</span></Label>
             <Textarea
               id="bg"
-              placeholder="例如：3 年前端经验，熟悉 React/TypeScript，正在寻找中级前端岗位…"
+              placeholder="例如：该岗位要求 3 年以上前端经验、精通 React/TypeScript、有性能优化经验…"
               value={background}
               rows={5}
               maxLength={2000}
