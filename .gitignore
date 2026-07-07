@@ -1,4 +1,4 @@
-# Logs
+﻿# Logs
 logs
 *.log
 npm-debug.log*
@@ -33,3 +33,6 @@ dist-ssr
 
 # Environment variables
 .env
+
+# Backup environment variables
+.env.backup
