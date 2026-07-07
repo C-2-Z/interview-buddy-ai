@@ -8,7 +8,7 @@ import { bank } from "./routes/bank.js";
 const app = new Hono();
 
 app.use("*", cors({
-  origin: ['https://ezmock.site', 'http://localhost:3000'],
+  origin: ['https://ezmock.site', 'https://www.ezmock.site', 'http://localhost:3000'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowHeaders: ['Content-Type', 'Authorization'],
   credentials: false,
