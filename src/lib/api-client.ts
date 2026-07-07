@@ -15,6 +15,28 @@ interface CreateSessionParams {
   difficulty: "初级" | "中级" | "高级";
   background?: string;
   questionCount?: number;
+  targetCompany?: string;
+  questionTypeConfig?: Record<string, number>;
+}
+
+// ---- Question Bank Types ----
+
+export type BankQuestion = {
+  id: string;
+  position: string;
+  difficulty: string;
+  type: string;
+  question: string;
+  tags: string[];
+  created_at: string;
+  is_favorited: boolean;
+};
+
+interface BankFilters {
+  position?: string;
+  difficulty?: string;
+  type?: string;
+  search?: string;
 }
 
 // ---- API Client ----
@@ -104,6 +126,36 @@ class ApiClient {
   ): Promise<{ score: number; feedback: string }> {
     return this.request("POST", `/api/questions/${questionId}/evaluate`);
   }
+  async evaluateConversation(
+    questionId: string,
+  ): Promise<{ score: number; feedback: string }> {
+    return this.request("POST", `/api/questions/` + questionId + `/evaluate`);
+  }
+
+  // ---- Question Bank APIs ----
+
+  async listBankQuestions(filters?: BankFilters): Promise<BankQuestion[]> {
+    const params = new URLSearchParams();
+    if (filters?.position) params.set("position", filters.position);
+    if (filters?.difficulty) params.set("difficulty", filters.difficulty);
+    if (filters?.type) params.set("type", filters.type);
+    if (filters?.search) params.set("search", filters.search);
+    const qs = params.toString();
+    return this.request("GET", `/api/bank` + (qs ? `?` + qs : ""));
+  }
+
+  async getBankQuestion(id: string): Promise<BankQuestion> {
+    return this.request("GET", `/api/bank/` + id);
+  }
+
+  async toggleFavorite(questionId: string): Promise<{ is_favorited: boolean }> {
+    return this.request("POST", `/api/bank/` + questionId + `/favorite`);
+  }
+
+  async listFavoriteQuestions(): Promise<BankQuestion[]> {
+    return this.request("GET", "/api/bank/favorites");
+  }
 }
 
 export const apiClient = new ApiClient();
+
