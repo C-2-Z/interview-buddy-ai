@@ -7,7 +7,12 @@ import { bank } from "./routes/bank.js";
 
 const app = new Hono();
 
-app.use("*", cors());
+app.use("*", cors({
+  origin: ['https://ezmock.site', 'http://localhost:3000'],
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+  credentials: false,
+}));
 app.use("*", logger());
 
 app.route("/api/sessions", sessions);
