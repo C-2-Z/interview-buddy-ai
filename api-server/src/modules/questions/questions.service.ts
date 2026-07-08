@@ -27,7 +27,7 @@ function buildContext(question: Awaited<ReturnType<typeof getQuestionWithSession
   return {
     position: session.position,
     difficulty: session.difficulty,
-    jobDescription: session.background,
+    jobDescription: session.job_description,
     question: question.question,
   };
 }

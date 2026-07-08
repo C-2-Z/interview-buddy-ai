@@ -8,7 +8,7 @@ export type ConversationMessage = {
 export type QuestionSessionContext = {
   position: string;
   difficulty: string;
-  background: string | null;
+  job_description: string | null;
   model_provider: string | null;
   model_name: string | null;
   user_api_key: string | null;
@@ -29,7 +29,7 @@ export async function getQuestionWithSession(
   const { data, error } = await supabase
     .from("interview_questions")
     .select(
-      "id, question, answer, session_id, interview_sessions(position, difficulty, background, model_provider, model_name, user_api_key)",
+      "id, question, answer, session_id, interview_sessions(position, difficulty, job_description, model_provider, model_name, user_api_key)",
     )
     .eq("id", questionId)
     .single();
