@@ -68,7 +68,7 @@ import { apiClient } from "@/lib/api-client";
 const { sessionId } = await apiClient.createInterviewSession({
   position: "前端工程师",
   difficulty: "中级",
-  background: "3 年经验",
+  jobDescription: "岗位要求 3 年经验，熟悉 React/TypeScript",
   questionCount: 5,
 });
 

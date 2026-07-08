@@ -13,7 +13,7 @@ export type QuestionItem = QuestionRow;
 interface CreateSessionParams {
   position: string;
   difficulty: "初级" | "中级" | "高级";
-  background?: string;
+  jobDescription?: string;
   questionCount?: number;
   targetCompany?: string;
   questionTypeConfig?: Record<string, number>;

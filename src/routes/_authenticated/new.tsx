@@ -18,7 +18,7 @@ function NewInterview() {
   const navigate = useNavigate();
   const [position, setPosition] = useState("");
   const [difficulty, setDifficulty] = useState<"初级" | "中级" | "高级">("中级");
-  const [background, setBackground] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
   const [targetCompany, setTargetCompany] = useState("");
   const [typeProfile, setTypeProfile] = useState("default");
   const [count, setCount] = useState(5);
@@ -45,7 +45,7 @@ function NewInterview() {
       const { sessionId } = await apiClient.createInterviewSession({
         position,
         difficulty,
-        background,
+        jobDescription,
         targetCompany,
         questionTypeConfig: typeProfile === "default" ? undefined : getTypeConfig(typeProfile),
         questionCount: count,
@@ -128,14 +128,14 @@ function NewInterview() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="bg">个人情况 <span className="text-muted-foreground text-xs">(选填)</span></Label>
+            <Label htmlFor="job-description">岗位需求描述 <span className="text-muted-foreground text-xs">(选填)</span></Label>
             <Textarea
-              id="bg"
-              placeholder="例如：3 年前端经验，熟悉 React/TypeScript，正在寻找中级前端岗位…"
-              value={background}
+              id="job-description"
+              placeholder="例如：岗位要求 3 年以上前端经验，熟悉 React/TypeScript，有性能优化和复杂业务场景经验…"
+              value={jobDescription}
               rows={5}
               maxLength={2000}
-              onChange={(e) => setBackground(e.target.value)}
+              onChange={(e) => setJobDescription(e.target.value)}
             />
           </div>
 
