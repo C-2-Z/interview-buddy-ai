@@ -7,7 +7,7 @@ export type CreateSessionRow = {
   skill_id: string | null;
   position: string;
   difficulty: string;
-  background: string | null;
+  job_description: string | null;
   model_provider: ProviderName;
   model_name: string | null;
   user_api_key: string | null;
@@ -30,7 +30,7 @@ export async function createSession(
 ): Promise<{ id: string }> {
   const { data, error } = await supabase
     .from("interview_sessions")
-    .insert(row as any)
+    .insert(row)
     .select("id")
     .single();
   if (error) throw new Error(error.message);
