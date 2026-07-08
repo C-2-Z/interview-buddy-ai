@@ -271,3 +271,13 @@ fix: 修复登录后 token 未刷新的问题
 - 建议每完成 TODO.md 中的一个 checkbox 或子任务就提交一次
 - 所有提交在推送到远程前确保 `npm run build` 通过
 - API 服务与前端在同一个仓库，跨模块的改动如果关联紧密可以合入一个提交
+
+## 当前重构后的协作边界
+
+- 前端业务功能优先放在 `src/features/<feature>/`，路由文件只保留 `createFileRoute` 和页面壳组件。
+- 前端共享请求逻辑放在 `src/shared/api/`；`src/lib/api-client.ts` 仅作为兼容门面，不再承载新业务逻辑。
+- 后端真实业务入口放在 `api-server/src/modules/<module>/`，旧 `api-server/src/routes/*.ts` 只做兼容导出。
+- 后端模块按 `*.routes.ts`、`*.schemas.ts`、`*.service.ts`、`*.repository.ts` 拆分；多人协作时优先改对应模块文件，避免集中修改路由。
+- AI 模型选择、用户设置读取和 API Key 解密统一在 `api-server/src/modules/model-providers/`。
+- 数据库字段固定使用 `job_description`，前端/API 字段固定使用 `jobDescription`，UI 文案固定使用“岗位需求描述”。
+- API 服务只从仓库根目录 `.env` 加载环境变量，不在 `api-server/` 下新增业务 `.env`。

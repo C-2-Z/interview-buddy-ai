@@ -23,7 +23,9 @@ export type Database = {
           order_index: number
           question: string
           score: number | null
-          session_id: string
+          skill_id: string | null
+          topic_summary: string | null
+        session_id: string
         }
         Insert: {
           answer?: string | null
@@ -33,7 +35,9 @@ export type Database = {
           order_index: number
           question: string
           score?: number | null
-          session_id: string
+          skill_id?: string | null
+          topic_summary?: string | null
+        session_id: string
         }
         Update: {
           answer?: string | null
@@ -43,7 +47,9 @@ export type Database = {
           order_index?: number
           question?: string
           score?: number | null
-          session_id?: string
+          skill_id?: string | null
+          topic_summary?: string | null
+        session_id?: string
         }
         Relationships: [
           {
@@ -55,48 +61,92 @@ export type Database = {
           },
         ]
       }
+      interview_messages: {
+        Row: {
+          id: string
+          question_id: string
+          role: string
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          question_id: string
+          role: string
+          content: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          question_id?: string
+          role?: string
+          content?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_messages_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "interview_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_sessions: {
         Row: {
           created_at: string
           difficulty: string
           id: string
           job_description: string | null
+          model_name: string | null
+          model_provider: string | null
           overall_feedback: string | null
           overall_score: number | null
           position: string
+          question_type_config: Json | null
+          resume_text: string | null
+          skill_id: string | null
           status: string
           target_company: string | null
-          question_type_config: string | null
-          resume_text: string | null
-          user_id: string
+          user_api_key: string | null
+        user_id: string
         }
         Insert: {
           created_at?: string
           difficulty: string
           id?: string
           job_description?: string | null
+          model_name?: string | null
+          model_provider?: string | null
           overall_feedback?: string | null
           overall_score?: number | null
           position: string
+          question_type_config?: Json | null
+          resume_text?: string | null
+          skill_id?: string | null
           status?: string
           target_company?: string | null
-          question_type_config?: string | null
-          resume_text?: string | null
-          user_id: string
+          user_api_key?: string | null
+        user_id: string
         }
         Update: {
           created_at?: string
           difficulty?: string
           id?: string
           job_description?: string | null
+          model_name?: string | null
+          model_provider?: string | null
           overall_feedback?: string | null
           overall_score?: number | null
           position?: string
+          question_type_config?: Json | null
+          resume_text?: string | null
+          skill_id?: string | null
           status?: string
           target_company?: string | null
-          question_type_config?: string | null
-          resume_text?: string | null
-          user_id?: string
+          user_api_key?: string | null
+        user_id?: string
         }
         Relationships: []
       }
@@ -176,6 +226,42 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      user_settings: {
+        Row: {
+          anthropic_api_key: string | null
+          created_at: string
+          deepseek_api_key: string | null
+          id: string
+          model_name: string | null
+          model_provider: string | null
+          openai_api_key: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          anthropic_api_key?: string | null
+          created_at?: string
+          deepseek_api_key?: string | null
+          id?: string
+          model_name?: string | null
+          model_provider?: string | null
+          openai_api_key?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          anthropic_api_key?: string | null
+          created_at?: string
+          deepseek_api_key?: string | null
+          id?: string
+          model_name?: string | null
+          model_provider?: string | null
+          openai_api_key?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
@@ -315,4 +401,5 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
 
