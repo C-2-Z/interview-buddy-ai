@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { requireAuth } from "../middleware/auth.js";
 import { callAI, parseJsonFromAI, type ModelProvider, type ProviderName } from "../lib/ai-gateway.js";
+import { decrypt } from "../lib/encryption.js";
 import { buildQuestionGenerationPrompt, QUESTION_GEN_SYSTEM_PROMPT, FINISH_SYSTEM_PROMPT } from "../lib/prompts.js";
 
 const sessions = new Hono<{
@@ -30,10 +31,28 @@ sessions.post("/", async (c) => {
 
   const body = schema.parse(await c.req.json());
 
+  // Resolve model provider & API key from body or user settings
+  let effectiveProvider = body.modelProvider;
+  let userApiKey = body.userApiKey || "";
+  if (!effectiveProvider || !userApiKey) {
+    const { data: s } = await supabase
+      .from("user_settings" as any)
+      .select("model_provider, openai_api_key, anthropic_api_key, deepseek_api_key")
+      .single() as any;
+    if (!effectiveProvider && s?.model_provider) {
+      effectiveProvider = s.model_provider as "deepseek" | "openai" | "anthropic";
+    }
+    if (!userApiKey && s && effectiveProvider) {
+      const col = effectiveProvider + "_api_key";
+      const enc = s[col];
+      if (enc) { try { userApiKey = decrypt(enc); } catch {} }
+    }
+  }
+
   const modelProvider: ModelProvider = {
-    name: body.modelProvider as ProviderName,
+    name: (effectiveProvider || "deepseek") as ProviderName,
     model: body.modelName ?? "",
-    apiKey: body.userApiKey || undefined,
+    apiKey: userApiKey || undefined,
   };
 
   const prompt = buildQuestionGenerationPrompt({
