@@ -44,7 +44,7 @@ function baseSessionRow(params: {
     skill_id: params.skillId,
     position: params.position,
     difficulty: params.input.difficulty,
-    background: params.input.jobDescription || null,
+    job_description: params.input.jobDescription || null,
     model_provider: params.providerName,
     model_name: params.modelName || null,
     user_api_key: params.input.userApiKey || null,
