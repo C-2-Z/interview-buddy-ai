@@ -1,145 +1,272 @@
-# AI 面试模拟器
+# AI 面试模拟器 — AGENTS.md
 
 ## 项目概述
 
 AI 驱动的面试练习平台。用户选择岗位和难度，AI 出题、进行多轮对话面试、逐题评分并生成综合报告。
+支持多模型切换（DeepSeek / OpenAI / Anthropic）、Skill 驱动出题、公共题库刷题、用户 API Key 加密存储。
 
 ## 技术栈
 
-- **前端框架**: TanStack React Start (SSR, React 19)
+### 前端
+- **框架**: TanStack React Start (SSR, React 19)
 - **路由**: TanStack Router (文件路由，自动生成 routeTree.gen.ts)
 - **数据获取**: TanStack React Query 5
 - **样式**: Tailwind CSS 4 + shadcn/ui (Radix UI 原语)
 - **构建**: Vite + Rolldown
+
+### 后端
+- **API 框架**: Hono
+- **运行时**: Node.js (tsx/watch)
+- **AI Provider**: DeepSeek Chat / OpenAI / Anthropic（多模型可切换）
+- **AI 技能**: 按岗位预定义的 Skill JSON 配置出题风格与知识点
+
+### 数据库 & 认证
 - **数据库**: Supabase (PostgreSQL)
 - **认证**: Supabase Auth (邮箱/密码)
-- **AI**: DeepSeek Chat (OpenAI 兼容 API)
-- **API 服务**: Hono (独立后端服务)
-- **部署**: Vercel (前端 SSR) + 独立 API 服务
+- **存储**: 用户设置中的 API Key 通过 AES-256-GCM 加密存储
+
+### 部署
+- **Web 前端**: Vercel (Nitro SSR)
+- **API 服务**: Railway / Render / Fly.io 等 Node.js 平台
+- **App 容器**: Capacitor (Android/iOS) / Tauri (Windows)
+
+## 核心架构：功能即模块
+
+每个新功能必须是一个**独立的模块**，禁止将多功能的逻辑混入同一个文件。
+
+```
+后端新增功能 → 在 api-server/src/modules/<feature>/ 下新建完整模块
+   ├── <feature>.routes.ts      # 路由注册
+   ├── <feature>.service.ts     # 业务流程
+   ├── <feature>.repository.ts  # 数据库访问
+   ├── <feature>.schemas.ts     # 输入校验 (Zod)
+   └── <feature>.types.ts       # (可选) 类型定义
+
+前端新增功能 → 在 src/features/<feature>/ 下新建完整特性目录
+   ├── api.ts                   # API 调用函数
+   ├── types.ts                 # TypeScript 类型
+   ├── constants.ts             # (可选) 常量
+   ├── hooks/                   # React Hooks
+   │   └── use-<feature>.ts
+   └── components/              # UI 组件
+       └── <feature>-*.tsx
+   └── ...其他模块按需
+```
+
+### 具体约束
+
+1. **后端模块必须拆分** — 每个模块下至少 `*.routes.ts` + `*.service.ts` + `*.repository.ts` + `*.schemas.ts`，四层分离。
+2. **前端 feature 目录必须独立** — 不允许在已有的 feature 目录里塞另一个功能域的代码。
+3. **路由文件保持薄入口** — `src/routes/*.tsx` 只做 `createFileRoute` + 页面壳组件，业务组件全部 import 自 `features/`。
+4. **兼容导出** — 旧 `api-server/src/routes/*.ts` 只做 `export { ... } from "../modules/.../..."`，不写新逻辑。
+5. **新增路由必须注册到 app.ts** — 在 `api-server/src/app.ts` 中挂载新模块路由。
+6. **新增前端页面必须注册到 routeTree** — 在 `src/routes/` 下新增文件，运行 `npm run dev` 自动生成 routeTree.gen.ts。
 
 ## 项目结构
 
 ```
 interview-buddy-ai/
-├── src/                    # 前端 (TanStack React Start SSR)
-│   ├── lib/
-│   │   ├── api-client.ts   # API 客户端，调用远程 API 服务
-│   │   └── ...
-│   ├── routes/             # 页面路由组件
-│   └── ...
-├── api-server/             # 独立后端 API 服务 (Hono)
-│   ├── src/
-│   │   ├── index.ts        # Hono 入口
-│   │   ├── serve.ts        # Node.js 服务器启动
-│   │   ├── routes/
-│   │   │   ├── sessions.ts # 面试会话 CRUD
-│   │   │   └── questions.ts# 对话消息与评分
-│   │   ├── middleware/
-│   │   │   └── auth.ts     # JWT 认证中间件
-│   │   └── lib/
-│   │       ├── ai-gateway.ts  # DeepSeek API 封装
-│   │       └── supabase.ts    # Supabase 客户端工厂
-│   └── ...
-└── ...
+├── src/                              # 前端 (TanStack React Start SSR)
+│   ├── app/                          # App 级入口封装
+│   │   ├── router.tsx                # TanStack Router 配置
+│   │   └── start.ts                  # TanStack Start 实例化
+│   ├── features/                     # 前端功能模块（核心业务逻辑在这里）
+│   │   ├── interview-create/         #   创建面试
+│   │   ├── interview-session/        #   面试会话
+│   │   ├── question-bank/            #   题库
+│   │   └── settings/                 #   用户设置
+│   ├── shared/                       # 前端共享基础设施
+│   │   └── api/
+│   │       ├── http-client.ts        #   通用 HTTP 客户端
+│   │       └── auth-token.ts         #   token 获取
+│   ├── components/ui/                # shadcn/ui 组件（54 个）
+│   ├── hooks/                        # 全局自定义 hooks
+│   ├── integrations/supabase/        # Supabase 客户端与中间件
+│   ├── lib/                          # 兼容门面 + 工具库
+│   │   ├── api-client.ts             # 旧 API 客户端兼容门面（新代码勿用）
+│   │   ├── ai-gateway.server.ts      # 保留给 SSR 使用
+│   │   ├── error-capture.ts          # 服务端错误捕获
+│   │   └── error-page.ts             # 友好错误页面 HTML
+│   ├── routes/                       # TanStack Router 文件路由（薄入口）
+│   │   ├── __root.tsx                #    根布局
+│   │   ├── index.tsx                 #    着陆页
+│   │   ├── auth.tsx                  #    登录/注册
+│   │   └── _authenticated/           #    需认证路由
+│   │       ├── route.tsx             #      认证后布局
+│   │       ├── dashboard.tsx         #      仪表盘
+│   │       ├── new.tsx               #      创建新面试
+│   │       ├── history.tsx           #      历史记录
+│   │       ├── session.$id.tsx       #      面试会话
+│   │       ├── bank/                 #      题库
+│   │       │   ├── index.tsx
+│   │       │   └── $id.tsx
+│   │       └── settings.tsx          #      用户设置
+│   ├── router.tsx                    # (deprecated) 旧路由配置
+│   ├── server.ts                     # SSR 服务端入口
+│   ├── start.ts                      # (deprecated) 旧 start 封装
+│   ├── styles.css                    # Tailwind 全局样式
+│   └── routeTree.gen.ts              # 自动生成
+│
+├── api-server/                       # 独立后端 API 服务 (Hono)
+│   └── src/
+│       ├── index.ts                  #    启动入口
+│       ├── serve.ts                  #    Node.js 服务器
+│       ├── app.ts                    #    Hono app 装配（路由挂载）
+│       ├── preload.ts                #    环境变量预加载
+│       ├── config/                   #    配置
+│       │   ├── cors.ts               #      CORS
+│       │   └── env.ts                #      环境变量读取
+│       ├── middleware/               #    全局中间件
+│       │   └── auth.ts               #      旧版 auth 中间件（兼容）
+│       ├── routes/                   #    **兼容导出层，不写新逻辑**
+│       │   ├── sessions.ts           #      → modules/sessions/sessions.routes
+│       │   └── questions.ts          #      → modules/questions/questions.routes
+│       ├── modules/                  #    **业务模块目录（新代码写在这里）**
+│       │   ├── sessions/             #      面试会话
+│       │   ├── questions/            #      对话消息与评分
+│       │   ├── skills/               #      Skill 配置加载与分配
+│       │   ├── bank/                 #      公共题库
+│       │   ├── settings/             #      用户设置（加密 API Key）
+│       │   └── model-providers/      #      AI 模型供应商抽象层
+│       ├── shared/                   #    共享基础设施
+│       │   ├── ai/                   #      AI 客户端抽象
+│       │   │   ├── ai-client.ts     #        AI 调用统一入口
+│       │   │   ├── json-parser.ts   #        JSON 提取
+│       │   │   └── providers.ts     #        多供应商实现
+│       │   ├── auth/                 #      认证
+│       │   │   └── require-auth.ts   #        Hono auth 中间件
+│       │   └── db/                   #      数据库
+│       │       └── supabase.ts       #        Supabase 客户端工厂
+│       └── lib/                      #    工具库
+│           ├── ai-gateway.ts         #      旧 AI 网关（兼容）
+│           ├── encryption.ts         #      加密工具
+│           ├── prompts.ts            #      Prompt 模板
+│           ├── skills/               #      Skill 定义
+│           └── supabase-types.ts     #      数据库类型
+│
+├── supabase/migrations/              # 数据库迁移脚本
+├── scripts/                          # 工具脚本
+├── .env                              # 根目录环境变量
+├── vite.config.ts                    # Vite 配置
+├── vercel.json                       # Vercel 部署配置
+└── AI面试官助手.ps1                   # 一键启动脚本
 ```
 
 ## 前后端架构
 
-前端通过 `src/lib/api-client.ts` 调用后端 API，完全替代了原有的 `createServerFn`。
-
 ```
-[浏览器] ──→ Vite 代理 (开发) / 直接 API 地址 (生产) ──→ API 服务 (Hono) ──→ Supabase + DeepSeek
+[浏览器]
+  ├─ src/features/*/api.ts ──→ shared/api/http-client.ts
+  │                               │
+  │                      Authorization: Bearer <token>
+  │                               │
+  │                         Vite 代理 (开发)
+  │                      / 直接 API (生产)
+  ▼                               ▼
+Hono API 服务 (api-server/)
+  ├─ modules/*/*.routes.ts ──→ modules/*/*.service.ts ──→ modules/*/*.repository.ts
+  │                                                                 │
+  └─ shared/ai/ai-client.ts ──→ DeepSeek / OpenAI / Anthropic       │
+                                    │                          Supabase
+                               API Key (用户自定义或默认密钥)     (RLS)
 ```
 
 - **开发环境**: Vite 开发服务器自动代理 `/api/*` 到 `localhost:3001`
 - **生产环境**: 通过 `VITE_API_URL` 环境变量指定 API 服务地址
-- **认证**: API 客户端自动从 Supabase session 获取 access_token，附加到请求头
-
-## 关键架构模式
-
-### 1. API 客户端 (`src/lib/api-client.ts`)
-
-所有后端业务逻辑通过 `apiClient` 对象调用：
-
-```ts
-import { apiClient } from "@/lib/api-client";
-
-// 创建面试会话
-const { sessionId } = await apiClient.createInterviewSession({
-  position: "前端工程师",
-  difficulty: "中级",
-  jobDescription: "岗位要求 3 年经验，熟悉 React/TypeScript",
-  questionCount: 5,
-});
-
-// 发送对话消息
-const { response } = await apiClient.sendMessage(questionId, "我的回答是...");
-
-// 获取面试会话
-const { session, questions } = await apiClient.getSession(sessionId);
-
-// 评价对话
-const { score, feedback } = await apiClient.evaluateConversation(questionId);
-
-// 完成面试
-const { overallScore, overallFeedback } = await apiClient.finishSession(sessionId);
-```
-
-### 2. API 服务 (`api-server/`)
-
-Hono 框架提供的 REST API：
-
-| 方法 | 路径                        | 说明                    |
-| ---- | --------------------------- | ----------------------- |
-| POST | /api/sessions               | 创建面试会话 + 生成题目 |
-| GET  | /api/sessions               | 列出所有面试            |
-| GET  | /api/sessions/:id           | 获取面试详情 + 题目列表 |
-| POST | /api/sessions/:id/finish    | 完成面试并生成总结      |
-| POST | /api/questions/:id/message  | 发送对话消息            |
-| POST | /api/questions/:id/evaluate | 评价对话并评分          |
-
-### 3. 认证体系
-
-两层认证机制：
-
-1. **客户端**: `auth-attacher.ts` 作为全局 `functionMiddleware`，自动从 Supabase session 提取 access_token
-2. **API 服务端**: `auth.ts` Hono 中间件校验 Bearer token，解析 claims，创建带认证的 Supabase 客户端注入 context
-
-### 4. 数据库访问
-
-三种 Supabase 客户端：
-
-- `client.ts` — 浏览器端，通过 localStorage 持久化 session
-- `client.server.ts` — 服务端 Service Role 客户端（绕过 RLS），仅用于管理操作
-- API 服务内建 — 通过 Bearer token 鉴权，RLS 隔离
-
-所有表均启用 RLS，通过用户 ID 进行数据隔离。
-
-### 5. AI 集成
-
-`api-server/src/lib/ai-gateway.ts` 封装 DeepSeek Chat API：
-
-- `callAI(messages, model?)` — 发送消息，返回文本
-- `parseJsonFromAI<T>(text)` — 从 AI 的 markdown 响应中提取 JSON
-
-### 6. 面试流程
-
-```
-前端 (new.tsx) → API POST /api/sessions → AI 出题 → 存入 DB → 重定向到 /session/:id
-  → 多轮对话 (POST /api/questions/:id/message) → 评价 (POST /api/questions/:id/evaluate)
-  → 完成 (POST /api/sessions/:id/finish) → AI 综合总结
-```
+- **认证**: 客户端自动从 Supabase session 获取 access_token，附加到请求头
+- **AI 供应商**: 用户可在设置页选择模型供应商并配置自有 API Key（加密存储）
 
 ## 路由表
 
-| 路径                                                   | 文件                                | 认证       | 说明        |
-| ------------------------------------------------------ | ----------------------------------- | ---------- | ----------- |
-| /                                                      | routes/index.tsx                    | 否         | 着陆页      |
-| /auth                                                  | routes/auth.tsx                     | 否         | 登录 / 注册 |
-| /dashboard                                             | routes/_authenticated/dashboard.tsx | 是         | 仪表盘      |
-| /new                                                   | routes/_authenticated/new.tsx       | 是         | 创建新面试  |
-| /history                                               | routes/_authenticated/history.tsx   | 是         | 历史记录    |
-| /session/$id | routes/_authenticated/session.$id.tsx | 是                                  | 面试会话页 |             |
+| 路径                          | 前端文件                                            | 后端模块              | 认证 | 说明                     |
+| ----------------------------- | --------------------------------------------------- | --------------------- | ---- | ------------------------ |
+| /                             | routes/index.tsx                                    | —                     | 否   | 着陆页                   |
+| /auth                         | routes/auth.tsx                                     | —                     | 否   | 登录 / 注册              |
+| /dashboard                    | routes/\_authenticated/dashboard.tsx                | —                     | 是   | 仪表盘                   |
+| /new                          | routes/\_authenticated/new.tsx                      | modules/sessions/     | 是   | 创建新面试               |
+| /history                      | routes/\_authenticated/history.tsx                  | modules/sessions/     | 是   | 历史记录                 |
+| /session/$id          | routes/\_authenticated/session.\$id.tsx             | modules/questions/    | 是   | 面试会话                 |
+| /bank                         | routes/\_authenticated/bank/index.tsx               | modules/bank/         | 是   | 题库列表                 |
+| /bank/$id             | routes/\_authenticated/bank/\$id.tsx                | modules/bank/         | 是   | 题库题目详情             |
+| /settings                     | routes/\_authenticated/settings.tsx                 | modules/settings/ +<br>modules/model-providers/ | 是   | 用户设置（模型/API Key） |
+
+## API 端点
+
+| 方法 | 路径 | 说明 | 认证 |
+|------|------|------|------|
+| POST | /api/sessions | 创建面试 + AI 出题 | Bearer Token |
+| GET | /api/sessions | 列出所有面试 | Bearer Token |
+| GET | /api/sessions/:id | 获取面试详情 + 题目 | Bearer Token |
+| POST | /api/sessions/:id/finish | 完成面试并生成总结 | Bearer Token |
+| POST | /api/questions/:id/message | 发送对话消息 | Bearer Token |
+| POST | /api/questions/:id/evaluate | 评价对话并评分 | Bearer Token |
+| GET | /api/bank | 题库列表 | Bearer Token |
+| GET | /api/settings | 获取用户设置（含 AI 供应商） | Bearer Token |
+| PATCH | /api/settings | 更新用户设置（加密 API Key） | Bearer Token |
+| GET | /api/skills | Skill 列表 | Bearer Token |
+| GET | /api/health | 健康检查 | 无 |
+
+## 关键架构模式
+
+### 1. 后端模块四层结构
+
+每个模块由四个文件组成，职责严格分离：
+
+| 层 | 文件 | 职责 |
+|----|------|------|
+| 路由 | `<name>.routes.ts` | 认证校验、请求体解析（Zod）、调用 service、返回 JSON |
+| 业务 | `<name>.service.ts` | 业务流程编排、AI 调用、组合 repository 查询 |
+| 数据 | `<name>.repository.ts` | 数据库查询（通过 Supabase client） |
+| 校验 | `<name>.schemas.ts` | Zod schema 定义，校验请求体 |
+
+### 2. 前端 feature 目录结构
+
+每个前端功能模块包含：
+
+| 文件 | 职责 |
+|------|------|
+| `api.ts` | API 调用函数（通过 `shared/api/http-client.ts`） |
+| `types.ts` | 功能域专属类型定义 |
+| `hooks/` | React Hooks（状态管理 + API 调用封装） |
+| `components/` | UI 组件 |
+
+### 3. AI 多模型架构
+
+AI 调用走统一入口，供应商逻辑在 `shared/ai/` 中隔离：
+
+```
+modules/*/service.ts
+  └─→ callAI(messages, userSettings?)
+        └─→ shared/ai/providers.ts  (按用户选择路由)
+              ├─→ providerDeepSeek()
+              ├─→ providerOpenAI()
+              └─→ providerAnthropic()
+```
+
+用户设置的 API Key 通过 `modules/settings/` 读取，经过 `modules/settings/encryption.service.ts` 解密后传入 provider。
+
+### 4. Skill 驱动出题
+
+`modules/skills/` 管理岗位技能定义：
+- `skill.json` — 技能元数据（名称、知识点列表、技术标签）
+- `persona.md` — AI 面试官角色设定 Prompt
+- `lib/skills/_shared/references/` — 各知识点参考资料
+
+出题时 `modules/sessions/question-generation.service.ts` 读取对应 Skill 配置，生成贴合岗位的题目。已回答过的题目在 `sessions.repository.ts` 中去重。
+
+### 5. 认证体系
+
+两层认证机制：
+1. **客户端**: `auth-attacher.ts` 自动从 Supabase session 提取 access_token 附加到请求头
+2. **API 服务**: `shared/auth/require-auth.ts` 校验 Bearer token，解析 claims，创建认证 Supabase 客户端
+
+### 6. 数据命名约定
+
+| 位置 | 命名 |
+|------|------|
+| 数据库字段 | `job_description` |
+| 前端/API 请求体 | `jobDescription` |
+| UI 文案 | "岗位需求描述" |
 
 ## 本地开发
 
@@ -148,136 +275,69 @@ Hono 框架提供的 REST API：
 npm install
 cd api-server && npm install && cd ..
 
-# 启动开发 (两个终端)
-npm run dev          # 前端开发服务器 (localhost:3000)
+# 启动开发（两个终端）
+npm run dev          # 前端 (localhost:3000)
 npm run api:dev      # API 服务 (localhost:3001)
 
-# 或同时启动
-npm run dev:all      # 需要先安装 concurrently: npm install -g concurrently
+# 或一键启动
+.\AI面试官助手.ps1
 
-# 构建
-npm run build        # 构建前端
-
-# 验证 API 服务
-curl http://localhost:3001/api/health
+# 构建验证
+npm run build
+cd api-server && npm run build
 ```
-
-## 部署
-
-### 前端 (Vercel)
-
-- 保持现有 Vercel 配置 (`vercel.json`)
-- 设置 `VITE_API_URL` 环境变量指向生产 API 地址
-
-### API 服务
-
-- 可部署到 Railway、Render、Fly.io 等 Node.js 平台
-- 环境变量: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `DEEPSEEK_API_KEY`, `PORT`
-- 启动命令: `cd api-server && npm run start`
-
-### App 打包 (后续)
-
-- Android/iOS: Capacitor (构建 SPA 后 `npx cap copy`)
-- Windows: Tauri (构建 SPA 后 `npx tauri build`)
 
 ## 开发约定
 
+### 新增功能规范（必须遵守）
+
+```
+1. 后端新增功能 → api-server/src/modules/<feature>/ 新建完整模块
+   每个模块至少包含: *.routes.ts + *.service.ts + *.repository.ts + *.schemas.ts
+
+2. 前端新增功能 → src/features/<feature>/ 新建完整目录
+   每个 feature 至少包含: api.ts + types.ts + hooks/ + components/
+
+3. 在 api-server/src/app.ts 中注册新路由
+
+4. 在 src/routes/ 下新增路由文件（薄入口，业务逻辑 import 自 features/）
+
+5. 严禁将新功能的代码塞进已有的模块/feature 目录
+```
+
+### 通用约定
+
 - 新增路由文件后运行 `npm run dev` 自动生成 `routeTree.gen.ts`
-- 服务端专用模块命名 `*.server.ts`；客户端模块不用后缀
-- API 路由逻辑写在 `api-server/src/routes/` 下
+- 路由文件只保留 `createFileRoute` 和页面壳组件，业务组件放 `features/`
 - 使用 `@/` 别名引用 `src/` 下的模块
 - 环境变量前缀 `VITE_` 暴露给客户端，纯服务端变量不用前缀
-- API 服务通过 `.env` 文件加载环境变量
+- API 服务通过 `preload.ts` 从仓库根目录 `.env` 加载
+
 ## Git 提交规范
 
-本项目采用 **Conventional Commits + 中文描述** 的提交格式，要求统一、清晰、可读。
-
-### 基本格式
+本项目采用 **Conventional Commits + 中文描述** 的提交格式：
 
 ```
-<type>: <中文描述>
-```
+<type>(<scope>): <中文描述>
 
-说明文字在第一行之后空一行写，按需添加。
+说明文字（按需，解释"为什么"而非"做了什么"）
+```
 
 ### 类型 (type)
 
-| 类型       | 场景                                                   | 示例                                       |
-| ---------- | ------------------------------------------------------ | ------------------------------------------ |
-| `feat`     | 新功能、新页面、新 API 端点                             | `feat: 新增限时模式倒计时功能`             |
-| `fix`      | Bug 修复                                               | `fix: 修复评分计算精度溢出问题`            |
-| `refactor` | 代码重构（不修 Bug 也不加功能）                         | `refactor: 抽离 AI 评分逻辑为独立服务`     |
-| `docs`     | 文档变更（README、AGENTS、TODO 等）                     | `docs: 更新部署流程与环境变量说明`         |
-| `style`    | 样式 / UI 调整，不改变逻辑                              | `style: 调整面试详情页卡片间距`            |
-| `perf`     | 性能优化                                               | `perf: 会话列表接口增加分页参数`           |
-| `test`     | 增删测试                                               | `test: 增加 ai-gateway 单元测试`           |
-| `chore`    | 构建、依赖、CI 等杂项                                   | `chore: 升级 hono 到 4.7.6`               |
-| `db`       | 数据库迁移（新增/修改表结构或 RLS 策略）                | `db: 新增 interview_messages 表`           |
-| `config`   | 配置文件变更（vite、vercel、tsconfig 等）               | `config: 新增 Dockerfile 部署配置`         |
-| `i18n`     | 国际化 / 多语言相关内容                                 | `i18n: 添加面试页面英文翻译`              |
+| 类型 | 场景 | 示例 |
+|------|------|------|
+| `feat` | 新功能 | `feat: 新增限时模式倒计时功能` |
+| `fix` | Bug 修复 | `fix: 修复评分计算精度溢出问题` |
+| `refactor` | 代码重构 | `refactor(api-server): 抽离 AI 评分逻辑为独立服务` |
+| `docs` | 文档变更 | `docs: 更新部署流程与环境变量说明` |
+| `db` | 数据库迁移 | `db: 新增 interview_messages 表` |
+| `config` | 配置文件变更 | `config: 新增 Dockerfile 部署配置` |
 
 ### 原则
 
-- **第一行不超过 72 字**，用中文描述做了什么，结尾不加句号
-- **动词用过去时**：`修复` / `新增` / `重构`，不用 `修复了` / `修复中`
-- **说明文字只在需要时写**：解释"为什么"而不是"做了什么"，例如：
-
-```
-feat: 增加 AI 追问次数限制
-
-防止单题对话无限循环，每道题最多追问 5 轮后自动引导用户评分。
-```
-
-- **关联 TODO 编号**：如果提交对应 TODO.md 中的条目，在说明文字中标注，例如：
-
-```
-feat: 新增编程题在线编辑器
-
-Phase 2 / A3 — 内置 Monaco 编辑器 + AI 代码评审入口。
-```
-
-- **范围限定（可选）**：对跨模块的大改动，在 type 后加 `(scope)` 缩小关注面：
-
-```
-refactor(api-server): 抽离 Supabase 客户端工厂
-feat(frontend): 新增 /settings 页面
-```
-
-- **不加 `-m` 长文本**：需要说明文字的提交，分 body 写，或直接用编辑器编辑消息
-
-### 反例
-
-```
-# ❌ 不清晰
-update code
-
-# ❌ 类型太多，无实质内容
-chore: fix some issues
-
-# ❌ 描述过长、包含句号
-refactor: 重构了之前那个面试服务的代码结构，把很多东西移到了新的目录下面。
-
-# ❌ 同时做多个事情
-feat: 新增历史页面并修复登录bug
-
-# ✓ 正确做法：拆成两个提交
-feat: 新增面试历史列表页面
-fix: 修复登录后 token 未刷新的问题
-```
-
-### 提交频率
-
-- 一个提交只做一件事：一个功能、一个修复、一个重构
-- 建议每完成 TODO.md 中的一个 checkbox 或子任务就提交一次
-- 所有提交在推送到远程前确保 `npm run build` 通过
-- API 服务与前端在同一个仓库，跨模块的改动如果关联紧密可以合入一个提交
-
-## 当前重构后的协作边界
-
-- 前端业务功能优先放在 `src/features/<feature>/`，路由文件只保留 `createFileRoute` 和页面壳组件。
-- 前端共享请求逻辑放在 `src/shared/api/`；`src/lib/api-client.ts` 仅作为兼容门面，不再承载新业务逻辑。
-- 后端真实业务入口放在 `api-server/src/modules/<module>/`，旧 `api-server/src/routes/*.ts` 只做兼容导出。
-- 后端模块按 `*.routes.ts`、`*.schemas.ts`、`*.service.ts`、`*.repository.ts` 拆分；多人协作时优先改对应模块文件，避免集中修改路由。
-- AI 模型选择、用户设置读取和 API Key 解密统一在 `api-server/src/modules/model-providers/`。
-- 数据库字段固定使用 `job_description`，前端/API 字段固定使用 `jobDescription`，UI 文案固定使用“岗位需求描述”。
-- API 服务只从仓库根目录 `.env` 加载环境变量，不在 `api-server/` 下新增业务 `.env`。
+- 第一行不超过 72 字，中文描述，过去时动词（新增/修复/重构）
+- 一个提交只做一件事
+- 建议每完成 TODO.md 中的一个 checkbox 就提交一次
+- 推送到远程前确保 `npm run build` 通过
+- 关联 TODO 编号时在说明中标注，例如 `Phase 2 / A2`

@@ -4,6 +4,25 @@
 
 ---
 
+## Phase 0 — 架构约束（所有开发必须遵守）
+
+> 新增功能必须遵循 **"功能即模块"** 原则，详见 `AGENTS.md`。
+
+### 模块化创建流程
+
+```
+后端: api-server/src/modules/<feature>/ → routes + service + repository + schemas
+前端: src/features/<feature>/          → api.ts + types.ts + hooks + components
+```
+
+### 禁止行为
+
+- ❌ 在已有路由文件中堆砌多功能的端点
+- ❌ 在已有 feature 目录中塞另一个功能域的代码
+- ❌ 路由文件直接写业务逻辑（应 import features/）
+
+---
+
 ## Phase 1 — 已完成功能 ✅
 
 - [x] 着陆页 (/) — 品牌展示 + CTA
