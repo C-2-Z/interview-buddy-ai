@@ -11,6 +11,7 @@ export type SessionDetail = SessionRow;
 export type QuestionItem = QuestionRow;
 
 interface CreateSessionParams {
+  skillId?: string;
   position: string;
   difficulty: "初级" | "中级" | "高级";
   background?: string;
@@ -39,6 +40,15 @@ interface BankFilters {
   type?: string;
   search?: string;
 }
+
+// ---- Skill Types ----
+
+export type SkillMeta = {
+  id: string;
+  name: string;
+  description: string;
+  categories: Array<{ key: string; label: string; priority: string }>;
+};
 
 // ---- API Client ----
 
@@ -127,10 +137,11 @@ class ApiClient {
   ): Promise<{ score: number; feedback: string }> {
     return this.request("POST", `/api/questions/${questionId}/evaluate`);
   }
-  async evaluateConversation(
-    questionId: string,
-  ): Promise<{ score: number; feedback: string }> {
-    return this.request("POST", `/api/questions/` + questionId + `/evaluate`);
+
+  // ---- Skill APIs ----
+
+  async listSkills(): Promise<SkillMeta[]> {
+    return this.request('GET', '/api/skills');
   }
 
   // ---- Question Bank APIs ----
@@ -159,4 +170,5 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient();
+
 

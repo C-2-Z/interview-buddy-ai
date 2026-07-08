@@ -23,7 +23,9 @@ export type Database = {
           order_index: number
           question: string
           score: number | null
-          session_id: string
+          skill_id: string | null
+          topic_summary: string | null
+        session_id: string
         }
         Insert: {
           answer?: string | null
@@ -33,7 +35,9 @@ export type Database = {
           order_index: number
           question: string
           score?: number | null
-          session_id: string
+          skill_id?: string | null
+          topic_summary?: string | null
+        session_id: string
         }
         Update: {
           answer?: string | null
@@ -43,7 +47,9 @@ export type Database = {
           order_index?: number
           question?: string
           score?: number | null
-          session_id?: string
+          skill_id?: string | null
+          topic_summary?: string | null
+        session_id?: string
         }
         Relationships: [
           {
@@ -68,7 +74,8 @@ export type Database = {
           target_company: string | null
           question_type_config: string | null
           resume_text: string | null
-          user_id: string
+          skill_id: string | null
+        user_id: string
         }
         Insert: {
           background?: string | null
@@ -82,7 +89,8 @@ export type Database = {
           target_company?: string | null
           question_type_config?: string | null
           resume_text?: string | null
-          user_id: string
+          skill_id?: string | null
+        user_id: string
         }
         Update: {
           background?: string | null
@@ -96,7 +104,8 @@ export type Database = {
           target_company?: string | null
           question_type_config?: string | null
           resume_text?: string | null
-          user_id?: string
+          skill_id?: string | null
+        user_id?: string
         }
         Relationships: []
       }
@@ -315,3 +324,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

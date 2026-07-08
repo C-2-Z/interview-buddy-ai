@@ -1,0 +1,12 @@
+{
+  "id": "frontend",
+  "name": "前端开发",
+  "description": "HTML/CSS、JavaScript/TypeScript、React/Vue 等前端技术栈",
+  "categories": [
+    { "key": "HTML_CSS", "label": "HTML / CSS", "priority": "CORE", "ref": "html-css.md", "shared": true },
+    { "key": "JS_TS", "label": "JavaScript / TypeScript", "priority": "CORE", "ref": "js-ts.md", "shared": true },
+    { "key": "FW_ENGINE", "label": "框架与工程化", "priority": "CORE", "ref": "frontend-framework.md", "shared": true },
+    { "key": "PERF_SEC", "label": "性能与安全", "priority": "NORMAL", "ref": "project.md", "shared": true },
+    { "key": "PROJECT", "label": "项目经历", "priority": "ALWAYS_ONE" }
+  ]
+}

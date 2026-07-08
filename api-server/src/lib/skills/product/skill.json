@@ -1,0 +1,12 @@
+{
+  "id": "product",
+  "name": "产品经理",
+  "description": "产品思维、需求分析、数据驱动、项目管理、用户研究",
+  "categories": [
+    { "key": "PRODUCT_THINKING", "label": "产品思维与设计", "priority": "CORE", "ref": "product-thinking.md", "shared": true },
+    { "key": "DATA_DRIVEN", "label": "数据驱动", "priority": "CORE", "ref": "product-data.md", "shared": true },
+    { "key": "STRATEGY", "label": "产品战略", "priority": "NORMAL", "ref": "product-strategy.md", "shared": true },
+    { "key": "PROJECT_MGMT", "label": "项目管理", "priority": "NORMAL", "ref": "project.md", "shared": true },
+    { "key": "PROJECT", "label": "项目经历", "priority": "ALWAYS_ONE" }
+  ]
+}

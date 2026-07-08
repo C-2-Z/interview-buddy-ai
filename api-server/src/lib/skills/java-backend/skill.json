@@ -1,0 +1,13 @@
+{
+  "id": "java-backend",
+  "name": "Java 后端开发",
+  "description": "Java、Spring Boot、数据库、分布式系统等后端技术栈",
+  "categories": [
+    { "key": "JAVA", "label": "Java 基础", "priority": "CORE", "ref": "java.md", "shared": true },
+    { "key": "SPRING", "label": "Spring 框架", "priority": "CORE", "ref": "spring.md", "shared": true },
+    { "key": "MYSQL", "label": "MySQL 数据库", "priority": "CORE", "ref": "mysql.md", "shared": true },
+    { "key": "REDIS", "label": "Redis 缓存", "priority": "NORMAL", "ref": "redis.md", "shared": true },
+    { "key": "SYSTEM_DESIGN", "label": "系统设计", "priority": "NORMAL", "ref": "system-design.md", "shared": true },
+    { "key": "PROJECT", "label": "项目经历", "priority": "ALWAYS_ONE" }
+  ]
+}
