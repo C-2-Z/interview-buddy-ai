@@ -24,6 +24,7 @@ function NewInterview() {
   const [resumeText, setResumeText] = useState("");
   const [resumeName, setResumeName] = useState("");
   const [count, setCount] = useState(5);
+  const [modelProvider, setModelProvider] = useState<"deepseek" | "openai" | "anthropic">("deepseek");
   const [loading, setLoading] = useState(false);
 
   function getTypeConfig(profile: string): Record<string, number> {
@@ -52,6 +53,7 @@ function NewInterview() {
         resumeText,
         questionTypeConfig: typeProfile === "default" ? undefined : getTypeConfig(typeProfile),
         questionCount: count,
+        modelProvider,
       });
       toast.success("题目已生成");
       navigate({ to: "/session/$id", params: { id: sessionId } });
@@ -104,6 +106,21 @@ function NewInterview() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>AI 模型</Label>
+            <Select value={modelProvider} onValueChange={(v) => setModelProvider(v as typeof modelProvider)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="deepseek">DeepSeek Chat</SelectItem>
+                <SelectItem value="openai">GPT-4o</SelectItem>
+                <SelectItem value="anthropic">Claude 3 Sonnet</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              需要先在服务器环境变量中配置对应 API Key
+            </p>
           </div>
 
           <div className="space-y-2">

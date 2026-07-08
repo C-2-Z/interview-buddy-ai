@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { requireAuth } from "../middleware/auth.js";
-import { callAI, parseJsonFromAI } from "../lib/ai-gateway.js";
+import { callAI, parseJsonFromAI, type ModelProvider, type ProviderName } from "../lib/ai-gateway.js";
+import { buildQuestionGenerationPrompt, QUESTION_GEN_SYSTEM_PROMPT, FINISH_SYSTEM_PROMPT } from "../lib/prompts.js";
 
 const sessions = new Hono<{
   Variables: { userId: string; supabase: ReturnType<typeof import("../lib/supabase.js").createUserClient> };
@@ -22,33 +23,29 @@ sessions.post("/", async (c) => {
     questionCount: z.number().int().min(3).max(10).default(5),
     targetCompany: z.string().trim().max(100).optional().default(""),
     questionTypeConfig: z.record(z.number()).optional(),
+    modelProvider: z.enum(["deepseek", "openai", "anthropic"]).optional().default("deepseek"),
+    modelName: z.string().trim().max(100).optional(),
   });
 
   const body = schema.parse(await c.req.json());
 
-  let companyHint = "";
-  if (body.targetCompany) {
-    companyHint = "\n目标公司: ${body.targetCompany}\n请根据该公司的面试风格和侧重点来出题。";
-  }
+  const modelProvider: ModelProvider = {
+    name: body.modelProvider as ProviderName,
+    model: body.modelName ?? "",
+  };
 
-  const prompt = `你是一位资深的技术面试官。请为以下候选人生成 ${body.questionCount} 道面试题。
-
-岗位: ${body.position}
-难度: ${body.difficulty}
-岗位需求描述: ${body.jobDescription || "未提供"}
-
-要求:
-- 题目要贴合岗位和难度
-- 涵盖技术、行为、场景等不同类型
-- 每道题独立、清晰、具体
-
-请严格以 JSON 数组格式返回，只包含题目文本，例如:
-["题目1", "题目2", "题目3"]`;
+  const prompt = buildQuestionGenerationPrompt({
+    position: body.position,
+    difficulty: body.difficulty,
+    jobDescription: body.jobDescription,
+    questionCount: body.questionCount,
+    targetCompany: body.targetCompany,
+  });
 
   const text = await callAI([
-    { role: "system", content: "你是专业的面试官助手，回答必须是有效的 JSON。" },
+    { role: "system", content: QUESTION_GEN_SYSTEM_PROMPT },
     { role: "user", content: prompt },
-  ]);
+  ], modelProvider);
 
   const questions = parseJsonFromAI<string[]>(text);
   if (!Array.isArray(questions) || questions.length === 0) {
@@ -61,11 +58,13 @@ sessions.post("/", async (c) => {
       user_id: userId,
       position: body.position,
       difficulty: body.difficulty,
-      job_description: body.jobDescription,
+      background: body.jobDescription,
+      model_provider: body.modelProvider,
+      ...(body.modelName ? { model_name: body.modelName } : {}),
       ...((body as any).targetCompany ? { target_company: (body as any).targetCompany } : {}),
       ...((body as any).resumeText ? { resume_text: (body as any).resumeText } : {}),
       ...((body as any).questionTypeConfig ? { question_type_config: (body as any).questionTypeConfig } : {}),
-    })
+    } as any)
     .select()
     .single();
   if (error) return c.json({ error: error.message }, 500);
@@ -119,6 +118,19 @@ sessions.post("/:id/finish", async (c) => {
   const supabase = c.var.supabase;
   const id = c.req.param("id");
 
+  // Load session to get model config
+  const { data: sessionRow } = await supabase
+    .from("interview_sessions")
+    .select("model_provider, model_name")
+    .eq("id", id)
+    .single() as any;
+
+  const sessionData = sessionRow as any;
+  const finishProvider: ModelProvider = {
+    name: (sessionData?.model_provider as ProviderName) ?? "deepseek",
+    model: (sessionData?.model_name as string) ?? "",
+  };
+
   const { data: qs, error } = await supabase
     .from("interview_questions")
     .select("score, feedback, question")
@@ -133,14 +145,14 @@ sessions.post("/:id/finish", async (c) => {
   let overall = "";
   if (scored.length > 0) {
     overall = await callAI([
-      { role: "system", content: "你是资深面试官，用中文给出简洁总结。" },
+      { role: "system", content: FINISH_SYSTEM_PROMPT },
       {
         role: "user",
         content: `以下是候选人各题得分与反馈，请总结整体表现、亮点与改进方向（200-300字）：\n${scored
           .map((q, i) => `Q${i + 1}(得分${q.score}): ${q.feedback}`)
           .join("\n\n")}`,
       },
-    ]);
+    ], finishProvider);
   }
 
   const { error: updErr } = await supabase

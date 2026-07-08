@@ -30,8 +30,8 @@
 
 ### P1 — 第一优先级
 
-- [ ] A4 追问策略优化 — 改进 AI 面试官的 Prompt，使其追问更具深度和针对性
-- [ ] A2 限时模式 — 每题倒计时功能
+ - [x] A4 追问策略优化 — 改进 AI 面试官的 Prompt，使其追问更具深度和针对性
+ - [ ] A2 限时模式 — 每题倒计时功能
 
 ### P2 — 第二优先级
 
@@ -59,7 +59,7 @@
 
 ## Phase 5 — 平台与基础设施
 
-- [ ] D1 多模型支持 — DeepSeek / GPT-4o / Claude 切换
+ - [x] D1 多模型支持 — DeepSeek / GPT-4o / Claude 切换（开发中）
 - [ ] D2 忘记密码 / 邮箱验证 — Supabase Auth 完善
 - [ ] D3 移动端适配优化 — 手机体验改进
 - [ ] D4 App 打包 — Capacitor (Android/iOS) + Tauri (Windows)

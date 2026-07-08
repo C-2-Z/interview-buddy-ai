@@ -101,6 +101,18 @@ function SessionPage() {
         created_at: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, tempAiMsg]);
+
+      // If AI signaled conversation complete, auto-update score/feedback
+      if (result.done && result.score != null) {
+        setQuestions((prev) =>
+          prev.map((qq, i) =>
+            i === current
+              ? { ...qq, score: result.score!, feedback: result.feedback ?? "" }
+              : qq
+          )
+        );
+        toast.success("评分完成");
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "发送失败");
       // Re-fetch to revert optimistic update

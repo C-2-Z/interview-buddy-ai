@@ -18,6 +18,8 @@ interface CreateSessionParams {
   targetCompany?: string;
   questionTypeConfig?: Record<string, number>;
   resumeText?: string;
+  modelProvider?: "deepseek" | "openai" | "anthropic";
+  modelName?: string;
 }
 
 // ---- Question Bank Types ----
@@ -116,7 +118,7 @@ class ApiClient {
   async sendMessage(
     questionId: string,
     content: string,
-  ): Promise<{ response: string }> {
+  ): Promise<{ response: string; done?: boolean; score?: number; feedback?: string }> {
     return this.request("POST", `/api/questions/${questionId}/message`, {
       content,
     });
@@ -126,11 +128,6 @@ class ApiClient {
     questionId: string,
   ): Promise<{ score: number; feedback: string }> {
     return this.request("POST", `/api/questions/${questionId}/evaluate`);
-  }
-  async evaluateConversation(
-    questionId: string,
-  ): Promise<{ score: number; feedback: string }> {
-    return this.request("POST", `/api/questions/` + questionId + `/evaluate`);
   }
 
   // ---- Question Bank APIs ----
