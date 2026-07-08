@@ -26,7 +26,7 @@ function AuthedLayout() {
           <Link to="/" className="font-semibold text-lg tracking-tight">
             AI 面试模拟器
           </Link>
-          <nav className="flex items-center gap-1">
+                    <nav className="flex items-center gap-1">
             <Button variant="ghost" size="sm" asChild>
               <Link to="/dashboard"><Home className="w-4 h-4 mr-1" />主页</Link>
             </Button>
@@ -38,6 +38,9 @@ function AuthedLayout() {
             </Button>
             <Button variant="ghost" size="sm" asChild>
               <Link to="/bank"><BookOpen className="w-4 h-4 mr-1" />题库</Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/settings"><Settings className="w-4 h-4 mr-1" />设置</Link>
             </Button>
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
               <LogOut className="w-4 h-4 mr-1" />登出
@@ -51,6 +54,3 @@ function AuthedLayout() {
     </div>
   );
 }
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/settings"><Settings className="w-4 h-4 mr-1" />设置</Link>
-            </Button>
