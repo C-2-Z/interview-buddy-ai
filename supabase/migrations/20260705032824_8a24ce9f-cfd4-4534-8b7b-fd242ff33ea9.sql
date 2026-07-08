@@ -31,7 +31,7 @@ CREATE TABLE public.interview_sessions (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   position TEXT NOT NULL,
   difficulty TEXT NOT NULL,
-  background TEXT,
+  job_description TEXT,
   status TEXT NOT NULL DEFAULT 'in_progress',
   overall_score INT,
   overall_feedback TEXT,

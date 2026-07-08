@@ -57,10 +57,10 @@ export type Database = {
       }
       interview_sessions: {
         Row: {
-          background: string | null
           created_at: string
           difficulty: string
           id: string
+          job_description: string | null
           overall_feedback: string | null
           overall_score: number | null
           position: string
@@ -71,10 +71,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          background?: string | null
           created_at?: string
           difficulty: string
           id?: string
+          job_description?: string | null
           overall_feedback?: string | null
           overall_score?: number | null
           position: string
@@ -85,10 +85,10 @@ export type Database = {
           user_id: string
         }
         Update: {
-          background?: string | null
           created_at?: string
           difficulty?: string
           id?: string
+          job_description?: string | null
           overall_feedback?: string | null
           overall_score?: number | null
           position?: string

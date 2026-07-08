@@ -84,7 +84,7 @@ AI 面试模拟器是一个基于 AI 的面试练习平台，帮助求职者通�
 - 面试岗位输入框（必填，最长 100 字）
 - 难度选择器：初级 / 中级 / 高级（默认中级）
 - 题目数量选择器：3 / 5 / 7 / 10 题（默认 5 题）
-- 个人情况文本框（选填，最长 2000 字）
+- 岗位需求描述文本框（选填，最长 2000 字）
 - "生成面试题" 提交按钮（带 loading 状态）
 
 #### 交互行为
@@ -95,7 +95,7 @@ AI 面试模拟器是一个基于 AI 的面试练习平台，帮助求职者通�
 
 #### 后端逻辑
 - **API 调用**: `apiClient.createInterviewSession()` → POST `/api/sessions`
-- **输入校验**: Zod schema（position, difficulty, background, questionCount）
+- **输入校验**: Zod schema（position, difficulty, jobDescription, questionCount）
 - **认证**: Hono 中间件验证 Bearer token
 - **AI 调用**: 调用 DeepSeek API 生成题目 JSON 数组
 - **数据持久化**: 创建 `interview_sessions` 记录 + 批量插入 `interview_questions`
@@ -218,7 +218,7 @@ AI 面试模拟器是一个基于 AI 的面试练习平台，帮助求职者通�
 | user_id | UUID FK | 用户 ID |
 | position | TEXT | 面试岗位 |
 | difficulty | TEXT | 初级/中级/高级 |
-| background | TEXT | 个人背景（选填） |
+| job_description | TEXT | 岗位需求描述（选填） |
 | status | TEXT | in_progress / completed |
 | overall_score | INT | 综合评分 |
 | overall_feedback | TEXT | AI 综合反馈 |

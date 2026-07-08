@@ -18,7 +18,7 @@ sessions.post("/", async (c) => {
   const schema = z.object({
     position: z.string().trim().min(1).max(100),
     difficulty: z.enum(["初级", "中级", "高级"]),
-    background: z.string().trim().max(2000).optional().default(""),
+    jobDescription: z.string().trim().max(2000).optional().default(""),
     questionCount: z.number().int().min(3).max(10).default(5),
     targetCompany: z.string().trim().max(100).optional().default(""),
     questionTypeConfig: z.record(z.number()).optional(),
@@ -35,7 +35,7 @@ sessions.post("/", async (c) => {
 
 岗位: ${body.position}
 难度: ${body.difficulty}
-候选人背景: ${body.background || "未提供"}
+岗位需求描述: ${body.jobDescription || "未提供"}
 
 要求:
 - 题目要贴合岗位和难度
@@ -61,7 +61,7 @@ sessions.post("/", async (c) => {
       user_id: userId,
       position: body.position,
       difficulty: body.difficulty,
-      background: body.background,
+      job_description: body.jobDescription,
       ...((body as any).targetCompany ? { target_company: (body as any).targetCompany } : {}),
       ...((body as any).resumeText ? { resume_text: (body as any).resumeText } : {}),
       ...((body as any).questionTypeConfig ? { question_type_config: (body as any).questionTypeConfig } : {}),
