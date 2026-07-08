@@ -130,21 +130,7 @@ function NewInterview() {
             />
           </div>
 
-          <div className="space-y-2">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => {
-                const input = document.createElement("input");
-                input.type = "file";
-                input.accept = ".txt,.md";
-                input.onchange = async (e) => {
-                  const file = (e.target as HTMLInputElement).files?.[0];
-                  if (!file) return;
-                  const text = await file.text();
-                };
-                input.click();
-              }}>
-              </Button>
+
           <div className="space-y-2">
             <Label>简历上传 <span className="text-muted-foreground text-xs">(选填)</span></Label>
             <div className="flex items-center gap-2">
@@ -186,6 +172,12 @@ function NewInterview() {
               onChange={(e) => setBackground(e.target.value)}
             />
           </div>
+
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />AI 生成中…</>
+            ) : (
+              <><Sparkles className="w-4 h-4 mr-2" />生成面试题</>
             )}
           </Button>
         </form>
