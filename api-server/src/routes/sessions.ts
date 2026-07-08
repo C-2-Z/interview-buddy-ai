@@ -4,8 +4,6 @@ import { requireAuth } from "../middleware/auth.js";
 import { callAI, parseJsonFromAI, type ModelProvider, type ProviderName } from "../lib/ai-gateway.js";
 import { decrypt } from "../lib/encryption.js";
 import { buildQuestionGenerationPrompt, QUESTION_GEN_SYSTEM_PROMPT, FINISH_SYSTEM_PROMPT } from "../lib/prompts.js";
-
-import { callAI, parseJsonFromAI } from "../lib/ai-gateway.js";
 import { getSkill } from "../lib/skills/index.js";
 import {
   calculateAllocation,
@@ -89,7 +87,7 @@ async function handleSkillDrivenCreation(c: any, body: any, skillDef: any) {
 
 职位: ${skillDef.name}
 面试难度: ${body.difficulty}
-候选人背景: ${body.background || "未提供"}${companyHint}${resumeHint}
+候选人背景: ${body.jobDescription || "未提供"}${companyHint}${resumeHint}
 
 ${allocTable}
 
@@ -122,7 +120,7 @@ ${refSection ? `以下是各分类的参考知识点，出题时可以参考：\
       skill_id: body.skillId,
       position: skillDef.name,
       difficulty: body.difficulty,
-      background: body.background,
+      background: body.jobDescription,
       target_company: body.targetCompany || null,
       resume_text: body.resumeText || null,
       question_type_config: body.questionTypeConfig || null,
@@ -163,7 +161,8 @@ async function handleGenericCreation(c: any, body: any) {
       const col = effectiveProvider + "_api_key";
       const enc = s[col];
       if (enc) { try { userApiKey = decrypt(enc); } catch {} }
-
+    }
+  }
   let companyHint = "";
   if (body.targetCompany) {
     companyHint = `\n目标公司: ${body.targetCompany}\n请根据该公司的面试风格和侧重点来出题。`;
@@ -207,12 +206,6 @@ async function handleGenericCreation(c: any, body: any) {
       ...((body as any).resumeText ? { resume_text: (body as any).resumeText } : {}),
       ...((body as any).questionTypeConfig ? { question_type_config: (body as any).questionTypeConfig } : {}),
     } as any)
-
-      background: body.background,
-      target_company: body.targetCompany || null,
-      resume_text: body.resumeText || null,
-      question_type_config: body.questionTypeConfig || null,
-    })
     .select()
     .single();
   if (error) return c.json({ error: error.message }, 500);

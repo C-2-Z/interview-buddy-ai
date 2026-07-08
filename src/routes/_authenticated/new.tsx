@@ -36,15 +36,6 @@ function NewInterview() {
   const [count, setCount] = useState(5);
   const [modelProvider, setModelProvider] = useState<"deepseek" | "openai" | "anthropic">("deepseek");
   const [loading, setLoading] = useState(false);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
-  
-  // Load default model from user settings
-  useEffect(() => {
-    apiClient.getSettings().then(res => {
-      setModelProvider(res.model_provider as "deepseek" | "openai" | "anthropic");
-      setSettingsLoaded(true);
-    }).catch(() => setSettingsLoaded(true));
-  }, []);
 
   useEffect(() => {
     apiClient.listSkills().then(setSkills).catch(() => {});
@@ -92,8 +83,6 @@ function NewInterview() {
         questionTypeConfig: typeProfile === "default" ? undefined : getTypeConfig(typeProfile),
         questionCount: count,
         modelProvider,
-      });
-
       };
       if (selectedSkillId) {
         params.skillId = selectedSkillId;
@@ -142,62 +131,6 @@ function NewInterview() {
                       </div>
                     </button>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-          <div className="space-y-2">
-            <Label>AI 模型</Label>
-            <Select value={modelProvider} onValueChange={(v) => setModelProvider(v as typeof modelProvider)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="deepseek">DeepSeek Chat</SelectItem>
-                <SelectItem value="openai">GPT-4o</SelectItem>
-                <SelectItem value="anthropic">Claude 3 Sonnet</SelectItem>
-              <p className="text-xs text-muted-foreground">
-              如服务器已配置对应 API Key 则无需填写，否则请填写
-             </p>
-
-            <Label>题型配比 <span className="text-muted-foreground text-xs">(选填)</span></Label>
-            <Select value={typeProfile} onValueChange={setTypeProfile}>
-                <SelectItem value="default">默认（AI 自主分配）</SelectItem>
-                <SelectItem value="tech">技术侧重</SelectItem>
-                <SelectItem value="behavior">行为侧重</SelectItem>
-                <SelectItem value="scenario">场景侧重</SelectItem>
-                <SelectItem value="balanced">综合均衡</SelectItem>
-
-            <Label>热门公司 <span className="text-muted-foreground text-xs">(选填)</span></Label>
-            <Input
-              placeholder="例如：字节跳动 / 腾讯 / 阿里巴巴 / Google"
-              value={targetCompany}
-              maxLength={100}
-              onChange={(e) => setTargetCompany(e.target.value)}
-            />
-
-
-            <Label>简历上传 <span className="text-muted-foreground text-xs">(选填)</span></Label>
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => {
-                const input = document.createElement("input");
-                input.type = "file";
-                input.accept = ".txt,.md";
-                input.onchange = async (e) => {
-                  const file = (e.target as HTMLInputElement).files?.[0];
-                  if (!file) return;
-                  setResumeName(file.name);
-                  const text = await file.text();
-                  setResumeText(text.slice(0, 2000));
-                };
-                input.click();
-              }}>
-                {resumeName ? "重新上传" : "选择文件"}
-              </Button>
-              {resumeName && (
-                <>
-                  <span className="text-xs text-muted-foreground">{resumeName} ({resumeText.length}字)</span>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => { setResumeText(""); setResumeName(""); }}>清除</Button>
-                </>
-
                   <button
                     type="button"
                     onClick={selectCustom}
@@ -211,30 +144,15 @@ function NewInterview() {
                     <div className="min-w-0">
                       <div className="text-sm font-medium truncate">自定义</div>
                       <div className="text-xs text-muted-foreground truncate">自由输入岗位名称</div>
+                    </div>
                   </button>
+                </div>
               )}
             </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="job-description">岗位需求描述 <span className="text-muted-foreground text-xs">(选填)</span></Label>
-            <Textarea
-              id="job-description"
-              placeholder="例如：岗位要求 3 年以上前端经验，熟悉 React/TypeScript，有性能优化和复杂业务场景经验…"
-              value={jobDescription}
-              rows={5}
-              maxLength={2000}
-              onChange={(e) => setJobDescription(e.target.value)}
-            />
-          </div>
-
-          <Button type="submit" disabled={loading} className="w-full">
-            {loading ? (
-              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />AI 生成中…</>
-            ) : (
-              <><Sparkles className="w-4 h-4 mr-2" />生成面试题</>
-
             {/* Position (for custom mode) */}
             {(useCustom || (!selectedSkillId && !useCustom)) && (
+              <div className="space-y-2">
                 <Label htmlFor="position">面试岗位 *</Label>
                 <Input
                   id="position"
@@ -242,6 +160,8 @@ function NewInterview() {
                   value={position}
                   maxLength={100}
                   onChange={(e) => setPosition(e.target.value)}
+                />
+              </div>
             )}
 
             {/* Skill badges */}
@@ -258,6 +178,21 @@ function NewInterview() {
                   ))}
               </div>
             )}
+
+            <div className="space-y-2">
+              <Label>AI 模型</Label>
+              <Select value={modelProvider} onValueChange={(v) => setModelProvider(v as typeof modelProvider)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="deepseek">DeepSeek Chat</SelectItem>
+                  <SelectItem value="openai">GPT-4o</SelectItem>
+                  <SelectItem value="anthropic">Claude 3 Sonnet</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                如服务器已配置对应 API Key 则无需填写，否则请填写
+              </p>
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -343,10 +278,10 @@ function NewInterview() {
               <Textarea
                 id="bg"
                 placeholder="例如：3 年前端经验，熟悉 React/TypeScript，正在寻找中级前端岗位…"
-                value={background}
+                value={jobDescription}
                 rows={5}
                 maxLength={2000}
-                onChange={(e) => setBackground(e.target.value)}
+                onChange={(e) => setJobDescription(e.target.value)}
               />
             </div>
 
