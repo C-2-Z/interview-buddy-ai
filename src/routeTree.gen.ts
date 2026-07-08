@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedNewRouteImport } from './routes/_authenticated/new'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -32,6 +33,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedNewRoute = AuthenticatedNewRouteImport.update({
   id: '/new',
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/new': typeof AuthenticatedNewRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/bank/$id': typeof AuthenticatedBankIdRoute
   '/session/$id': typeof AuthenticatedSessionIdRoute
   '/bank/': typeof AuthenticatedBankIndexRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/new': typeof AuthenticatedNewRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/bank/$id': typeof AuthenticatedBankIdRoute
   '/session/$id': typeof AuthenticatedSessionIdRoute
   '/bank': typeof AuthenticatedBankIndexRoute
@@ -92,6 +100,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/new': typeof AuthenticatedNewRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/bank/$id': typeof AuthenticatedBankIdRoute
   '/_authenticated/session/$id': typeof AuthenticatedSessionIdRoute
   '/_authenticated/bank/': typeof AuthenticatedBankIndexRoute
@@ -104,6 +113,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/history'
     | '/new'
+    | '/settings'
     | '/bank/$id'
     | '/session/$id'
     | '/bank/'
@@ -114,6 +124,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/history'
     | '/new'
+    | '/settings'
     | '/bank/$id'
     | '/session/$id'
     | '/bank'
@@ -125,6 +136,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/history'
     | '/_authenticated/new'
+    | '/_authenticated/settings'
     | '/_authenticated/bank/$id'
     | '/_authenticated/session/$id'
     | '/_authenticated/bank/'
@@ -158,6 +170,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/new': {
       id: '/_authenticated/new'
@@ -208,6 +227,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedNewRoute: typeof AuthenticatedNewRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedBankIdRoute: typeof AuthenticatedBankIdRoute
   AuthenticatedSessionIdRoute: typeof AuthenticatedSessionIdRoute
   AuthenticatedBankIndexRoute: typeof AuthenticatedBankIndexRoute
@@ -217,6 +237,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedNewRoute: AuthenticatedNewRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedBankIdRoute: AuthenticatedBankIdRoute,
   AuthenticatedSessionIdRoute: AuthenticatedSessionIdRoute,
   AuthenticatedBankIndexRoute: AuthenticatedBankIndexRoute,

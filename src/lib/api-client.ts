@@ -154,6 +154,25 @@ class ApiClient {
   async listFavoriteQuestions(): Promise<BankQuestion[]> {
     return this.request("GET", "/api/bank/favorites");
   }
+  // ---- Settings APIs ----
+
+  async getSettings(): Promise<{
+    model_provider: string;
+    model_name: string | null;
+    keys: Record<string, { set: boolean; masked: string | null }>;
+  }> {
+    return this.request("GET", "/api/settings");
+  }
+
+  async updateSettings(
+    body: {
+      model_provider?: string;
+      model_name?: string | null;
+      keys?: Record<string, string>;
+    },
+  ): Promise<{ message: string }> {
+    return this.request("PUT", "/api/settings", body);
+  }
 }
 
 export const apiClient = new ApiClient();
