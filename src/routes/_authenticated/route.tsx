@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect, Link, useRouter } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Home, Plus, History } from "lucide-react";
+import { LogOut, Home, Plus, History, BookOpen } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -35,6 +35,9 @@ function AuthedLayout() {
             </Button>
             <Button variant="ghost" size="sm" asChild>
               <Link to="/history"><History className="w-4 h-4 mr-1" />历史</Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/bank"><BookOpen className="w-4 h-4 mr-1" />题库</Link>
             </Button>
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
               <LogOut className="w-4 h-4 mr-1" />登出

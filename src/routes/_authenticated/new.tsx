@@ -19,8 +19,20 @@ function NewInterview() {
   const [position, setPosition] = useState("");
   const [difficulty, setDifficulty] = useState<"初级" | "中级" | "高级">("中级");
   const [background, setBackground] = useState("");
+  const [targetCompany, setTargetCompany] = useState("");
+  const [typeProfile, setTypeProfile] = useState("default");
   const [count, setCount] = useState(5);
   const [loading, setLoading] = useState(false);
+
+  function getTypeConfig(profile: string): Record<string, number> {
+    switch (profile) {
+      case "tech": return { "技术题": 60, "行为题": 15, "场景题": 15, "系统设计": 10 };
+      case "behavior": return { "技术题": 20, "行为题": 50, "场景题": 20, "系统设计": 10 };
+      case "scenario": return { "技术题": 20, "行为题": 15, "场景题": 50, "系统设计": 15 };
+      case "balanced": return { "技术题": 35, "行为题": 25, "场景题": 25, "系统设计": 15 };
+      default: return {};
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -34,6 +46,8 @@ function NewInterview() {
         position,
         difficulty,
         background,
+        targetCompany,
+        questionTypeConfig: typeProfile === "default" ? undefined : getTypeConfig(typeProfile),
         questionCount: count,
       });
       toast.success("题目已生成");
@@ -87,6 +101,30 @@ function NewInterview() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>题型配比 <span className="text-muted-foreground text-xs">(选填)</span></Label>
+            <Select value={typeProfile} onValueChange={setTypeProfile}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">默认（AI 自主分配）</SelectItem>
+                <SelectItem value="tech">技术侧重</SelectItem>
+                <SelectItem value="behavior">行为侧重</SelectItem>
+                <SelectItem value="scenario">场景侧重</SelectItem>
+                <SelectItem value="balanced">综合均衡</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>热门公司 <span className="text-muted-foreground text-xs">(选填)</span></Label>
+            <Input
+              placeholder="例如：字节跳动 / 腾讯 / 阿里巴巴 / Google"
+              value={targetCompany}
+              maxLength={100}
+              onChange={(e) => setTargetCompany(e.target.value)}
+            />
           </div>
 
           <div className="space-y-2">

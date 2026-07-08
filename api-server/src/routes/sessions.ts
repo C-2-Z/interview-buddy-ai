@@ -20,9 +20,16 @@ sessions.post("/", async (c) => {
     difficulty: z.enum(["初级", "中级", "高级"]),
     background: z.string().trim().max(2000).optional().default(""),
     questionCount: z.number().int().min(3).max(10).default(5),
+    targetCompany: z.string().trim().max(100).optional().default(""),
+    questionTypeConfig: z.record(z.number()).optional(),
   });
 
   const body = schema.parse(await c.req.json());
+
+  let companyHint = "";
+  if (body.targetCompany) {
+    companyHint = "\n目标公司: ${body.targetCompany}\n请根据该公司的面试风格和侧重点来出题。";
+  }
 
   const prompt = `你是一位资深的技术面试官。请为以下候选人生成 ${body.questionCount} 道面试题。
 
@@ -55,6 +62,9 @@ sessions.post("/", async (c) => {
       position: body.position,
       difficulty: body.difficulty,
       background: body.background,
+      ...((body as any).targetCompany ? { target_company: (body as any).targetCompany } : {}),
+      ...((body as any).resumeText ? { resume_text: (body as any).resumeText } : {}),
+      ...((body as any).questionTypeConfig ? { question_type_config: (body as any).questionTypeConfig } : {}),
     })
     .select()
     .single();

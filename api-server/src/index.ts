@@ -3,14 +3,21 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { sessions } from "./routes/sessions.js";
 import { questions } from "./routes/questions.js";
+import { bank } from "./routes/bank.js";
 
 const app = new Hono();
 
-app.use("*", cors());
+app.use("*", cors({
+  origin: ['https://ezmock.site', 'https://www.ezmock.site', 'http://localhost:3000'],
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+  credentials: false,
+}));
 app.use("*", logger());
 
 app.route("/api/sessions", sessions);
 app.route("/api/questions", questions);
+app.route("/api/bank", bank);
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));
 

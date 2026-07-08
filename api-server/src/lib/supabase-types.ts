@@ -65,6 +65,9 @@ export type Database = {
           overall_score: number | null
           position: string
           status: string
+          target_company: string | null
+          question_type_config: string | null
+          resume_text: string | null
           user_id: string
         }
         Insert: {
@@ -76,6 +79,9 @@ export type Database = {
           overall_score?: number | null
           position: string
           status?: string
+          target_company?: string | null
+          question_type_config?: string | null
+          resume_text?: string | null
           user_id: string
         }
         Update: {
@@ -87,6 +93,9 @@ export type Database = {
           overall_score?: number | null
           position?: string
           status?: string
+          target_company?: string | null
+          question_type_config?: string | null
+          resume_text?: string | null
           user_id?: string
         }
         Relationships: []
@@ -108,6 +117,65 @@ export type Database = {
           id?: string
         }
         Relationships: []
+      }
+      question_bank: {
+        Row: {
+          created_at: string
+          difficulty: string
+          id: string
+          position: string
+          question: string
+          tags: string[] | null
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty: string
+          id?: string
+          position: string
+          question: string
+          tags?: string[] | null
+          type: string
+        }
+        Update: {
+          created_at?: string
+          difficulty?: string
+          id?: string
+          position?: string
+          question?: string
+          tags?: string[] | null
+          type?: string
+        }
+        Relationships: []
+      }
+      favorite_questions: {
+        Row: {
+          created_at: string
+          id: string
+          question_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          question_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          question_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'favorite_questions_question_id_fkey'
+            columns: ['question_id']
+            isOneToOne: false
+            referencedRelation: 'question_bank'
+            referencedColumns: ['id']
+          },
+        ]
       }
     }
     Views: {
@@ -247,3 +315,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

@@ -15,7 +15,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedNewRouteImport } from './routes/_authenticated/new'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedBankIndexRouteImport } from './routes/_authenticated/bank/index'
 import { Route as AuthenticatedSessionIdRouteImport } from './routes/_authenticated/session.$id'
+import { Route as AuthenticatedBankIdRouteImport } from './routes/_authenticated/bank/$id'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -46,9 +48,19 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBankIndexRoute = AuthenticatedBankIndexRouteImport.update({
+  id: '/bank/',
+  path: '/bank/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSessionIdRoute = AuthenticatedSessionIdRouteImport.update({
   id: '/session/$id',
   path: '/session/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedBankIdRoute = AuthenticatedBankIdRouteImport.update({
+  id: '/bank/$id',
+  path: '/bank/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 
@@ -58,7 +70,9 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/new': typeof AuthenticatedNewRoute
+  '/bank/$id': typeof AuthenticatedBankIdRoute
   '/session/$id': typeof AuthenticatedSessionIdRoute
+  '/bank/': typeof AuthenticatedBankIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -66,7 +80,9 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/new': typeof AuthenticatedNewRoute
+  '/bank/$id': typeof AuthenticatedBankIdRoute
   '/session/$id': typeof AuthenticatedSessionIdRoute
+  '/bank': typeof AuthenticatedBankIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -76,13 +92,31 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/new': typeof AuthenticatedNewRoute
+  '/_authenticated/bank/$id': typeof AuthenticatedBankIdRoute
   '/_authenticated/session/$id': typeof AuthenticatedSessionIdRoute
+  '/_authenticated/bank/': typeof AuthenticatedBankIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/dashboard' | '/history' | '/new' | '/session/$id'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/history'
+    | '/new'
+    | '/bank/$id'
+    | '/session/$id'
+    | '/bank/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/dashboard' | '/history' | '/new' | '/session/$id'
+  to:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/history'
+    | '/new'
+    | '/bank/$id'
+    | '/session/$id'
+    | '/bank'
   id:
     | '__root__'
     | '/'
@@ -91,7 +125,9 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/history'
     | '/_authenticated/new'
+    | '/_authenticated/bank/$id'
     | '/_authenticated/session/$id'
+    | '/_authenticated/bank/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -144,11 +180,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/bank/': {
+      id: '/_authenticated/bank/'
+      path: '/bank'
+      fullPath: '/bank/'
+      preLoaderRoute: typeof AuthenticatedBankIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/session/$id': {
       id: '/_authenticated/session/$id'
       path: '/session/$id'
       fullPath: '/session/$id'
       preLoaderRoute: typeof AuthenticatedSessionIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/bank/$id': {
+      id: '/_authenticated/bank/$id'
+      path: '/bank/$id'
+      fullPath: '/bank/$id'
+      preLoaderRoute: typeof AuthenticatedBankIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
   }
@@ -158,14 +208,18 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedNewRoute: typeof AuthenticatedNewRoute
+  AuthenticatedBankIdRoute: typeof AuthenticatedBankIdRoute
   AuthenticatedSessionIdRoute: typeof AuthenticatedSessionIdRoute
+  AuthenticatedBankIndexRoute: typeof AuthenticatedBankIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedNewRoute: AuthenticatedNewRoute,
+  AuthenticatedBankIdRoute: AuthenticatedBankIdRoute,
   AuthenticatedSessionIdRoute: AuthenticatedSessionIdRoute,
+  AuthenticatedBankIndexRoute: AuthenticatedBankIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
