@@ -25,6 +25,7 @@ sessions.post("/", async (c) => {
     questionTypeConfig: z.record(z.number()).optional(),
     modelProvider: z.enum(["deepseek", "openai", "anthropic"]).optional().default("deepseek"),
     modelName: z.string().trim().max(100).optional(),
+    userApiKey: z.string().trim().max(500).optional().default(""),
   });
 
   const body = schema.parse(await c.req.json());
@@ -32,6 +33,7 @@ sessions.post("/", async (c) => {
   const modelProvider: ModelProvider = {
     name: body.modelProvider as ProviderName,
     model: body.modelName ?? "",
+    apiKey: body.userApiKey || undefined,
   };
 
   const prompt = buildQuestionGenerationPrompt({
@@ -61,6 +63,7 @@ sessions.post("/", async (c) => {
       background: body.jobDescription,
       model_provider: body.modelProvider,
       ...(body.modelName ? { model_name: body.modelName } : {}),
+      ...(body.userApiKey ? { user_api_key: body.userApiKey } : {}),
       ...((body as any).targetCompany ? { target_company: (body as any).targetCompany } : {}),
       ...((body as any).resumeText ? { resume_text: (body as any).resumeText } : {}),
       ...((body as any).questionTypeConfig ? { question_type_config: (body as any).questionTypeConfig } : {}),
@@ -121,7 +124,7 @@ sessions.post("/:id/finish", async (c) => {
   // Load session to get model config
   const { data: sessionRow } = await supabase
     .from("interview_sessions")
-    .select("model_provider, model_name")
+    .select("model_provider, model_name, user_api_key")
     .eq("id", id)
     .single() as any;
 
@@ -129,6 +132,7 @@ sessions.post("/:id/finish", async (c) => {
   const finishProvider: ModelProvider = {
     name: (sessionData?.model_provider as ProviderName) ?? "deepseek",
     model: (sessionData?.model_name as string) ?? "",
+    apiKey: (sessionData?.user_api_key as string) || undefined,
   };
 
   const { data: qs, error } = await supabase

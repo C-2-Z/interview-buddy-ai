@@ -31,15 +31,16 @@ questions.post("/:questionId/message", async (c) => {
 
   const { data: q, error } = await supabase
     .from("interview_questions")
-    .select("id, question, answer, session_id, interview_sessions(position, difficulty, background, model_provider, model_name)")
+    .select("id, question, answer, session_id, interview_sessions(position, difficulty, background, model_provider, model_name, user_api_key)")
     .eq("id", questionId)
     .single();
   if (error || !q) return c.json({ error: "题目未找到" }, 404);
 
-  const sess = (q as unknown as { interview_sessions: { position: string; difficulty: string; background: string | null; model_provider: string | null; model_name: string | null } }).interview_sessions;
+  const sess = (q as unknown as { interview_sessions: { position: string; difficulty: string; background: string | null; model_provider: string | null; model_name: string | null; user_api_key: string | null } }).interview_sessions;
   const modelProvider: ModelProvider = {
     name: (sess.model_provider as ProviderName) || "deepseek",
     model: sess.model_name || "",
+    apiKey: sess.user_api_key || undefined,
   };
 
   // Read existing conversation from answer field (stored as JSON array)
@@ -140,15 +141,16 @@ questions.post("/:questionId/evaluate", async (c) => {
 
   const { data: q, error } = await supabase
     .from("interview_questions")
-    .select("id, question, answer, session_id, interview_sessions(position, difficulty, background, model_provider, model_name)")
+    .select("id, question, answer, session_id, interview_sessions(position, difficulty, background, model_provider, model_name, user_api_key)")
     .eq("id", questionId)
     .single();
   if (error || !q) return c.json({ error: "题目未找到" }, 404);
 
-  const sess = (q as unknown as { interview_sessions: { position: string; difficulty: string; background: string | null; model_provider: string | null; model_name: string | null } }).interview_sessions;
+  const sess = (q as unknown as { interview_sessions: { position: string; difficulty: string; background: string | null; model_provider: string | null; model_name: string | null; user_api_key: string | null } }).interview_sessions;
   const modelProvider: ModelProvider = {
     name: (sess.model_provider as ProviderName) || "deepseek",
     model: sess.model_name || "",
+    apiKey: sess.user_api_key || undefined,
   };
 
   let messages: Array<{ role: string; content: string }> = [];

@@ -25,6 +25,7 @@ function NewInterview() {
   const [resumeName, setResumeName] = useState("");
   const [count, setCount] = useState(5);
   const [modelProvider, setModelProvider] = useState<"deepseek" | "openai" | "anthropic">("deepseek");
+  const [apiKey, setApiKey] = useState("");
   const [loading, setLoading] = useState(false);
 
   function getTypeConfig(profile: string): Record<string, number> {
@@ -54,6 +55,7 @@ function NewInterview() {
         questionTypeConfig: typeProfile === "default" ? undefined : getTypeConfig(typeProfile),
         questionCount: count,
         modelProvider,
+        userApiKey: apiKey || undefined,
       });
       toast.success("题目已生成");
       navigate({ to: "/session/$id", params: { id: sessionId } });
@@ -118,10 +120,26 @@ function NewInterview() {
                 <SelectItem value="anthropic">Claude 3 Sonnet</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
-              需要先在服务器环境变量中配置对应 API Key
-            </p>
-          </div>
+              <p className="text-xs text-muted-foreground">
+              如服务器已配置对应 API Key 则无需填写，否则请填写
+             </p>
+           </div>
+
+           {modelProvider !== "deepseek" && (
+             <div className="space-y-2">
+               <Label htmlFor="api-key">
+                 {modelProvider === "openai" ? "OpenAI" : "Anthropic"} API Key <span className="text-muted-foreground text-xs">(必填)</span>
+               </Label>
+               <Input
+                 id="api-key"
+                 type="password"
+                 placeholder={modelProvider === "openai" ? "sk-..." : "sk-ant-..."}
+                 value={apiKey}
+                 onChange={(e) => setApiKey(e.target.value)}
+               />
+               <p className="text-xs text-muted-foreground">用于本次面试的 AI 调用，不会存储在你的账号中</p>
+             </div>
+           )}
 
           <div className="space-y-2">
             <Label>题型配比 <span className="text-muted-foreground text-xs">(选填)</span></Label>

@@ -8,6 +8,8 @@ export interface ChatMessage {
 export interface ModelProvider {
   name: ProviderName;
   model: string;
+  /** Optional user-provided API key. Falls back to the server env var. */
+  apiKey?: string;
 }
 
 const DEFAULT_PROVIDER: ModelProvider = {
@@ -111,7 +113,7 @@ export async function callAI(
 ): Promise<string> {
   const p = provider ?? DEFAULT_PROVIDER;
   const cfg = PROVIDER_CONFIGS[p.name];
-  const key = process.env[cfg.envKey];
+  const key = p.apiKey || process.env[cfg.envKey];
   if (!key) throw new Error(`Missing ${cfg.envKey} environment variable`);
 
   const { url, headers, body } = buildProviderRequest(p, messages, key);

@@ -20,6 +20,7 @@ interface CreateSessionParams {
   resumeText?: string;
   modelProvider?: "deepseek" | "openai" | "anthropic";
   modelName?: string;
+  userApiKey?: string;
 }
 
 // ---- Question Bank Types ----
