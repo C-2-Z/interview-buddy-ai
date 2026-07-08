@@ -76,7 +76,7 @@
 
 ### P0 — 核心竞争力
 
-- [ ] D1 多模型支持 — 支持 OpenAI 兼容 API 的多 Provider 切换（DeepSeek / GPT-4o / Claude 等），用户设置页可配置 API Key
+- [x] D1 多模型支持 — 支持 DeepSeek / GPT-4o / Claude Provider 切换，用户设置页可配置加密 API Key
 
 ### P1 — 体验提升
 

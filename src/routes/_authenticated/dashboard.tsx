@@ -25,7 +25,7 @@ function Dashboard() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              选择岗位、难度并填写个人背景，AI 会立刻生成定制题目。
+              选择岗位、难度并填写岗位需求描述，AI 会立刻生成定制题目。
             </p>
             <Button asChild>
               <Link to="/new">
