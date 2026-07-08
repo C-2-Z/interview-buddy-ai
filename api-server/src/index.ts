@@ -6,6 +6,8 @@ import { questions } from "./routes/questions.js";
 import { bank } from "./routes/bank.js";
 import { settings } from "./routes/settings.js";
 
+import { skills } from "./routes/skills.js";
+
 const app = new Hono();
 
 app.use("*", cors({
@@ -21,6 +23,8 @@ app.route("/api/questions", questions);
 app.route("/api/bank", bank);
 app.route("/api/settings", settings);
 
+app.route("/api/skills", skills);
+
 app.get("/api/health", (c) => c.json({ status: "ok" }));
 
 const port = Number(process.env.PORT) || 3001;
@@ -30,3 +34,4 @@ const port = Number(process.env.PORT) || 3001;
 // This file imports the adapter lazily so it works across runtimes.
 export default app;
 export { port };
+

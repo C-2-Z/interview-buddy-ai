@@ -1,0 +1,12 @@
+{
+  "id": "algorithm",
+  "name": "算法工程师",
+  "description": "数据结构与算法、机器学习、深度学习、模型工程",
+  "categories": [
+    { "key": "DS_ALGO", "label": "数据结构与算法", "priority": "CORE", "ref": "ds-algo.md", "shared": true },
+    { "key": "ML_BASICS", "label": "机器学习基础", "priority": "CORE", "ref": "ml-basics.md", "shared": true },
+    { "key": "DL_NLP_CV", "label": "深度学习与模型", "priority": "CORE", "ref": "dl-basics.md", "shared": true },
+    { "key": "ENGINEERING", "label": "模型工程与部署", "priority": "NORMAL", "ref": "ml-engineering.md", "shared": true },
+    { "key": "PROJECT", "label": "项目经历", "priority": "ALWAYS_ONE" }
+  ]
+}
