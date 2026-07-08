@@ -10,13 +10,9 @@ const settings = new Hono<{
 settings.use("*", requireAuth);
 
 /**
- * Column names in user_settings that store encrypted API keys.
+ * Provider names matching the keys object structure.
  */
-const KEY_COLUMNS = [
-  "deepseek_api_key",
-  "openai_api_key",
-  "anthropic_api_key",
-] as const;
+const PROVIDERS = ["deepseek", "openai", "anthropic"] as const;
 
 /**
  * GET /api/settings — Return the current user's saved preferences.
@@ -24,35 +20,31 @@ const KEY_COLUMNS = [
  */
 settings.get("/", async (c) => {
   const supabase = c.var.supabase;
-  const { data, error } = await supabase
-    .from("user_settings" as any)
-    .select("model_provider, model_name, deepseek_api_key, openai_api_key, anthropic_api_key")
-    .single();
+  const userId = c.var.userId;
 
-  if (error && error.code !== "PGRST116") {
-    // PGRST116 = no rows (settings not created yet, which shouldn't happen)
-    return c.json({ error: error.message }, 500);
-  }
+  // Try using Auth metadata first (no DB table needed)
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return c.json({ error: "无法获取用户信息" }, 401);
 
-  const row = data ?? {};
+  const meta = (user.user_metadata?.interview_settings as Record<string, unknown>) ?? {};
 
-  // Build key status responses — masked previews only, never the full key
+  // Build key status — masked previews only, never the full key
   const keys: Record<string, { set: boolean; masked: string | null }> = {};
-  for (const col of KEY_COLUMNS) {
-    const encrypted = (row as Record<string, string | null>)[col] ?? null;
+  for (const provider of PROVIDERS) {
+    const encrypted = meta[`${provider}_api_key`] as string | null ?? null;
     let plaintext: string | null = null;
     if (encrypted) {
       try { plaintext = decrypt(encrypted); } catch { /* corrupted — ignore */ }
     }
-    keys[col.replace("_api_key", "")] = {
+    keys[provider] = {
       set: !!encrypted,
       masked: plaintext ? maskApiKey(plaintext) : null,
     };
   }
 
   return c.json({
-    model_provider: (row as Record<string, string | null>).model_provider ?? "deepseek",
-    model_name: (row as Record<string, string | null>).model_name ?? null,
+    model_provider: (meta.model_provider as string) ?? "deepseek",
+    model_name: (meta.model_name as string) ?? null,
     keys,
   });
 });
@@ -66,13 +58,12 @@ settings.get("/", async (c) => {
  *   keys?: { deepseek?: string, openai?: string, anthropic?: string }
  *
  * For each key in `keys`:
- *   - Non-empty string → encrypt and store
- *   - Empty string or null → remove from storage (set to NULL)
- *   - Not present → leave unchanged
+ *   - Non-empty string  → encrypt and store
+ *   - Empty string      → remove
+ *   - Not present       → leave unchanged
  */
 settings.put("/", async (c) => {
   const supabase = c.var.supabase;
-  const userId = c.var.userId;
 
   const schema = z.object({
     model_provider: z.enum(["deepseek", "openai", "anthropic"]).optional(),
@@ -88,35 +79,29 @@ settings.put("/", async (c) => {
 
   const body = schema.parse(await c.req.json());
 
-  // Build the update payload
-  const update: Record<string, string | null> = {};
-  if (body.model_provider !== undefined) update.model_provider = body.model_provider;
-  if (body.model_name !== undefined) update.model_name = body.model_name;
+  // Get current settings from auth metadata
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return c.json({ error: "无法获取用户信息" }, 401);
+  const currentMeta = (user.user_metadata?.interview_settings as Record<string, unknown>) ?? {};
 
-  // Encrypt or clear keys
+  // Merge with new values
+  const newMeta: Record<string, unknown> = { ...currentMeta };
+  if (body.model_provider !== undefined) newMeta.model_provider = body.model_provider;
+  if (body.model_name !== undefined) newMeta.model_name = body.model_name;
+
+  // Encrypt / clear keys
   if (body.keys) {
-    for (const col of KEY_COLUMNS) {
-      const provider = col.replace("_api_key", "");
-      const value = (body.keys as Record<string, string | undefined>)[provider];
+    for (const provider of PROVIDERS) {
+      const value = body.keys[provider];
       if (value !== undefined) {
-        update[col] = value.length > 0 ? encrypt(value) : null;
+        newMeta[`${provider}_api_key`] = value.length > 0 ? encrypt(value) : null;
       }
     }
   }
 
-  // Only update if there's something to change
-  if (Object.keys(update).length === 0) {
-    return c.json({ message: "没有需要更新的内容" });
-  }
-
-  update.updated_at = new Date().toISOString();
-
-  // Upsert — insert if not exists, update if exists
-  const { error } = await supabase
-    .from("user_settings" as any)
-    .upsert({ user_id: userId, ...update } as any)
-    .select("model_provider, model_name")
-    .single();
+  const { error } = await supabase.auth.updateUser({
+    data: { interview_settings: newMeta },
+  });
 
   if (error) return c.json({ error: error.message }, 500);
 
