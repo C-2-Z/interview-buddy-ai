@@ -40,7 +40,7 @@ function Landing() {
           都<span className="bg-gradient-to-r from-primary to-chart-2 bg-clip-text text-transparent">胸有成竹</span>
         </h1>
         <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto">
-          选择岗位与难度，输入个人背景，AI 会为你生成定制面试题，逐题评分并给出可执行的改进建议。
+          选择岗位与难度，输入岗位需求描述，AI 会为你生成定制面试题，逐题评分并给出可执行的改进建议。
         </p>
         <div className="mt-8 flex justify-center gap-3">
           <Button size="lg" asChild>

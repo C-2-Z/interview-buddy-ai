@@ -432,3 +432,15 @@ AI 自动识别频出的问题点，推荐针对性的练习方向。
 
 #### D6. 分享面试
 生成分享链接，让他人（导师 / 朋友）查看面试表现。
+
+---
+
+## 7. 当前架构重构约定
+
+- 前端按功能域维护：`interview-create`、`interview-session`、`question-bank`、`settings`。
+- 后端按模块维护：`sessions`、`questions`、`skills`、`bank`、`settings`、`model-providers`。
+- 路由文件保持薄入口，业务流程放 service，数据库访问放 repository，输入校验放 schema。
+- 旧 server function 镜像已移除，真实业务只走 Hono API。
+- 数据库字段固定为 `job_description`，前端/API 字段固定为 `jobDescription`，文案固定为“岗位需求描述”。
+- `interview_messages` 表暂不迁移运行时存储；当前通过 conversation repository 继续兼容 `interview_questions.answer`，后续迁移只改 repository。
+- 多模型 provider、模型名、用户 API Key 设置统一由 `model-providers` 和 `settings` 模块处理。
