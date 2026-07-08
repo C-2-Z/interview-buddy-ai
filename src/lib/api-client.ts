@@ -17,6 +17,7 @@ interface CreateSessionParams {
   questionCount?: number;
   targetCompany?: string;
   questionTypeConfig?: Record<string, number>;
+  resumeText?: string;
 }
 
 // ---- Question Bank Types ----
