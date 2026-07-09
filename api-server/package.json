@@ -3,15 +3,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-   "dev": "tsx watch src/serve.ts",
+    "dev": "tsx watch src/serve.ts",
     "build": "tsc && node -e \"require('fs').cpSync('src/lib/skills','dist/lib/skills',{recursive:true,filter:s=>!s.endsWith('.ts')})\"",
-   "start": "node dist/serve.js"
+    "start": "node dist/serve.js"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.1",
     "@supabase/supabase-js": "^2.110.0",
+    "@types/ws": "^8.18.1",
     "dotenv": "^17.4.2",
     "hono": "^4.7.6",
+    "ws": "^8.21.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {

@@ -6,6 +6,7 @@ import { questions } from "./modules/questions/questions.routes.js";
 import { sessions } from "./modules/sessions/sessions.routes.js";
 import { settings } from "./modules/settings/settings.routes.js";
 import { skills } from "./modules/skills/skills.routes.js";
+import { voice } from "./modules/voice/voice.routes.js";
 
 const app = new Hono();
 
@@ -17,6 +18,7 @@ app.route("/api/questions", questions);
 app.route("/api/bank", bank);
 app.route("/api/settings", settings);
 app.route("/api/skills", skills);
+app.route("/api/voice", voice);
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));
 
