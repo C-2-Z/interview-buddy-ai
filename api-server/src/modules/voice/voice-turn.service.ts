@@ -18,6 +18,7 @@ import {
 } from "../questions/messages.repository.js";
 import {
   getQuestionWithSession,
+  countSessionQuestions,
   saveEvaluation,
   type QuestionWithSession,
 } from "../questions/questions.repository.js";
@@ -70,16 +71,21 @@ export type PreparedVoiceTurn =
         difficulty: string;
         jobDescription: string | null;
         question: string;
+        totalQuestions: number;
+        currentQuestionIndex: number;
       };
     });
 
-function buildContext(question: QuestionWithSession) {
+async function buildContext(question: QuestionWithSession, supabase: UserSupabaseClient) {
   const session = question.interview_sessions;
+  const totalQuestions = await countSessionQuestions(supabase, question.session_id);
   return {
     position: session.position,
     difficulty: session.difficulty,
     jobDescription: session.job_description,
     question: question.question,
+    totalQuestions,
+    currentQuestionIndex: question.order_index,
   };
 }
 
@@ -204,7 +210,7 @@ export async function prepareVoiceTurn(params: {
     ...base,
     kind: "interview",
     provider,
-    context: buildContext(question),
+    context: await buildContext(question, params.supabase),
   };
 }
 
