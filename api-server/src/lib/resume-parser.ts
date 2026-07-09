@@ -1,5 +1,6 @@
 import mammoth from "mammoth";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.min.mjs";
+import type { TextContent, TextItem } from "pdfjs-dist/types/src/display/api.js";
 
 /** 解析后的文本结果 */
 export interface ParseResult {
@@ -47,10 +48,10 @@ async function parsePdf(buffer: Buffer): Promise<ParseResult> {
   const pages: string[] = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
-    const content = await page.getTextContent();
+    const content: TextContent = await page.getTextContent();
     const text = content.items
-      .filter((item) => "str" in item)
-      .map((item) => (item as any).str)
+      .filter((item): item is TextItem => "str" in item)
+      .map((item: TextItem) => item.str)
       .join(" ");
     pages.push(text);
   }
