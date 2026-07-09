@@ -9,6 +9,7 @@ import {
   getSession,
   listSessions,
 } from "./sessions.service.js";
+import { closeStaleSessionsForUser } from "../cleanup/cleanup.service.js";
 import { CreateSessionSchema } from "./sessions.schemas.js";
 
 const sessions = new Hono<{ Variables: AuthVariables }>();
@@ -26,11 +27,15 @@ sessions.post("/", async (c) => {
 });
 
 sessions.get("/", async (c) => {
+  // Lazy cleanup: close stale sessions before returning the list
+  await closeStaleSessionsForUser(c.var.supabase, c.var.userId).catch(() => {});
   const result = await listSessions(c.var.supabase);
   return c.json(result);
 });
 
 sessions.get("/:id", async (c) => {
+  // Lazy cleanup: also trigger on individual session access
+  await closeStaleSessionsForUser(c.var.supabase, c.var.userId).catch(() => {});
   const result = await getSession(c.var.supabase, c.req.param("id"));
   return c.json(result);
 });

@@ -1,4 +1,4 @@
-import type { UserSupabaseClient } from "../../shared/db/supabase.js";
+ import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 
 export type ConversationMessage = {
   role: "user" | "assistant";
@@ -19,6 +19,7 @@ export type QuestionWithSession = {
   question: string;
   answer: string | null;
   session_id: string;
+  order_index: number;
   interview_sessions: QuestionSessionContext;
 };
 
@@ -29,7 +30,7 @@ export async function getQuestionWithSession(
   const { data, error } = await supabase
     .from("interview_questions")
     .select(
-      "id, question, answer, session_id, interview_sessions(position, difficulty, job_description, model_provider, model_name, user_api_key)",
+      "id, question, answer, session_id, order_index, interview_sessions(position, difficulty, job_description, model_provider, model_name, user_api_key)",
     )
     .eq("id", questionId)
     .single();
@@ -75,3 +76,25 @@ export async function saveEvaluation(params: {
   if (error) throw new Error(error.message);
 }
 
+export async function countSessionQuestions(
+  supabase: UserSupabaseClient,
+  sessionId: string,
+): Promise<number> {
+  const { count, error } = await supabase
+    .from("interview_questions")
+    .select("*", { count: "exact", head: true })
+    .eq("session_id", sessionId);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+export async function updateLastActivity(
+  supabase: UserSupabaseClient,
+  sessionId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("interview_sessions")
+    .update({ last_activity_at: new Date().toISOString() })
+    .eq("id", sessionId);
+  if (error) throw new Error(error.message);
+}

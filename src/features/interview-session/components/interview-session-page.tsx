@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -23,6 +24,17 @@ export function InterviewSessionPage({ sessionId }: { sessionId: string }) {
     onAutoScore: sessionState.updateCurrentQuestionScore,
     onRefresh: sessionState.refresh,
   });
+
+  // Auto-complete interview when all questions are scored
+  useEffect(() => {
+    if (
+      sessionState.allAnswered &&
+      sessionState.session?.status === "in_progress" &&
+      !sessionState.finishing
+    ) {
+      sessionState.completeInterview();
+    }
+  }, [sessionState.allAnswered, sessionState.session?.status, sessionState.finishing]);
 
   if (!sessionState.session) {
     return (

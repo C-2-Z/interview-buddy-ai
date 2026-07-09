@@ -5,6 +5,7 @@ import {
   resolveProviderForSession,
 } from "../model-providers/model-provider.service.js";
 import { findSkill } from "../skills/skills.service.js";
+import { closeStaleSessionsForUser } from "../cleanup/cleanup.service.js";
 import {
   FINISH_SYSTEM_PROMPT,
   generateGenericQuestions,
