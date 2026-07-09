@@ -1,4 +1,4 @@
-import { callAI } from "../../shared/ai/ai-client.js";
+﻿import { callAI } from "../../shared/ai/ai-client.js";
 import { parseJsonFromAI } from "../../shared/ai/json-parser.js";
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import type { ModelProvider } from "../model-providers/provider.types.js";
@@ -25,11 +25,15 @@ export function buildGenericQuestionGenerationPrompt(
     ? `\n目标公司: ${input.targetCompany}\n请根据该公司的面试风格和侧重点来出题。`
     : "";
 
+  const resumeHint = input.resumeContext
+    ? `\n## 候选人简历背景\n${input.resumeContext}\n## 出题要求\n- 针对候选人实际项目经历出技术深度题\n- 覆盖候选人熟悉的技术栈\n`
+    : "";
+
   return `你是一位资深的技术面试官。请为以下岗位的招聘生成 ${input.questionCount} 道面试题。
 
 岗位: ${input.position}
 难度: ${input.difficulty}
-岗位需求描述: ${input.jobDescription || "未提供"}${companyHint}
+岗位需求描述: ${input.jobDescription || "未提供"}${companyHint}${resumeHint}
 
 要求:
 - 题目要贴合岗位和难度

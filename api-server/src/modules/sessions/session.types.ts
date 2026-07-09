@@ -14,6 +14,8 @@ export type CreateSessionInput = {
   modelName?: string;
   userApiKey?: string;
   resumeText?: string;
+  resumeId?: string;
+  resumeContext?: string;
 };
 
 export type CreatedSession = {

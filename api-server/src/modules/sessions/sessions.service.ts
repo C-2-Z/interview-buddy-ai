@@ -48,6 +48,7 @@ function baseSessionRow(params: {
     model_provider: params.providerName,
     model_name: params.modelName || null,
     user_api_key: params.input.userApiKey || null,
+    ...(params.input.resumeId ? { resume_id: params.input.resumeId } : {}),
     target_company: params.input.targetCompany || null,
     resume_text: params.input.resumeText || null,
     question_type_config: questionConfig(params.input),

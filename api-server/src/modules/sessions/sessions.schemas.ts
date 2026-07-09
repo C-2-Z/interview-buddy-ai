@@ -12,6 +12,7 @@ export const CreateSessionSchema = z.object({
   modelName: z.string().trim().max(100).optional(),
   userApiKey: z.string().trim().max(500).optional().default(""),
   resumeText: z.string().max(2000).optional(),
+  resumeId: z.string().uuid().optional(),
 });
 
 export type CreateSessionBody = z.infer<typeof CreateSessionSchema>;
