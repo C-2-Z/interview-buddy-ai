@@ -9,6 +9,7 @@ import {
   parseConversation,
 } from "./conversation.service.js";
 import { evaluateConversation as evaluateConversationWithAI } from "./evaluation.service.js";
+import { appendInterviewMessage } from "./messages.repository.js";
 import {
   buildInterviewerSystemPrompt,
   buildInterviewerUserPrompt,
@@ -60,11 +61,23 @@ export async function sendMessage(params: {
   );
   const conversation = parseConversation(question.answer);
   conversation.push({ role: "user", content: params.content });
+  await appendInterviewMessage(params.supabase, {
+    questionId: params.questionId,
+    role: "user",
+    content: params.content,
+    source: "text",
+  });
 
   // --- copied question check (existing) ---
   if (isCopiedQuestion(params.content, question.question)) {
     const response = buildRedirectResponse();
     conversation.push({ role: "assistant", content: response });
+    await appendInterviewMessage(params.supabase, {
+      questionId: params.questionId,
+      role: "assistant",
+      content: response,
+      source: "text",
+    });
     await saveConversationAnswer(params.supabase, params.questionId, conversation);
     await updateLastActivity(params.supabase, question.session_id);
     return { response };
@@ -127,6 +140,12 @@ export async function sendMessage(params: {
       conversationText: formatConversation(evalConversation),
       provider,
     });
+    await appendInterviewMessage(params.supabase, {
+      questionId: params.questionId,
+      role: "assistant",
+      content: closingResponse,
+      source: "text",
+    });
     await saveEvaluation({
       supabase: params.supabase,
       questionId: params.questionId,
@@ -145,6 +164,12 @@ export async function sendMessage(params: {
     };
   }
 
+  await appendInterviewMessage(params.supabase, {
+    questionId: params.questionId,
+    role: "assistant",
+    content: response,
+    source: "text",
+  });
   await saveConversationAnswer(params.supabase, params.questionId, conversation);
   await updateLastActivity(params.supabase, question.session_id);
   return { response };

@@ -63,25 +63,46 @@ export type Database = {
       }
       interview_messages: {
         Row: {
+          audio_url: string | null
           id: string
           question_id: string
           role: string
           content: string
           created_at: string
+          ended_at: string | null
+          interrupted: boolean | null
+          source: string | null
+          started_at: string | null
+          stt_confidence: number | null
+          turn_id: string | null
         }
         Insert: {
+          audio_url?: string | null
           id?: string
           question_id: string
           role: string
           content: string
           created_at?: string
+          ended_at?: string | null
+          interrupted?: boolean | null
+          source?: string | null
+          started_at?: string | null
+          stt_confidence?: number | null
+          turn_id?: string | null
         }
         Update: {
+          audio_url?: string | null
           id?: string
           question_id?: string
           role?: string
           content?: string
           created_at?: string
+          ended_at?: string | null
+          interrupted?: boolean | null
+          source?: string | null
+          started_at?: string | null
+          stt_confidence?: number | null
+          turn_id?: string | null
         }
         Relationships: [
           {
@@ -111,7 +132,8 @@ export type Database = {
           status: string
           target_company: string | null
           user_api_key: string | null
-        user_id: string
+          user_id: string
+          voice_mode: boolean | null
         }
         Insert: {
           created_at?: string
@@ -130,7 +152,8 @@ export type Database = {
           status?: string
           target_company?: string | null
           user_api_key?: string | null
-        user_id: string
+          user_id: string
+          voice_mode?: boolean | null
         }
         Update: {
           created_at?: string
@@ -149,7 +172,8 @@ export type Database = {
           status?: string
           target_company?: string | null
           user_api_key?: string | null
-        user_id?: string
+          user_id?: string
+          voice_mode?: boolean | null
         }
         Relationships: []
       }
