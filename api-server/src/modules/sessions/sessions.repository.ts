@@ -1,4 +1,4 @@
-import type { Json } from "../../lib/supabase-types.js";
+﻿import type { Json } from "../../lib/supabase-types.js";
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import type { ProviderName } from "../model-providers/provider.types.js";
 
@@ -31,10 +31,9 @@ export async function createSession(
   const { data, error } = await supabase
     .from("interview_sessions")
     .insert(row)
-    .select("id")
-    .single();
+    .select("id");
   if (error) throw new Error(error.message);
-  return data;
+  return data?.[0] as { id: string };
 }
 
 export async function createQuestions(
