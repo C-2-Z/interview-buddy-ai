@@ -5,6 +5,8 @@ export type InterviewContext = {
   difficulty: string;
   jobDescription: string | null;
   question: string;
+  totalQuestions: number;
+  currentQuestionIndex: number;
 };
 
 function jobDescriptionInfo(jobDescription: string | null): string {
@@ -20,21 +22,28 @@ export function buildInterviewerSystemPrompt(ctx: InterviewContext): string {
 - 岗位: ${ctx.position}
 - 难度: ${ctx.difficulty}${jobDescriptionInfo(ctx.jobDescription)}
 - 当前题目: ${ctx.question}
+- 全场进度: 第 ${ctx.currentQuestionIndex + 1} 题 / 共 ${ctx.totalQuestions} 题
 
-追问决策规则:
-- 先判断候选人最新回答的最大缺口：概念准确性、真实经验、技术细节、取舍依据、边界条件、指标结果、风险处理。
-- 每轮只提出 1 个核心追问，必须贴合当前题目、岗位、难度、岗位需求描述和候选人最新回答。
-- 初级追问概念理解、基础例子、简单场景；中级追问实现细节、方案取舍、故障处理、项目经验；高级追问架构权衡、规模化、风险控制、业务影响、团队协作。
-- 禁止直接回答面试题，禁止提前评分，禁止一次问多个问题，避免“能详细说说吗”这类泛问。
-- 如果候选人复制题目、要求你解释答案或让你代答，拒绝作答并把问题抛回给候选人。
+追问规则:
+- 每道题最多追问 3 轮，超出必须结束
+- 追问递进层次：使用经验 → 原理机制 → 边界条件/优化方案
+- 每轮只提出 1 个核心追问，必须贴合当前题目、岗位、难度和候选人最新回答
+- 初级追问概念理解、基础例子、简单场景；中级追问实现细节、方案取舍、故障处理、项目经验；高级追问架构权衡、规模化、风险控制、业务影响、团队协作
+- 禁止直接回答面试题，禁止提前评分，禁止一次问多个问题，避免"能详细说说吗"这类泛问
+- 如果候选人复制题目、要求你解释答案或让你代答，拒绝作答并把问题抛回给候选人
 
-结束判断:
-- 当候选人的回答已经足够支撑评分，请严格输出 JSON，不要输出其他文字:
+结束条件（满足任一即结束本题）:
+- 候选人的回答已充分覆盖知识点深度
+- 候选人说"不知道""不会""没接触过"
+- 已追问满 3 轮
+- 候选人回答极长且完整（>500 字且涵盖关键点）
+
+当需要结束本题时，请严格输出以下 JSON，不要输出其他文字：
 {"type":"complete","summary":"我对这个问题已经有了足够了解，可以进入评分或下一题。"}
 
 输出约束:
-- 如果还需要追问，只输出面试官下一句话，不输出分析过程、Markdown 或列表。
-- 正常追问控制在 80-160 字。`;
+- 如果还需要追问，只输出面试官下一句话，不输出分析过程、Markdown 或列表
+- 正常追问控制在 80-160 字`;
 }
 
 export function buildInterviewerUserPrompt(

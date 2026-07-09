@@ -17,11 +17,18 @@ import {
 } from "./prompt-builders.js";
 import {
   getQuestionWithSession,
+  countSessionQuestions,
   saveConversationAnswer,
   saveEvaluation,
+  updateLastActivity,
 } from "./questions.repository.js";
 
-function buildContext(question: Awaited<ReturnType<typeof getQuestionWithSession>>): InterviewContext {
+const MAX_FOLLOWUPS = 3;
+const MAX_TOTAL_MESSAGES = 20;
+function buildContext(
+  question: Awaited<ReturnType<typeof getQuestionWithSession>>,
+  totalQuestions: number,
+): InterviewContext {
   if (!question) throw new Error("题目未找到");
   const session = question.interview_sessions;
   return {
@@ -29,6 +36,8 @@ function buildContext(question: Awaited<ReturnType<typeof getQuestionWithSession
     difficulty: session.difficulty,
     jobDescription: session.job_description,
     question: question.question,
+    totalQuestions,
+    currentQuestionIndex: question.order_index,
   };
 }
 
@@ -52,14 +61,33 @@ export async function sendMessage(params: {
   const conversation = parseConversation(question.answer);
   conversation.push({ role: "user", content: params.content });
 
+  // --- copied question check (existing) ---
   if (isCopiedQuestion(params.content, question.question)) {
     const response = buildRedirectResponse();
     conversation.push({ role: "assistant", content: response });
     await saveConversationAnswer(params.supabase, params.questionId, conversation);
+    await updateLastActivity(params.supabase, question.session_id);
     return { response };
   }
 
-  const context = buildContext(question);
+  // --- get session-level question count for context ---
+  const totalQuestions = await countSessionQuestions(params.supabase, question.session_id);
+
+  // --- follow-up counter check (Step 2) ---
+  const userMessages = conversation.filter((m) => m.role === "user").length;
+  if (userMessages > MAX_FOLLOWUPS) {
+    await updateLastActivity(params.supabase, question.session_id);
+    return autoEvaluateQuestion({
+      question,
+      conversation,
+      provider,
+      totalQuestions,
+      supabase: params.supabase,
+    });
+  }
+
+  // --- AI call (existing flow) ---
+  const context = buildContext(question, totalQuestions);
   const conversationText = formatConversation(conversation);
   const response = await callAI(
     [
@@ -72,7 +100,17 @@ export async function sendMessage(params: {
     provider,
   );
   conversation.push({ role: "assistant", content: response });
-
+  // --- total messages overflow check (existing + counter combined) ---
+  if (conversation.length >= MAX_TOTAL_MESSAGES) {
+    await updateLastActivity(params.supabase, question.session_id);
+    return autoEvaluateQuestion({
+      question,
+      conversation,
+      provider,
+      totalQuestions,
+      supabase: params.supabase,
+    });
+  }
   const completionSignal = parseCompletionSignal(response);
   if (completionSignal) {
     const closingResponse = `感谢你的回答。${completionSignal.summary}下面我们进入下一题。`;
@@ -98,6 +136,7 @@ export async function sendMessage(params: {
       feedback: evaluation.feedback,
     });
 
+    await updateLastActivity(params.supabase, question.session_id);
     return {
       response: closingResponse,
       done: true,
@@ -107,6 +146,7 @@ export async function sendMessage(params: {
   }
 
   await saveConversationAnswer(params.supabase, params.questionId, conversation);
+  await updateLastActivity(params.supabase, question.session_id);
   return { response };
 }
 
@@ -127,8 +167,9 @@ export async function evaluateQuestionConversation(params: {
     question.interview_sessions,
   );
   const conversation = parseConversation(question.answer);
+  const totalQuestions = await countSessionQuestions(params.supabase, question.session_id);
   const evaluation = await evaluateConversationWithAI({
-    context: buildContext(question),
+    context: buildContext(question, totalQuestions),
     conversationText: formatConversation(conversation),
     provider,
   });
@@ -141,6 +182,38 @@ export async function evaluateQuestionConversation(params: {
     feedback: evaluation.feedback,
   });
 
+  await updateLastActivity(params.supabase, question.session_id);
   return evaluation;
 }
 
+async function autoEvaluateQuestion(params: {
+  question: Exclude<Awaited<ReturnType<typeof getQuestionWithSession>>, null>;
+  conversation: import("./questions.repository.js").ConversationMessage[];
+  provider: Awaited<ReturnType<typeof resolveProviderForSession>>;
+  totalQuestions: number;
+  supabase: UserSupabaseClient;
+}) {
+  const context = buildContext(params.question, params.totalQuestions);
+  const conversationText = formatConversation(params.conversation);
+  const evaluation = await evaluateConversationWithAI({
+    context,
+    conversationText,
+    provider: params.provider,
+  });
+  const closingResponse = "感谢你的详细回答。我已经有了足够的信息来评估这个问题。";
+  params.conversation.push({ role: "assistant", content: closingResponse });
+  await saveEvaluation({
+    supabase: params.supabase,
+    questionId: params.question.id,
+    sessionId: params.question.session_id,
+    answer: combinedCandidateAnswer(params.conversation),
+    score: evaluation.score,
+    feedback: evaluation.feedback,
+  });
+  return {
+    response: closingResponse,
+    done: true as const,
+    score: evaluation.score,
+    feedback: evaluation.feedback,
+  };
+}

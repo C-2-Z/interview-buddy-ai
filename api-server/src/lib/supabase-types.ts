@@ -99,6 +99,7 @@ export type Database = {
           difficulty: string
           id: string
           job_description: string | null
+          last_activity_at: string | null
           model_name: string | null
           model_provider: string | null
           overall_feedback: string | null
@@ -117,6 +118,7 @@ export type Database = {
           difficulty: string
           id?: string
           job_description?: string | null
+          last_activity_at?: string | null
           model_name?: string | null
           model_provider?: string | null
           overall_feedback?: string | null
@@ -135,6 +137,7 @@ export type Database = {
           difficulty?: string
           id?: string
           job_description?: string | null
+          last_activity_at?: string | null
           model_name?: string | null
           model_provider?: string | null
           overall_feedback?: string | null
