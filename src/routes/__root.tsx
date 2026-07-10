@@ -37,8 +37,7 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => {
-  }, [error]);
+  useEffect(() => {}, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -77,7 +76,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "AI 面试模拟器" },
-      { name: "description", content: "选择岗位与难度，AI 出题、评分并给出改进建议，帮你从容应对面试。" },
+      {
+        name: "description",
+        content: "选择岗位与难度，AI 出题、评分并给出改进建议，帮你从容应对面试。",
+      },
       { property: "og:title", content: "AI 面试模拟器" },
       { property: "og:description", content: "选择岗位与难度，AI 出题、评分并给出改进建议。" },
       { property: "og:type", content: "website" },
@@ -101,7 +103,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="zh-CN">
       <head>
         <HeadContent />
       </head>

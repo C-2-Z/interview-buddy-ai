@@ -11,13 +11,15 @@ export function QuestionNav({
   onChange: (index: number) => void;
 }) {
   return (
-    <div className="flex gap-2 flex-wrap">
+    <div className="flex flex-wrap gap-2">
       {questions.map((question, index) => (
         <button
           key={question.id}
           onClick={() => onChange(index)}
           disabled={question.score == null && index > current + 1}
-          className={`w-9 h-9 rounded-md border text-sm font-medium transition-colors disabled:opacity-30 ${
+          aria-label={`第 ${index + 1} 题${question.score != null ? "，已评分" : ""}`}
+          aria-current={index === current ? "step" : undefined}
+          className={`size-11 rounded-xl border text-sm font-medium transition-colors disabled:opacity-30 ${
             index === current
               ? "bg-primary text-primary-foreground border-primary"
               : question.score != null
@@ -25,14 +27,9 @@ export function QuestionNav({
                 : "bg-card hover:bg-accent"
           }`}
         >
-          {question.score != null ? (
-            <CheckCircle2 className="w-4 h-4 mx-auto" />
-          ) : (
-            index + 1
-          )}
+          {question.score != null ? <CheckCircle2 className="mx-auto size-4" /> : index + 1}
         </button>
       ))}
     </div>
   );
 }
-

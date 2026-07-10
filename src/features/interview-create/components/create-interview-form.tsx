@@ -1,12 +1,6 @@
 import { Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -32,9 +26,9 @@ export function CreateInterviewForm() {
     <div className="max-w-2xl mx-auto">
       <Card>
         <CardHeader>
-          <CardTitle>配置文字面试</CardTitle>
+          <CardTitle>配置文本面试</CardTitle>
           <CardDescription>
-            选择一个面试方向，或自定义输入岗位，AI 将为文字面试生成题目。
+            选择一个面试方向，或自定义输入岗位，AI 将为文本面试生成题目。
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -62,19 +56,14 @@ export function CreateInterviewForm() {
 
             <SkillTags skill={form.selectedSkill} />
 
-            <ModelSelector
-              value={form.modelProvider}
-              onChange={form.setModelProvider}
-            />
+            <ModelSelector value={form.modelProvider} onChange={form.setModelProvider} />
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>难度</Label>
                 <Select
                   value={form.difficulty}
-                  onValueChange={(v) =>
-                    form.setDifficulty(v as typeof form.difficulty)
-                  }
+                  onValueChange={(v) => form.setDifficulty(v as typeof form.difficulty)}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -88,10 +77,7 @@ export function CreateInterviewForm() {
               </div>
               <div className="space-y-2">
                 <Label>题目数量</Label>
-                <Select
-                  value={String(form.count)}
-                  onValueChange={(v) => form.setCount(Number(v))}
-                >
+                <Select value={String(form.count)} onValueChange={(v) => form.setCount(Number(v))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -108,13 +94,9 @@ export function CreateInterviewForm() {
 
             <div className="space-y-2">
               <Label>
-                题型配比{" "}
-                <span className="text-muted-foreground text-xs">(选填)</span>
+                题型配比 <span className="text-muted-foreground text-xs">(选填)</span>
               </Label>
-              <Select
-                value={form.typeProfile}
-                onValueChange={form.setTypeProfile}
-              >
+              <Select value={form.typeProfile} onValueChange={form.setTypeProfile}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -130,8 +112,7 @@ export function CreateInterviewForm() {
 
             <div className="space-y-2">
               <Label>
-                热门公司{" "}
-                <span className="text-muted-foreground text-xs">(选填)</span>
+                热门公司 <span className="text-muted-foreground text-xs">(选填)</span>
               </Label>
               <Input
                 placeholder="例如：字节跳动 / 腾讯 / 阿里巴巴 / Google"
@@ -151,8 +132,7 @@ export function CreateInterviewForm() {
 
             <div className="space-y-2">
               <Label htmlFor="jobDescription">
-                岗位需求描述{" "}
-                <span className="text-muted-foreground text-xs">(选填)</span>
+                岗位需求描述 <span className="text-muted-foreground text-xs">(选填)</span>
               </Label>
               <Textarea
                 id="jobDescription"
@@ -173,7 +153,7 @@ export function CreateInterviewForm() {
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 mr-2" />
-                  生成文字面试题
+                  生成文本面试题
                 </>
               )}
             </Button>
@@ -183,4 +163,3 @@ export function CreateInterviewForm() {
     </div>
   );
 }
-

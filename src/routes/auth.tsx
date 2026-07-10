@@ -22,7 +22,7 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user) navigate({ to: "/dashboard", replace: true });
+      if (data.user) navigate({ to: "/interview-hub", replace: true });
     });
   }, [navigate]);
 
@@ -45,7 +45,7 @@ function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
-      navigate({ to: "/dashboard", replace: true });
+      navigate({ to: "/interview-hub", replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "操作失败");
     } finally {
@@ -74,16 +74,34 @@ function AuthPage() {
               {mode === "signup" && (
                 <div className="space-y-2">
                   <Label htmlFor="name">昵称</Label>
-                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="您的昵称" />
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="您的昵称"
+                  />
                 </div>
               )}
               <div className="space-y-2">
                 <Label htmlFor="email">邮箱</Label>
-                <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">密码</Label>
-                <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "处理中…" : mode === "signin" ? "登录" : "注册"}
@@ -93,14 +111,20 @@ function AuthPage() {
               {mode === "signin" ? (
                 <>
                   还没有账号？{" "}
-                  <button className="text-primary hover:underline" onClick={() => setMode("signup")}>
+                  <button
+                    className="text-primary hover:underline"
+                    onClick={() => setMode("signup")}
+                  >
                     立即注册
                   </button>
                 </>
               ) : (
                 <>
                   已有账号？{" "}
-                  <button className="text-primary hover:underline" onClick={() => setMode("signin")}>
+                  <button
+                    className="text-primary hover:underline"
+                    onClick={() => setMode("signin")}
+                  >
                     去登录
                   </button>
                 </>

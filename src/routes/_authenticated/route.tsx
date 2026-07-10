@@ -1,7 +1,6 @@
-import { createFileRoute, Outlet, redirect, Link, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { AppShell } from "@/features/app-shell/components/app-shell";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { LogOut, Home, Plus, History, BookOpen, Settings, Mic2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -14,46 +13,10 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthedLayout() {
-  const router = useRouter();
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-    router.navigate({ to: "/auth", replace: true });
-  }
+  const { user } = Route.useRouteContext();
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card/50 backdrop-blur sticky top-0 z-10">
-        <div className="mx-auto max-w-5xl flex items-center justify-between px-4 py-3">
-          <Link to="/" className="font-semibold text-lg tracking-tight">
-            AI 面试模拟器
-          </Link>
-                    <nav className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/dashboard"><Home className="w-4 h-4 mr-1" />主页</Link>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/new"><Plus className="w-4 h-4 mr-1" />文字面试</Link>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/voice/new"><Mic2 className="w-4 h-4 mr-1" />语音面试</Link>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/history"><History className="w-4 h-4 mr-1" />历史</Link>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/bank"><BookOpen className="w-4 h-4 mr-1" />题库</Link>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/settings"><Settings className="w-4 h-4 mr-1" />设置</Link>
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleSignOut}>
-              <LogOut className="w-4 h-4 mr-1" />登出
-            </Button>
-          </nav>
-        </div>
-      </header>
-      <main className="mx-auto max-w-5xl px-4 py-6">
-        <Outlet />
-      </main>
-    </div>
+    <AppShell userEmail={user.email}>
+      <Outlet />
+    </AppShell>
   );
 }

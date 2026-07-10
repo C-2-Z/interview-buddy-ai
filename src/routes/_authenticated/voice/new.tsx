@@ -1,6 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { VoiceCreateForm } from "@/features/voice-interview/components/voice-create-form";
+import { z } from "zod";
+import { InterviewSetupPage } from "@/features/interview-setup/components/interview-setup-page";
+
+const setupSearchSchema = z.object({
+  resumeId: z.string().uuid().optional(),
+  sourceSessionId: z.string().uuid().optional(),
+});
 
 export const Route = createFileRoute("/_authenticated/voice/new")({
-  component: VoiceCreateForm,
+  validateSearch: setupSearchSchema,
+  component: VoiceInterviewSetupRoute,
 });
+
+function VoiceInterviewSetupRoute() {
+  return <InterviewSetupPage mode="voice" search={Route.useSearch()} />;
+}

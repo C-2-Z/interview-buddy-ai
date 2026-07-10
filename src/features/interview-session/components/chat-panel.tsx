@@ -28,14 +28,15 @@ export function ChatPanel({
   onEvaluate,
 }: ChatPanelProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <ChatMessages messages={messages} sending={sending} endRef={endRef} />
       <div className="space-y-3">
         <Textarea
           placeholder="输入你的回答…面试官会针对你的回答继续追问"
           value={message}
           onChange={(e) => onMessageChange(e.target.value)}
-          rows={3}
+          className="min-h-28 resize-y text-base leading-6"
+          rows={4}
           maxLength={5000}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -44,13 +45,16 @@ export function ChatPanel({
             }
           }}
         />
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">
-            {message.length}/5000
-          </span>
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-xs text-muted-foreground">{message.length}/5000</span>
+          <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
             {canConclude && (
-              <Button variant="outline" onClick={onEvaluate} disabled={evaluating}>
+              <Button
+                className="min-h-11"
+                variant="outline"
+                onClick={onEvaluate}
+                disabled={evaluating}
+              >
                 {evaluating ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-1 animate-spin" />
@@ -61,7 +65,7 @@ export function ChatPanel({
                 )}
               </Button>
             )}
-            <Button onClick={onSend} disabled={sending || !message.trim()}>
+            <Button className="min-h-11" onClick={onSend} disabled={sending || !message.trim()}>
               {sending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-1 animate-spin" />
@@ -80,4 +84,3 @@ export function ChatPanel({
     </div>
   );
 }
-

@@ -28,9 +28,7 @@ export function QuestionResult({
           <div className="text-sm font-semibold">AI 评分与反馈</div>
           <div className="text-2xl font-bold text-primary">{question.score}</div>
         </div>
-        <p className="text-sm whitespace-pre-wrap leading-relaxed">
-          {question.feedback}
-        </p>
+        <p className="text-sm whitespace-pre-wrap leading-relaxed">{question.feedback}</p>
       </div>
       <div className="flex gap-2">
         {canGoNext && (
@@ -54,4 +52,3 @@ export function QuestionResult({
     </div>
   );
 }
-

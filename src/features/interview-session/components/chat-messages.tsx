@@ -12,7 +12,7 @@ export function ChatMessages({
   endRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
-    <div className="rounded-lg border bg-card max-h-[400px] min-h-[200px] overflow-y-auto p-4 space-y-3">
+    <div className="max-h-[min(50dvh,440px)] min-h-64 space-y-4 overflow-y-auto rounded-xl border bg-muted/20 p-3 sm:p-4">
       {messages.length === 0 ? (
         <div className="text-center py-10 text-muted-foreground text-sm">
           <Sparkles className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -24,7 +24,7 @@ export function ChatMessages({
             key={msg.id || index}
             className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
           >
-            <Avatar className="w-8 h-8 flex-shrink-0">
+            <Avatar className="size-8 flex-shrink-0">
               <AvatarFallback
                 className={
                   msg.role === "user"
@@ -32,18 +32,12 @@ export function ChatMessages({
                     : "bg-accent text-accent-foreground"
                 }
               >
-                {msg.role === "user" ? (
-                  <User className="w-4 h-4" />
-                ) : (
-                  <Bot className="w-4 h-4" />
-                )}
+                {msg.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
               </AvatarFallback>
             </Avatar>
             <div
-              className={`max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap leading-relaxed ${
-                msg.role === "user"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted"
+              className={`max-w-[88%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap leading-6 sm:max-w-[80%] ${
+                msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
               }`}
             >
               {msg.content}
@@ -53,7 +47,7 @@ export function ChatMessages({
       )}
       {sending && (
         <div className="flex gap-3">
-          <Avatar className="w-8 h-8 flex-shrink-0">
+          <Avatar className="size-8 flex-shrink-0">
             <AvatarFallback className="bg-accent text-accent-foreground">
               <Bot className="w-4 h-4" />
             </AvatarFallback>
@@ -67,4 +61,3 @@ export function ChatMessages({
     </div>
   );
 }
-

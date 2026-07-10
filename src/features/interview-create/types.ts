@@ -10,6 +10,7 @@ export type CreateSessionParams = {
   targetCompany?: string;
   questionTypeConfig?: Record<string, number>;
   resumeText?: string;
+  resumeId?: string;
   modelProvider?: ModelProviderName;
   modelName?: string;
   userApiKey?: string;
@@ -21,4 +22,3 @@ export type SkillMeta = {
   description: string;
   categories: Array<{ key: string; label: string; priority: string }>;
 };
-

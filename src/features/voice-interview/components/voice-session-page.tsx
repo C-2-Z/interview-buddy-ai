@@ -1,14 +1,18 @@
-import { Loader2, Mic2, Square } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { BriefcaseBusiness, Loader2, Mic2, ShieldCheck, Square } from "lucide-react";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { CompletedSession } from "@/features/interview-session/components/completed-session";
-import { SessionProgress } from "@/features/interview-session/components/session-progress";
 import { VoiceInterviewPanel } from "./voice-interview-panel";
 import { useVoiceSession } from "../hooks/use-voice-session";
 
@@ -24,52 +28,80 @@ export function VoiceSessionPage({ sessionId }: { sessionId: string }) {
   }
 
   if (voiceSession.isComplete) {
-    return (
-      <CompletedSession
-        session={voiceSession.session}
-        questions={voiceSession.questions}
-      />
-    );
+    return <CompletedSession session={voiceSession.session} questions={voiceSession.questions} />;
   }
 
   return (
-    <div className="space-y-4">
-      <SessionProgress
-        session={voiceSession.session}
-        progress={voiceSession.progress}
-        answeredCount={voiceSession.answeredCount}
-        total={voiceSession.questions.length}
-      />
-
-      <Card>
-        <CardHeader className="space-y-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <Mic2 className="h-5 w-5" />
-                实时语音面试
-              </CardTitle>
-              <CardDescription>
-                AI 面试官会读题、追问并自动进入下一题；题目不会作为卡片提前展示。
-              </CardDescription>
+    <div className="overflow-hidden rounded-3xl border border-voice-border bg-voice-background text-voice-foreground shadow-2xl">
+      <div className="relative">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-voice-accent/10" />
+        <header className="relative border-b border-voice-border px-4 py-4 sm:px-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-voice-accent">
+                <Mic2 className="h-3.5 w-3.5" />
+                Live interview
+              </div>
+              <div className="mt-2 flex min-w-0 items-center gap-2">
+                <BriefcaseBusiness className="h-4 w-4 shrink-0 text-voice-muted" />
+                <h1 className="truncate text-base font-semibold text-voice-foreground sm:text-lg">
+                  {voiceSession.session.position}
+                </h1>
+                <span className="shrink-0 rounded-full border border-voice-border bg-voice-surface px-2 py-0.5 text-xs text-voice-muted">
+                  {voiceSession.session.difficulty}
+                </span>
+              </div>
+              <div className="mt-3 flex items-center gap-3">
+                <Progress
+                  value={voiceSession.progress}
+                  className="h-1.5 w-32 bg-voice-surface-strong sm:w-48 [&>div]:bg-voice-accent"
+                />
+                <span className="text-xs text-voice-muted">
+                  已完成 {voiceSession.answeredCount} / {voiceSession.questions.length} 轮
+                </span>
+              </div>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={voiceSession.finishing}
-              onClick={() => void voiceSession.completeInterview()}
-            >
-              {voiceSession.finishing ? (
-                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-              ) : (
-                <Square className="mr-1 h-4 w-4" />
-              )}
-              结束面试
-            </Button>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={voiceSession.finishing}
+                  className="min-h-11 shrink-0 text-voice-muted hover:bg-destructive/10 hover:text-destructive"
+                >
+                  {voiceSession.finishing ? (
+                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Square className="mr-1 h-3.5 w-3.5" />
+                  )}
+                  <span className="hidden sm:inline">结束面试</span>
+                  <span className="sm:hidden">结束</span>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="max-w-md">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>确认提前结束语音面试？</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    当前回答将停止，系统会根据已经完成的轮次生成结果。此操作无法撤销。
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>继续面试</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => void voiceSession.completeInterview()}
+                  >
+                    确认结束
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
-        </CardHeader>
-        <CardContent>
+        </header>
+
+        <main className="relative px-3 py-4 pb-24 sm:px-6 sm:py-6">
           <VoiceInterviewPanel
             sessionId={sessionId}
             initialQuestionId={voiceSession.currentQuestion?.id ?? null}
@@ -80,8 +112,13 @@ export function VoiceSessionPage({ sessionId }: { sessionId: string }) {
             onSessionCompleted={voiceSession.applyCompletion}
             onRefresh={voiceSession.refresh}
           />
-        </CardContent>
-      </Card>
+        </main>
+
+        <footer className="relative flex items-center justify-center gap-2 border-t border-voice-border px-4 py-3 text-xs text-voice-muted">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          面试音频仅用于本次实时识别与评估
+        </footer>
+      </div>
     </div>
   );
 }

@@ -1,12 +1,6 @@
 import { Loader2, Mic2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -33,9 +27,7 @@ export function VoiceCreateForm() {
       <Card>
         <CardHeader>
           <CardTitle>配置语音面试</CardTitle>
-          <CardDescription>
-            AI 面试官会按真实面试方式逐题提问、追问并实时语音互动。
-          </CardDescription>
+          <CardDescription>AI 面试官会按真实面试方式逐题提问、追问并实时语音互动。</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={form.submit} className="space-y-5">
@@ -62,19 +54,14 @@ export function VoiceCreateForm() {
 
             <SkillTags skill={form.selectedSkill} />
 
-            <ModelSelector
-              value={form.modelProvider}
-              onChange={form.setModelProvider}
-            />
+            <ModelSelector value={form.modelProvider} onChange={form.setModelProvider} />
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>难度</Label>
                 <Select
                   value={form.difficulty}
-                  onValueChange={(value) =>
-                    form.setDifficulty(value as typeof form.difficulty)
-                  }
+                  onValueChange={(value) => form.setDifficulty(value as typeof form.difficulty)}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -108,13 +95,9 @@ export function VoiceCreateForm() {
 
             <div className="space-y-2">
               <Label>
-                题型配比{" "}
-                <span className="text-xs text-muted-foreground">(选填)</span>
+                题型配比 <span className="text-xs text-muted-foreground">(选填)</span>
               </Label>
-              <Select
-                value={form.typeProfile}
-                onValueChange={form.setTypeProfile}
-              >
+              <Select value={form.typeProfile} onValueChange={form.setTypeProfile}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -130,8 +113,7 @@ export function VoiceCreateForm() {
 
             <div className="space-y-2">
               <Label>
-                目标公司{" "}
-                <span className="text-xs text-muted-foreground">(选填)</span>
+                目标公司 <span className="text-xs text-muted-foreground">(选填)</span>
               </Label>
               <Input
                 placeholder="例如：字节跳动 / 腾讯 / Google"
@@ -151,8 +133,7 @@ export function VoiceCreateForm() {
 
             <div className="space-y-2">
               <Label htmlFor="voice-job-description">
-                岗位需求描述{" "}
-                <span className="text-xs text-muted-foreground">(选填)</span>
+                岗位需求描述 <span className="text-xs text-muted-foreground">(选填)</span>
               </Label>
               <Textarea
                 id="voice-job-description"

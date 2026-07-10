@@ -1,11 +1,5 @@
-import {
-  createInterviewSession,
-  listSkills,
-} from "@/features/interview-create/api";
-export type {
-  CreateSessionParams,
-  SkillMeta,
-} from "@/features/interview-create/types";
+import { createInterviewSession, listSkills } from "@/features/interview-create/api";
+export type { CreateSessionParams, SkillMeta } from "@/features/interview-create/types";
 import {
   evaluateConversation,
   finishSession,
@@ -13,25 +7,17 @@ import {
   listSessions,
   sendMessage,
 } from "@/features/interview-session/api";
-export type {
-  QuestionItem,
-  SessionDetail,
-  SessionItem,
-} from "@/features/interview-session/types";
+export type { QuestionItem, SessionDetail, SessionItem } from "@/features/interview-session/types";
 import {
   getBankQuestion,
   listBankQuestions,
   listFavoriteQuestions,
   toggleFavorite,
 } from "@/features/question-bank/api";
-export type {
-  BankFilters,
-  BankQuestion,
-} from "@/features/question-bank/types";
-import {
-  getSettings,
-  updateSettings,
-} from "@/features/settings/api";
+export type { BankFilters, BankQuestion } from "@/features/question-bank/types";
+import { getSettings, updateSettings } from "@/features/settings/api";
+import { deleteResume, getResume, listResumes, uploadResume } from "@/features/resume-library/api";
+export type { ResumeAnalysis, ResumeDetail, ResumeListItem } from "@/features/resume-library/types";
 import {
   connectVoiceSession,
   createVoiceInterviewSession,
@@ -39,10 +25,7 @@ import {
   getVoiceSession,
   listVoiceMessages,
 } from "@/features/voice-interview/api";
-export type {
-  VoiceMessage,
-  VoiceServerEvent,
-} from "@/features/voice-interview/types";
+export type { VoiceMessage, VoiceServerEvent } from "@/features/voice-interview/types";
 
 export const apiClient = {
   createInterviewSession,
@@ -58,10 +41,13 @@ export const apiClient = {
   listFavoriteQuestions,
   getSettings,
   updateSettings,
+  listResumes,
+  getResume,
+  uploadResume,
+  deleteResume,
   createVoiceInterviewSession,
   getVoiceSession,
   connectVoiceSession,
   listVoiceMessages,
   endVoiceSession,
 };
-

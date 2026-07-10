@@ -1,13 +1,8 @@
-import { Mic, MicOff, PhoneCall, Volume2, XCircle } from "lucide-react";
+import { AlertTriangle, Clock3, Mic, MicOff, PhoneCall, Radio, XCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  VoiceDebugLog,
-  type VoiceDebugLogEntry,
-  type VoiceDebugLogLevel,
-} from "./voice-debug-log";
+import { VoiceDebugLog, type VoiceDebugLogEntry, type VoiceDebugLogLevel } from "./voice-debug-log";
 import { LiveTranscript } from "./live-transcript";
 import { VoiceStatus, type VoiceStatusValue } from "./voice-status";
 import { useAudioCapture } from "../hooks/use-audio-capture";
@@ -18,6 +13,11 @@ import type { VoiceMessage, VoiceServerEvent } from "../types";
 
 function createTurnId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `turn-${Date.now()}`;
+}
+
+function formatElapsed(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 export function VoiceInterviewPanel({
@@ -36,25 +36,22 @@ export function VoiceInterviewPanel({
   totalQuestions: number;
   completed?: boolean;
   onQuestionScored: (questionId: string, score: number, feedback: string) => void;
-  onSessionCompleted: (result: {
-    overallScore: number;
-    overallFeedback: string;
-  }) => void;
+  onSessionCompleted: (result: { overallScore: number; overallFeedback: string }) => void;
   onRefresh: () => Promise<void>;
 }) {
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
   const [partial, setPartial] = useState("");
   const [status, setStatus] = useState<VoiceStatusValue>("idle");
+  const [connectedAt, setConnectedAt] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [stageMessage, setStageMessage] = useState("等待开始语音面试");
   const [debugLogs, setDebugLogs] = useState<VoiceDebugLogEntry[]>([]);
-  const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(
-    initialQuestionId,
-  );
-  const [currentQuestionIndex, setCurrentQuestionIndex] =
-    useState(initialQuestionIndex);
+  const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(initialQuestionId);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(initialQuestionIndex);
   const [questionTotal, setQuestionTotal] = useState(totalQuestions);
   const currentTurnId = useRef<string | null>(null);
   const activeAssistantTurnId = useRef<string | null>(null);
+  const hadConnection = useRef(false);
   const messageIndex = useRef(0);
   const debugIndex = useRef(0);
   const playback = useAudioPlayback();
@@ -66,24 +63,21 @@ export function VoiceInterviewPanel({
   }, [initialQuestionId, initialQuestionIndex, totalQuestions]);
 
   const pushDebugLog = useCallback(
-    (
-      level: VoiceDebugLogLevel,
-      label: string,
-      detail?: string,
-      turnId?: string,
-    ) => {
+    (level: VoiceDebugLogLevel, label: string, detail?: string, turnId?: string) => {
       debugIndex.current += 1;
-      setDebugLogs((prev) => [
-        {
-          id: debugIndex.current,
-          at: new Date().toLocaleTimeString(),
-          level,
-          label,
-          detail,
-          turnId,
-        },
-        ...prev,
-      ].slice(0, 80));
+      setDebugLogs((prev) =>
+        [
+          {
+            id: debugIndex.current,
+            at: new Date().toLocaleTimeString(),
+            level,
+            label,
+            detail,
+            turnId,
+          },
+          ...prev,
+        ].slice(0, 80),
+      );
     },
     [],
   );
@@ -100,11 +94,7 @@ export function VoiceInterviewPanel({
     ]);
   }
 
-  function upsertAssistantMessage(
-    turnId: string,
-    text: string,
-    mode: "append" | "replace",
-  ) {
+  function upsertAssistantMessage(turnId: string, text: string, mode: "append" | "replace") {
     setMessages((prev) => {
       const existingIndex = prev.findIndex(
         (message) => message.turn_id === turnId && message.role === "assistant",
@@ -114,8 +104,7 @@ export function VoiceInterviewPanel({
           index === existingIndex
             ? {
                 ...message,
-                content:
-                  mode === "append" ? `${message.content}${text}` : text,
+                content: mode === "append" ? `${message.content}${text}` : text,
               }
             : message,
         );
@@ -167,11 +156,13 @@ export function VoiceInterviewPanel({
             event.stage ? `stage=${event.stage}` : "",
             event.retryable === false ? "不可重试" : "",
             event.detail || event.message,
-          ].filter(Boolean).join(" · "),
+          ]
+            .filter(Boolean)
+            .join(" · "),
           event.turnId,
         );
         toast.error(event.message);
-        setStatus("idle");
+        setStatus("error");
         setStageMessage(event.message);
         return;
       }
@@ -206,12 +197,7 @@ export function VoiceInterviewPanel({
         return;
       }
       if (event.type === "transcript_final") {
-        pushDebugLog(
-          "success",
-          "ASR 返回最终字幕",
-          event.text.slice(0, 120),
-          event.turnId,
-        );
+        pushDebugLog("success", "ASR 返回最终字幕", event.text.slice(0, 120), event.turnId);
         setPartial("");
         setStatus("thinking");
         setStageMessage("已识别，AI 面试官正在思考");
@@ -247,12 +233,7 @@ export function VoiceInterviewPanel({
         playback.start(event.turnId, event.sampleRate);
         setStatus("speaking");
         setStageMessage("AI 面试官正在说话");
-        pushDebugLog(
-          "info",
-          "TTS 音频开始播放",
-          `${event.sampleRate} Hz`,
-          event.turnId,
-        );
+        pushDebugLog("info", "TTS 音频开始播放", `${event.sampleRate} Hz`, event.turnId);
         return;
       }
       if (event.type === "assistant_audio_end") {
@@ -260,8 +241,10 @@ export function VoiceInterviewPanel({
           pushDebugLog("error", "AI 语音播放失败", undefined, event.turnId);
           toast.error("AI 语音播放失败");
         });
+        activeAssistantTurnId.current = null;
+        setStatus("idle");
         pushDebugLog("success", "TTS 音频播放完成", undefined, event.turnId);
-        setStageMessage("AI 语音播放完成");
+        setStageMessage("AI 语音播放完成，请开始回答");
         return;
       }
       if (event.type === "interrupted") {
@@ -291,12 +274,7 @@ export function VoiceInterviewPanel({
         onQuestionScored(event.questionId, event.score, event.feedback);
         void onRefresh();
         toast.success("本题已自动评分");
-        pushDebugLog(
-          "success",
-          "本题评分完成",
-          `score=${event.score}`,
-          event.questionId,
-        );
+        pushDebugLog("success", "本题评分完成", `score=${event.score}`, event.questionId);
         return;
       }
       if (event.type === "next_question") {
@@ -316,11 +294,7 @@ export function VoiceInterviewPanel({
           overallFeedback: event.overallFeedback,
         });
         void onRefresh();
-        pushDebugLog(
-          "success",
-          "语音面试完成",
-          `overallScore=${event.overallScore}`,
-        );
+        pushDebugLog("success", "语音面试完成", `overallScore=${event.overallScore}`);
       }
     },
     [onQuestionScored, onRefresh, onSessionCompleted, playback, pushDebugLog],
@@ -330,8 +304,37 @@ export function VoiceInterviewPanel({
     sessionId,
     onEvent: handleServerEvent,
     onAudioChunk: (turnId, chunk) => playback.addChunk(turnId, chunk),
-    onDebug: (event) => pushDebugLog(event.level, event.label, event.detail),
+    onDebug: (event) => {
+      pushDebugLog(event.level, event.label, event.detail);
+      if (event.level === "error") {
+        setStatus("error");
+        setStageMessage(event.detail || event.label);
+      }
+    },
   });
+
+  useEffect(() => {
+    if (voiceSocket.connected) {
+      hadConnection.current = true;
+      setConnectedAt((current) => current ?? Date.now());
+      return;
+    }
+    if (hadConnection.current && !completed) {
+      setStatus("error");
+      setStageMessage("语音连接已断开，请重新连接后继续");
+    }
+    hadConnection.current = false;
+    setConnectedAt(null);
+    setElapsedSeconds(0);
+  }, [completed, voiceSocket.connected]);
+
+  useEffect(() => {
+    if (!connectedAt) return;
+    const update = () => setElapsedSeconds(Math.floor((Date.now() - connectedAt) / 1000));
+    update();
+    const timer = window.setInterval(update, 1000);
+    return () => window.clearInterval(timer);
+  }, [connectedAt]);
 
   const bargeIn = useBargeIn({
     speaking: playback.speaking,
@@ -372,9 +375,7 @@ export function VoiceInterviewPanel({
           `${stats.chunks} chunks, ${stats.bytes} bytes`,
           currentTurnId.current ?? undefined,
         );
-        setStageMessage(
-          `本地录音已停止，共采集 ${stats.chunks} 块，${stats.bytes} 字节`,
-        );
+        setStageMessage(`本地录音已停止，共采集 ${stats.chunks} 块，${stats.bytes} 字节`);
         return;
       }
       setStageMessage(
@@ -427,7 +428,7 @@ export function VoiceInterviewPanel({
         turnId,
       });
       currentTurnId.current = null;
-      setStatus("idle");
+      setStatus("error");
       setStageMessage(message);
       pushDebugLog("error", "麦克风启动失败", message, turnId);
       toast.error(message);
@@ -459,57 +460,96 @@ export function VoiceInterviewPanel({
   }
 
   const displayedIndex = questionTotal > 0 ? currentQuestionIndex + 1 : 0;
+  const resolvedStatus: VoiceStatusValue = voiceSocket.connecting
+    ? "connecting"
+    : playback.speaking
+      ? "speaking"
+      : status;
+  const latestError = debugLogs.find((entry) => entry.level === "error");
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <VoiceStatus
-            status={
-              voiceSocket.connecting
-                ? "connecting"
-                : playback.speaking
-                  ? "speaking"
-                  : status
-            }
-          />
-          <Badge variant="outline">
-            {displayedIndex}/{questionTotal || 0}
-          </Badge>
-          {playback.speaking && (
-            <span className="inline-flex items-center text-xs text-muted-foreground">
-              <Volume2 className="mr-1 h-3 w-3" />
-              AI 正在说话
-            </span>
-          )}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-voice-muted">
+        <div className="inline-flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            {voiceSocket.connected && (
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-50" />
+            )}
+            <span
+              className={`relative inline-flex h-2 w-2 rounded-full ${
+                voiceSocket.connected ? "bg-success" : "bg-voice-muted/45"
+              }`}
+            />
+          </span>
+          {voiceSocket.connected ? "语音服务已连接" : "语音服务未连接"}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="inline-flex items-center gap-3 font-medium text-voice-foreground">
+          <span>
+            第 {displayedIndex} 轮<span className="mx-1 text-voice-muted">/</span>共{" "}
+            {questionTotal || 0} 轮
+          </span>
+          <span className="inline-flex items-center gap-1 tabular-nums text-voice-muted">
+            <Clock3 className="size-3.5" />
+            {formatElapsed(elapsedSeconds)}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex min-h-64 items-center justify-center py-5 sm:min-h-72">
+        <VoiceStatus status={resolvedStatus} message={stageMessage} />
+      </div>
+
+      {latestError && (
+        <div
+          role="alert"
+          className="flex gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-voice-foreground"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+          <div className="min-w-0">
+            <div className="font-medium">语音服务遇到问题</div>
+            <div className="mt-0.5 break-words text-xs leading-5 text-voice-muted">
+              {latestError.detail || latestError.label}
+            </div>
+            <div className="mt-1 text-xs leading-5 text-voice-muted">
+              请检查网络或麦克风权限，然后使用下方连接或回答按钮重试。
+            </div>
+          </div>
+        </div>
+      )}
+
+      <LiveTranscript messages={messages} partial={partial} stageMessage={stageMessage} />
+
+      <div className="sticky bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-10 rounded-2xl border border-voice-border bg-voice-background/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-2xl backdrop-blur-xl sm:static sm:bg-voice-surface sm:pb-3 sm:shadow-none">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:justify-center">
           <Button
             type="button"
-            variant="outline"
-            size="sm"
+            size="lg"
             onClick={() => void connect()}
             disabled={voiceSocket.connected || voiceSocket.connecting || completed}
+            className="col-span-2 min-h-12 bg-voice-foreground text-voice-background hover:bg-voice-foreground/90 sm:col-span-1"
           >
             <PhoneCall className="mr-1 h-4 w-4" />
-            {voiceSocket.connected ? "已开始" : "开始语音面试"}
+            {voiceSocket.connected ? "面试进行中" : "进入语音面试"}
           </Button>
           {capture.recording ? (
-            <Button type="button" size="sm" onClick={stopAnswer}>
+            <Button
+              type="button"
+              size="lg"
+              onClick={stopAnswer}
+              className="col-span-2 min-h-12 bg-destructive text-destructive-foreground hover:bg-destructive/90 sm:col-span-1"
+            >
               <MicOff className="mr-1 h-4 w-4" />
               结束回答
             </Button>
           ) : (
             <Button
               type="button"
-              size="sm"
+              size="lg"
               onClick={() => void startAnswer()}
               disabled={
-                !voiceSocket.connected ||
-                !currentQuestionId ||
-                completed ||
-                playback.speaking
+                !voiceSocket.connected || !currentQuestionId || completed || playback.speaking
               }
+              className="min-h-12 bg-success text-success-foreground hover:bg-success/90"
             >
               <Mic className="mr-1 h-4 w-4" />
               开始回答
@@ -518,22 +558,27 @@ export function VoiceInterviewPanel({
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="lg"
             onClick={interrupt}
             disabled={!playback.speaking}
+            className="min-h-12 border-voice-border bg-voice-surface-strong text-voice-foreground hover:bg-voice-surface"
           >
             <XCircle className="mr-1 h-4 w-4" />
-            打断
+            打断 AI
           </Button>
         </div>
+        <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-voice-muted">
+          <Radio className="h-3 w-3" />
+          回答结束后请主动点击“结束回答”，AI 才会继续处理
+        </p>
       </div>
 
-      <LiveTranscript
-        messages={messages}
-        partial={partial}
-        stageMessage={stageMessage}
+      <VoiceDebugLog
+        entries={debugLogs}
+        onClear={() => setDebugLogs([])}
+        connected={voiceSocket.connected}
+        microphoneActive={capture.recording}
       />
-      <VoiceDebugLog entries={debugLogs} onClear={() => setDebugLogs([])} />
     </div>
   );
 }

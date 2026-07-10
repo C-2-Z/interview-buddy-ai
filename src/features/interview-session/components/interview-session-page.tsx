@@ -1,12 +1,7 @@
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChatPanel } from "./chat-panel";
 import { CompletedSession } from "./completed-session";
 import { QuestionNav } from "./question-nav";
@@ -45,68 +40,75 @@ export function InterviewSessionPage({ sessionId }: { sessionId: string }) {
   }
 
   if (sessionState.isComplete) {
-    return (
-      <CompletedSession
-        session={sessionState.session}
-        questions={sessionState.questions}
-      />
-    );
+    return <CompletedSession session={sessionState.session} questions={sessionState.questions} />;
   }
 
   const question = sessionState.currentQuestion;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <SessionProgress
         session={sessionState.session}
         progress={sessionState.progress}
         answeredCount={sessionState.answeredCount}
         total={sessionState.questions.length}
       />
-      <QuestionNav
-        questions={sessionState.questions}
-        current={sessionState.current}
-        onChange={sessionState.setCurrent}
-      />
+      <details className="rounded-2xl border bg-card p-4 lg:hidden">
+        <summary className="cursor-pointer font-medium">查看题目进度</summary>
+        <div className="mt-4 border-t pt-4">
+          <QuestionNav
+            questions={sessionState.questions}
+            current={sessionState.current}
+            onChange={sessionState.setCurrent}
+          />
+        </div>
+      </details>
 
       {question && (
-        <Card className="flex flex-col">
-          <CardHeader className="pb-3">
-            <Badge variant="outline" className="w-fit">
-              第 {sessionState.current + 1} 题
-            </Badge>
-            <CardTitle className="text-lg leading-relaxed">
-              {question.question}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {question.score != null ? (
-              <QuestionResult
-                question={question}
-                messages={conversation.messages}
-                canGoNext={sessionState.current < sessionState.questions.length - 1}
-                allAnswered={sessionState.allAnswered}
-                finishing={sessionState.finishing}
-                onNext={sessionState.nextQuestion}
-                onFinish={sessionState.completeInterview}
-              />
-            ) : (
-              <ChatPanel
-                message={conversation.message}
-                messages={conversation.messages}
-                sending={conversation.sending}
-                evaluating={conversation.evaluating}
-                canConclude={conversation.canConclude}
-                endRef={conversation.messagesEndRef}
-                onMessageChange={conversation.setMessage}
-                onSend={conversation.handleSendMessage}
-                onEvaluate={conversation.handleEvaluate}
-              />
-            )}
-          </CardContent>
-        </Card>
+        <div className="grid items-start gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
+          <aside className="sticky top-8 hidden rounded-2xl border bg-card p-4 lg:block">
+            <div className="mb-3 text-sm font-semibold">题目进度</div>
+            <QuestionNav
+              questions={sessionState.questions}
+              current={sessionState.current}
+              onChange={sessionState.setCurrent}
+            />
+          </aside>
+          <Card className="min-w-0">
+            <CardHeader className="pb-3">
+              <Badge variant="outline" className="w-fit">
+                第 {sessionState.current + 1} 题
+              </Badge>
+              <CardTitle className="text-lg leading-8 sm:text-xl">{question.question}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {question.score != null ? (
+                <QuestionResult
+                  question={question}
+                  messages={conversation.messages}
+                  canGoNext={sessionState.current < sessionState.questions.length - 1}
+                  allAnswered={sessionState.allAnswered}
+                  finishing={sessionState.finishing}
+                  onNext={sessionState.nextQuestion}
+                  onFinish={sessionState.completeInterview}
+                />
+              ) : (
+                <ChatPanel
+                  message={conversation.message}
+                  messages={conversation.messages}
+                  sending={conversation.sending}
+                  evaluating={conversation.evaluating}
+                  canConclude={conversation.canConclude}
+                  endRef={conversation.messagesEndRef}
+                  onMessageChange={conversation.setMessage}
+                  onSend={conversation.handleSendMessage}
+                  onEvaluate={conversation.handleEvaluate}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
 }
-
