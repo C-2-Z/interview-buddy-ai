@@ -78,7 +78,8 @@ voice.post("/sessions/:sessionId/connect", async (c) => {
     accessToken,
   });
   const url = new URL(c.req.url);
-  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  const proto = c.req.header("x-forwarded-proto") || url.protocol.replace(":", "");
+  url.protocol = proto === "https" ? "wss:" : "ws:";
   url.pathname = "/api/voice/ws";
   url.search = `?token=${encodeURIComponent(token)}`;
 
