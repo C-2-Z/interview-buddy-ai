@@ -63,6 +63,25 @@ AI 驱动的面试练习平台。用户选择岗位和难度，AI 出题、进�
 6. **新增前端页面必须注册到 routeTree** — 在 `src/routes/` 下新增文件，运行 `npm run dev` 自动生成 routeTree.gen.ts。
 
 
+## 日志约定
+
+项目使用 **consola** 库作为统一日志方案，禁止使用手写 `console.log` / `console.error`。
+
+### 规则
+
+1. **创建带 tag 的 logger** — 每个模块/功能通过 `createModuleLogger(tag)` 创建自己的实例：
+   ```typescript
+   import { createModuleLogger } from "../voice/voice-logger.js";
+   const logger = createModuleLogger("my-module");
+   ```
+
+2. **使用日志级别** — consola 自动提供 `info` / `warn` / `error` / `debug` / `success` 等各级别输出，禁止裸 `console.*`。
+
+3. **错误日志带 Error 对象** — `logger.error(error, meta)`，第一个参数传 `Error` 实例。
+
+4. **敏感信息自动脱敏** — `voice-logger.ts` 内置脱敏 reporter，自动过滤 `key`/`token`/`authorization`/`secret` 等字段。
+
+
 ## 数据命名约定
 
 | 位置 | 命名 |

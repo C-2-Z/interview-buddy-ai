@@ -49,6 +49,7 @@ function buildContext(
     question: question.question,
     totalQuestions,
     currentQuestionIndex: question.order_index,
+    skillId: (session as any).skill_id ?? undefined,
   };
 }
 
@@ -166,6 +167,7 @@ export async function sendMessage(params: {
       answer: combinedCandidateAnswer(conversation),
       score: evaluation.score,
       feedback: evaluation.feedback,
+      dimensionScores: evaluation.dimensions as any ?? undefined,
     });
 
     await updateLastActivity(params.supabase, question.session_id);
@@ -224,6 +226,7 @@ export async function evaluateQuestionConversation(params: {
     answer: combinedCandidateAnswer(conversation),
     score: evaluation.score,
     feedback: evaluation.feedback,
+    dimensionScores: evaluation.dimensions as any ?? undefined,
   });
 
   await updateLastActivity(params.supabase, question.session_id);

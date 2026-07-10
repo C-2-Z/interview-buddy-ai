@@ -155,7 +155,7 @@ export async function getSessionProviderConfig(
 ) {
   const { data, error } = await supabase
     .from("interview_sessions")
-    .select("model_provider, model_name, user_api_key")
+    .select("model_provider, model_name, user_api_key, skill_id")
     .eq("id", sessionId)
     .single();
   if (error) throw new Error(error.message);

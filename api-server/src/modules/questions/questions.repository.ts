@@ -86,14 +86,19 @@ export async function saveEvaluation(params: {
   answer: string;
   score: number;
   feedback: string;
+  dimensionScores?: Record<string, unknown>;
 }): Promise<void> {
-  let query = params.supabase
+  const updateData: Record<string, unknown> = {
+    answer: params.answer,
+    score: params.score,
+    feedback: params.feedback,
+  };
+  if (params.dimensionScores) {
+    updateData.dimension_scores = params.dimensionScores;
+  }
+  let query: any = (params.supabase as any)
     .from("interview_questions")
-    .update({
-      answer: params.answer,
-      score: params.score,
-      feedback: params.feedback,
-    })
+    .update(updateData)
     .eq("id", params.questionId);
 
   if (params.sessionId) {

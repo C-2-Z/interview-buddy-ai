@@ -6,6 +6,8 @@ import {
 } from "../model-providers/model-provider.service.js";
 import { findSkill } from "../skills/skills.service.js";
 import { closeStaleSessionsForUser } from "../cleanup/cleanup.service.js";
+import { aggregateDimensions, getDimensionDefs } from "../evaluation/evaluation.service.js";
+import { loadQuestionDimensionScores, saveDimensionSummary } from "../evaluation/evaluation.repository.js";
 import {
   FINISH_SYSTEM_PROMPT,
   generateGenericQuestions,

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { QuestionItem, SessionDetail } from "../types";
+import { EvaluationRadar } from "@/components/evaluation-radar";
 
 export function CompletedSession({
   session,
@@ -46,6 +47,13 @@ export function CompletedSession({
           <p className="mt-6 max-w-xl text-sm leading-7 text-muted-foreground">
             {session.overall_feedback || "详细报告已经准备好，你可以逐题查看回答与 AI 反馈。"}
           </p>
+          {session.dimension_summary && (
+            <div className="mt-6">
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">能力维度</h3>
+              <EvaluationRadar summary={session.dimension_summary} compact />
+            </div>
+          )}
+
           <div className="mt-7 grid w-full max-w-md gap-3 sm:grid-cols-2">
             <Button className="min-h-11" asChild>
               <Link to="/interviews/$id" params={{ id: session.id }}>

@@ -14,7 +14,9 @@ export type SessionItem = Pick<
   | "interview_mode"
   | "voice_mode"
 >;
-export type SessionDetail = SessionRow;
+export type SessionDetail = SessionRow & {
+  dimension_summary?: DimensionSummary | null;
+};
 export type QuestionItem = QuestionRow;
 
 export type Message = {

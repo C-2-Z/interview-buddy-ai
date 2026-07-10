@@ -1,7 +1,7 @@
-type VoiceLogMeta = Record<string, unknown>;
+import { createConsola } from "consola";
 
-function sanitize(meta: VoiceLogMeta): VoiceLogMeta {
-  const clean: VoiceLogMeta = {};
+function sanitize(meta: Record<string, unknown>): Record<string, unknown> {
+  const clean: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(meta)) {
     if (/key|token|authorization|secret/i.test(key)) {
       clean[key] = "[redacted]";
@@ -12,14 +12,36 @@ function sanitize(meta: VoiceLogMeta): VoiceLogMeta {
   return clean;
 }
 
-export function voiceLog(event: string, meta: VoiceLogMeta = {}): void {
-  console.info(`[voice] ${event}`, JSON.stringify(sanitize(meta)));
+const SANITIZE_REPORTER = {
+  log(logObj: Record<string, unknown>) {
+    if (logObj.args && Array.isArray(logObj.args)) {
+      logObj.args = logObj.args.map((arg: unknown) =>
+        arg && typeof arg === "object" && !(arg instanceof Error)
+          ? sanitize(arg as Record<string, unknown>)
+          : arg,
+      );
+    }
+  },
+};
+
+export const voiceLogger = createConsola({
+  reporters: [SANITIZE_REPORTER as any],
+}).withTag("voice");
+
+export function voiceLog(event: string, meta: Record<string, unknown> = {}): void {
+  voiceLogger.info(event, meta);
 }
 
-export function voiceError(event: string, error: unknown, meta: VoiceLogMeta = {}): void {
-  const errorMeta =
-    error instanceof Error
-      ? { error: error.message, stack: error.stack }
-      : { error: String(error) };
-  console.error(`[voice] ${event}`, JSON.stringify(sanitize({ ...meta, ...errorMeta })));
+export function voiceWarn(event: string, meta: Record<string, unknown> = {}): void {
+  voiceLogger.warn(event, meta);
+}
+
+export function voiceError(event: string, error: unknown, meta: Record<string, unknown> = {}): void {
+  voiceLogger.error(error, { event, ...meta });
+}
+
+export function createModuleLogger(tag: string) {
+  return createConsola({
+    reporters: [SANITIZE_REPORTER as any],
+  }).withTag(tag);
 }

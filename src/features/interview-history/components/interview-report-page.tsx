@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EvaluationRadar } from "@/components/evaluation-radar";
 import { useInterviewReport } from "../hooks/use-interview-report";
 import { isVoiceSession } from "../types";
 
@@ -147,6 +148,17 @@ export function InterviewReportPage({ sessionId }: { sessionId: string }) {
             所有内容都来自本次实际面试记录，不补充未生成的参考答案。
           </p>
         </div>
+          {session.dimension_summary && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">能力维度</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <EvaluationRadar summary={session.dimension_summary} />
+              </CardContent>
+            </Card>
+          )}
+
         <Accordion
           type="multiple"
           value={expandedQuestions}

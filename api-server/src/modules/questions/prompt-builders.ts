@@ -1,6 +1,7 @@
 import { parseJsonFromAI } from "../../shared/ai/json-parser.js";
 
 export type InterviewContext = {
+  skillId?: string;
   position: string;
   difficulty: string;
   jobDescription: string | null;
@@ -65,6 +66,7 @@ export const EVALUATION_SYSTEM_PROMPT =
 export function buildEvaluationPrompt(
   ctx: InterviewContext,
   conversationText: string,
+  dimensionPrompt?: string,
 ): string {
   return `作为面试官，请评估以下面试对话中候选人的表现：
 
@@ -80,7 +82,8 @@ ${conversationText}
 2. feedback: 详细的评价与改进建议（300-500字，包含优点、不足、具体的改进建议）
 
 严格以如下 JSON 格式返回:
-{"score": 85, "feedback": "..."}`;
+{"score": 85, "feedback": "...", "dimensions": {"DS_ALGO": {"score": 82, "comment": "..."}}}
+  ` + (dimensionPrompt ?? "");
 }
 
 export function parseCompletionSignal(

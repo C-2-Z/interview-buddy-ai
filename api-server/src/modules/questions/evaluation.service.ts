@@ -7,9 +7,16 @@ import {
   type InterviewContext,
 } from "./prompt-builders.js";
 
+import { validateDimensionScores } from "../evaluation/evaluation.schemas.js";
+import type { DimensionScores } from "../evaluation/evaluation.types.js";
+import { getDimensionDefs, buildDimensionPromptSection } from "../evaluation/evaluation.service.js";
+import { findSkill } from "../skills/skills.service.js";
+
+
 export type EvaluationResult = {
   score: number;
   feedback: string;
+  dimensions?: DimensionScores;
 };
 
 export async function evaluateConversation(params: {
@@ -27,10 +34,12 @@ export async function evaluateConversation(params: {
     ],
     params.provider,
   );
-  const result = parseJsonFromAI<EvaluationResult>(text);
+  const result = parseJsonFromAI<Record<string, unknown>>(text);
+  const rawDimensions = result.dimensions as Record<string, unknown> | undefined;
   return {
-    score: Math.max(1, Math.min(100, Math.round(result.score))),
-    feedback: result.feedback,
+    score: Math.max(1, Math.min(100, Math.round(Number(result.score) || 0))),
+    feedback: String(result.feedback ?? ""),
+    dimensions: validateDimensionScores(rawDimensions) ?? undefined,
   };
 }
 
