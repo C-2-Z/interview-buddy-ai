@@ -45,6 +45,7 @@ function baseSessionRow(params: {
     skill_id: params.skillId,
     position: params.position,
     difficulty: params.input.difficulty,
+    interview_mode: params.input.interviewMode ?? "text",
     job_description: params.input.jobDescription || null,
     model_provider: params.providerName,
     model_name: params.modelName || null,

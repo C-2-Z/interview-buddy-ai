@@ -26,6 +26,16 @@ import {
 
 const MAX_FOLLOWUPS = 3;
 const MAX_TOTAL_MESSAGES = 20;
+
+function isVoiceInterviewQuestion(
+  question: Exclude<Awaited<ReturnType<typeof getQuestionWithSession>>, null>,
+): boolean {
+  return (
+    question.interview_sessions.interview_mode === "voice" ||
+    question.interview_sessions.voice_mode === true
+  );
+}
+
 function buildContext(
   question: Awaited<ReturnType<typeof getQuestionWithSession>>,
   totalQuestions: number,
@@ -53,6 +63,9 @@ export async function sendMessage(params: {
     params.questionId,
   );
   if (!question) return { error: "题目未找到" } as const;
+  if (isVoiceInterviewQuestion(question)) {
+    return { error: "语音面试请使用语音面试页面" } as const;
+  }
 
   const provider = await resolveProviderForSession(
     params.supabase,
@@ -68,7 +81,6 @@ export async function sendMessage(params: {
     source: "text",
   });
 
-  // --- copied question check (existing) ---
   if (isCopiedQuestion(params.content, question.question)) {
     const response = buildRedirectResponse();
     conversation.push({ role: "assistant", content: response });
@@ -83,10 +95,11 @@ export async function sendMessage(params: {
     return { response };
   }
 
-  // --- get session-level question count for context ---
-  const totalQuestions = await countSessionQuestions(params.supabase, question.session_id);
+  const totalQuestions = await countSessionQuestions(
+    params.supabase,
+    question.session_id,
+  );
 
-  // --- follow-up counter check (Step 2) ---
   const userMessages = conversation.filter((m) => m.role === "user").length;
   if (userMessages > MAX_FOLLOWUPS) {
     await updateLastActivity(params.supabase, question.session_id);
@@ -99,7 +112,6 @@ export async function sendMessage(params: {
     });
   }
 
-  // --- AI call (existing flow) ---
   const context = buildContext(question, totalQuestions);
   const conversationText = formatConversation(conversation);
   const response = await callAI(
@@ -113,7 +125,7 @@ export async function sendMessage(params: {
     provider,
   );
   conversation.push({ role: "assistant", content: response });
-  // --- total messages overflow check (existing + counter combined) ---
+
   if (conversation.length >= MAX_TOTAL_MESSAGES) {
     await updateLastActivity(params.supabase, question.session_id);
     return autoEvaluateQuestion({
@@ -124,6 +136,7 @@ export async function sendMessage(params: {
       supabase: params.supabase,
     });
   }
+
   const completionSignal = parseCompletionSignal(response);
   if (completionSignal) {
     const closingResponse = `感谢你的回答。${completionSignal.summary}下面我们进入下一题。`;
@@ -185,6 +198,9 @@ export async function evaluateQuestionConversation(params: {
     params.questionId,
   );
   if (!question) return { error: "题目未找到" } as const;
+  if (isVoiceInterviewQuestion(question)) {
+    return { error: "语音面试请使用语音面试页面" } as const;
+  }
 
   const provider = await resolveProviderForSession(
     params.supabase,
@@ -192,7 +208,10 @@ export async function evaluateQuestionConversation(params: {
     question.interview_sessions,
   );
   const conversation = parseConversation(question.answer);
-  const totalQuestions = await countSessionQuestions(params.supabase, question.session_id);
+  const totalQuestions = await countSessionQuestions(
+    params.supabase,
+    question.session_id,
+  );
   const evaluation = await evaluateConversationWithAI({
     context: buildContext(question, totalQuestions),
     conversationText: formatConversation(conversation),
@@ -225,7 +244,8 @@ async function autoEvaluateQuestion(params: {
     conversationText,
     provider: params.provider,
   });
-  const closingResponse = "感谢你的详细回答。我已经有了足够的信息来评估这个问题。";
+  const closingResponse =
+    "感谢你的详细回答。我已经有了足够的信息来评估这个问题。";
   params.conversation.push({ role: "assistant", content: closingResponse });
   await saveEvaluation({
     supabase: params.supabase,

@@ -12,6 +12,8 @@ export type QuestionSessionContext = {
   model_provider: string | null;
   model_name: string | null;
   user_api_key: string | null;
+  interview_mode: string | null;
+  voice_mode?: boolean | null;
 };
 
 export type QuestionWithSession = {
@@ -23,20 +25,46 @@ export type QuestionWithSession = {
   interview_sessions: QuestionSessionContext;
 };
 
+function isMissingSchemaColumn(message: string): boolean {
+  return /schema cache|column .* does not exist|Could not find the '.*' column/i.test(
+    message,
+  );
+}
+
+function normalizeQuestionWithSession(data: unknown): QuestionWithSession {
+  const question = data as QuestionWithSession;
+  question.interview_sessions = {
+    ...question.interview_sessions,
+    interview_mode:
+      question.interview_sessions.interview_mode ??
+      (question.interview_sessions.voice_mode === true ? "voice" : "text"),
+  };
+  return question;
+}
+
 export async function getQuestionWithSession(
   supabase: UserSupabaseClient,
   questionId: string,
 ): Promise<QuestionWithSession | null> {
-  const { data, error } = await supabase
-    .from("interview_questions")
-    .select(
-      "id, question, answer, session_id, order_index, interview_sessions(position, difficulty, job_description, model_provider, model_name, user_api_key)",
-    )
-    .eq("id", questionId)
-    .single();
+  const selectors = [
+    "id, question, answer, session_id, order_index, interview_sessions(position, difficulty, job_description, model_provider, model_name, user_api_key, interview_mode, voice_mode)",
+    "id, question, answer, session_id, order_index, interview_sessions(position, difficulty, job_description, model_provider, model_name, user_api_key, interview_mode)",
+    "id, question, answer, session_id, order_index, interview_sessions(position, difficulty, job_description, model_provider, model_name, user_api_key, voice_mode)",
+    "id, question, answer, session_id, order_index, interview_sessions(position, difficulty, job_description, model_provider, model_name, user_api_key)",
+  ];
 
-  if (error || !data) return null;
-  return data as unknown as QuestionWithSession;
+  for (const selector of selectors) {
+    const { data, error } = await supabase
+      .from("interview_questions")
+      .select(selector)
+      .eq("id", questionId)
+      .single();
+
+    if (!error && data) return normalizeQuestionWithSession(data);
+    if (error && !isMissingSchemaColumn(error.message)) return null;
+  }
+
+  return null;
 }
 
 export async function saveConversationAnswer(

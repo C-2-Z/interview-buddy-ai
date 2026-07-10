@@ -17,8 +17,10 @@ import { Route as AuthenticatedNewRouteImport } from './routes/_authenticated/ne
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedBankIndexRouteImport } from './routes/_authenticated/bank/index'
+import { Route as AuthenticatedVoiceNewRouteImport } from './routes/_authenticated/voice/new'
 import { Route as AuthenticatedSessionIdRouteImport } from './routes/_authenticated/session.$id'
 import { Route as AuthenticatedBankIdRouteImport } from './routes/_authenticated/bank/$id'
+import { Route as AuthenticatedVoiceSessionIdRouteImport } from './routes/_authenticated/voice/session.$id'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -59,6 +61,11 @@ const AuthenticatedBankIndexRoute = AuthenticatedBankIndexRouteImport.update({
   path: '/bank/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedVoiceNewRoute = AuthenticatedVoiceNewRouteImport.update({
+  id: '/voice/new',
+  path: '/voice/new',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSessionIdRoute = AuthenticatedSessionIdRouteImport.update({
   id: '/session/$id',
   path: '/session/$id',
@@ -69,6 +76,12 @@ const AuthenticatedBankIdRoute = AuthenticatedBankIdRouteImport.update({
   path: '/bank/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedVoiceSessionIdRoute =
+  AuthenticatedVoiceSessionIdRouteImport.update({
+    id: '/voice/session/$id',
+    path: '/voice/session/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -79,7 +92,9 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/bank/$id': typeof AuthenticatedBankIdRoute
   '/session/$id': typeof AuthenticatedSessionIdRoute
+  '/voice/new': typeof AuthenticatedVoiceNewRoute
   '/bank/': typeof AuthenticatedBankIndexRoute
+  '/voice/session/$id': typeof AuthenticatedVoiceSessionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -90,7 +105,9 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/bank/$id': typeof AuthenticatedBankIdRoute
   '/session/$id': typeof AuthenticatedSessionIdRoute
+  '/voice/new': typeof AuthenticatedVoiceNewRoute
   '/bank': typeof AuthenticatedBankIndexRoute
+  '/voice/session/$id': typeof AuthenticatedVoiceSessionIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -103,7 +120,9 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/bank/$id': typeof AuthenticatedBankIdRoute
   '/_authenticated/session/$id': typeof AuthenticatedSessionIdRoute
+  '/_authenticated/voice/new': typeof AuthenticatedVoiceNewRoute
   '/_authenticated/bank/': typeof AuthenticatedBankIndexRoute
+  '/_authenticated/voice/session/$id': typeof AuthenticatedVoiceSessionIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -116,7 +135,9 @@ export interface FileRouteTypes {
     | '/settings'
     | '/bank/$id'
     | '/session/$id'
+    | '/voice/new'
     | '/bank/'
+    | '/voice/session/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -127,7 +148,9 @@ export interface FileRouteTypes {
     | '/settings'
     | '/bank/$id'
     | '/session/$id'
+    | '/voice/new'
     | '/bank'
+    | '/voice/session/$id'
   id:
     | '__root__'
     | '/'
@@ -139,7 +162,9 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/bank/$id'
     | '/_authenticated/session/$id'
+    | '/_authenticated/voice/new'
     | '/_authenticated/bank/'
+    | '/_authenticated/voice/session/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -206,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBankIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/voice/new': {
+      id: '/_authenticated/voice/new'
+      path: '/voice/new'
+      fullPath: '/voice/new'
+      preLoaderRoute: typeof AuthenticatedVoiceNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/session/$id': {
       id: '/_authenticated/session/$id'
       path: '/session/$id'
@@ -220,6 +252,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBankIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/voice/session/$id': {
+      id: '/_authenticated/voice/session/$id'
+      path: '/voice/session/$id'
+      fullPath: '/voice/session/$id'
+      preLoaderRoute: typeof AuthenticatedVoiceSessionIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -230,7 +269,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedBankIdRoute: typeof AuthenticatedBankIdRoute
   AuthenticatedSessionIdRoute: typeof AuthenticatedSessionIdRoute
+  AuthenticatedVoiceNewRoute: typeof AuthenticatedVoiceNewRoute
   AuthenticatedBankIndexRoute: typeof AuthenticatedBankIndexRoute
+  AuthenticatedVoiceSessionIdRoute: typeof AuthenticatedVoiceSessionIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -240,7 +281,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedBankIdRoute: AuthenticatedBankIdRoute,
   AuthenticatedSessionIdRoute: AuthenticatedSessionIdRoute,
+  AuthenticatedVoiceNewRoute: AuthenticatedVoiceNewRoute,
   AuthenticatedBankIndexRoute: AuthenticatedBankIndexRoute,
+  AuthenticatedVoiceSessionIdRoute: AuthenticatedVoiceSessionIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

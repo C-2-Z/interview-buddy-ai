@@ -22,6 +22,10 @@ function History() {
     return <div className="flex items-center justify-center py-20"><Loader2 className="animate-spin" /></div>;
   }
 
+  function isVoiceSession(row: SessionItem) {
+    return row.interview_mode === "voice" || row.voice_mode === true;
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -29,7 +33,10 @@ function History() {
           <h1 className="text-2xl font-bold tracking-tight">面试历史</h1>
           <p className="text-sm text-muted-foreground">共 {rows.length} 次面试记录</p>
         </div>
-        <Button asChild><Link to="/new"><Plus className="w-4 h-4 mr-1" />新面试</Link></Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild><Link to="/voice/new"><Plus className="w-4 h-4 mr-1" />语音面试</Link></Button>
+          <Button asChild><Link to="/new"><Plus className="w-4 h-4 mr-1" />文字面试</Link></Button>
+        </div>
       </div>
 
       {rows.length === 0 ? (
@@ -40,14 +47,17 @@ function History() {
         </Card>
       ) : (
         <div className="grid gap-3">
-          {rows.map((r) => (
-            <Link key={r.id} to="/session/$id" params={{ id: r.id }}>
+          {rows.map((r) => {
+            const card = (
               <Card className="hover:border-primary/50 transition-colors">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <CardTitle className="text-base">{r.position}</CardTitle>
                       <div className="flex items-center gap-2 mt-2">
+                        <Badge variant="outline">
+                          {isVoiceSession(r) ? "语音" : "文字"}
+                        </Badge>
                         <Badge variant="outline">{r.difficulty}</Badge>
                         <Badge variant={r.status === "completed" ? "default" : "secondary"}>
                           {r.status === "completed" ? "已完成" : "进行中"}
@@ -66,8 +76,17 @@ function History() {
                   </div>
                 </CardHeader>
               </Card>
-            </Link>
-          ))}
+            );
+            return isVoiceSession(r) ? (
+              <Link key={r.id} to="/voice/session/$id" params={{ id: r.id }}>
+                {card}
+              </Link>
+            ) : (
+              <Link key={r.id} to="/session/$id" params={{ id: r.id }}>
+                {card}
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

@@ -1,6 +1,7 @@
 import type { ModelProvider } from "../model-providers/provider.types.js";
 
 export type Difficulty = "初级" | "中级" | "高级";
+export type InterviewMode = "text" | "voice";
 
 export type CreateSessionInput = {
   skillId?: string;
@@ -16,6 +17,7 @@ export type CreateSessionInput = {
   resumeText?: string;
   resumeId?: string;
   resumeContext?: string;
+  interviewMode?: InterviewMode;
 };
 
 export type CreatedSession = {

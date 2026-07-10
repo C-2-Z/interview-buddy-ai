@@ -5,7 +5,14 @@ type QuestionRow = Database["public"]["Tables"]["interview_questions"]["Row"];
 
 export type SessionItem = Pick<
   SessionRow,
-  "id" | "position" | "difficulty" | "status" | "overall_score" | "created_at"
+  | "id"
+  | "position"
+  | "difficulty"
+  | "status"
+  | "overall_score"
+  | "created_at"
+  | "interview_mode"
+  | "voice_mode"
 >;
 export type SessionDetail = SessionRow;
 export type QuestionItem = QuestionRow;

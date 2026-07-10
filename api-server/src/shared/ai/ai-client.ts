@@ -187,9 +187,9 @@ export async function* streamAI(
   if (!res.ok) {
     const text = await res.text();
     if (res.status === 429) {
-      throw new Error(`AI 璇锋眰杩囦簬棰戠箒锛岃绋嶅悗閲嶈瘯 (${resolved.name})`);
+      throw new Error(`AI 请求过于频繁，请稍后重试 (${resolved.name})`);
     }
-    throw new Error(`AI 璋冪敤澶辫触 (${resolved.name}): ${res.status} ${text}`);
+    throw new Error(`AI 调用失败 (${resolved.name}): ${res.status} ${text}`);
   }
 
   for await (const delta of parseSseTextStream(res, resolved.name)) {

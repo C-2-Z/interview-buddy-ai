@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, History, Sparkles } from "lucide-react";
+import { Plus, History, Sparkles, Mic2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
@@ -15,21 +15,40 @@ function Dashboard() {
         <p className="text-muted-foreground mt-1">开始一次新面试，或回顾历史表现。</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
           <CardHeader>
             <div className="w-10 h-10 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
               <Plus className="w-5 h-5" />
             </div>
-            <CardTitle className="mt-2">开始新面试</CardTitle>
+            <CardTitle className="mt-2">文字面试</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              选择岗位、难度并填写岗位需求描述，AI 会立刻生成定制题目。
+              按题卡逐题作答，使用文字对话完成追问、评分和总结。
             </p>
             <Button asChild>
               <Link to="/new">
-                <Sparkles className="w-4 h-4 mr-1" />立即开始
+                <Sparkles className="w-4 h-4 mr-1" />创建文字面试
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="w-10 h-10 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
+              <Mic2 className="w-5 h-5" />
+            </div>
+            <CardTitle className="mt-2">语音面试</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              AI 面试官实时读题、听答、追问，并像真实面试一样推进流程。
+            </p>
+            <Button asChild>
+              <Link to="/voice/new">
+                <Mic2 className="w-4 h-4 mr-1" />创建语音面试
               </Link>
             </Button>
           </CardContent>

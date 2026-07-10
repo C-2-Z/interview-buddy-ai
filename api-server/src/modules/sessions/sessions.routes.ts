@@ -21,7 +21,7 @@ sessions.post("/", async (c) => {
   const result = await createInterviewSession({
     supabase: c.var.supabase,
     userId: c.var.userId,
-    input,
+    input: { ...input, interviewMode: "text" },
   });
   return c.json(result);
 });

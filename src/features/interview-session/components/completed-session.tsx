@@ -18,6 +18,9 @@ export function CompletedSession({
   session: SessionDetail;
   questions: QuestionItem[];
 }) {
+  const newInterviewPath =
+    session.interview_mode === "voice" || session.voice_mode ? "/voice/new" : "/new";
+
   return (
     <div className="space-y-6">
       <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
@@ -88,7 +91,7 @@ export function CompletedSession({
 
       <div className="flex gap-2">
         <Button asChild>
-          <Link to="/new">再来一次</Link>
+          <Link to={newInterviewPath}>再来一次</Link>
         </Button>
         <Button variant="outline" asChild>
           <Link to="/history">查看历史</Link>

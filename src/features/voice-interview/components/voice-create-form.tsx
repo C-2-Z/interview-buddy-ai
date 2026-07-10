@@ -1,4 +1,4 @@
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Mic2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,24 +17,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { QUESTION_COUNTS } from "../constants";
-import { useCreateInterview } from "../hooks/use-create-interview";
-import { ModelSelector } from "./model-selector";
-import { ResumeUpload } from "./resume-upload";
-import { SkillSelector } from "./skill-selector";
-import { SkillTags } from "./skill-tags";
+import { QUESTION_COUNTS } from "@/features/interview-create/constants";
+import { ModelSelector } from "@/features/interview-create/components/model-selector";
+import { ResumeUpload } from "@/features/interview-create/components/resume-upload";
+import { SkillSelector } from "@/features/interview-create/components/skill-selector";
+import { SkillTags } from "@/features/interview-create/components/skill-tags";
+import { useCreateVoiceInterview } from "../hooks/use-create-voice-interview";
 
-export function CreateInterviewForm() {
-  const form = useCreateInterview();
+export function VoiceCreateForm() {
+  const form = useCreateVoiceInterview();
   const showPosition = form.useCustom || !form.selectedSkillId;
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="mx-auto max-w-2xl">
       <Card>
         <CardHeader>
-          <CardTitle>配置文字面试</CardTitle>
+          <CardTitle>配置语音面试</CardTitle>
           <CardDescription>
-            选择一个面试方向，或自定义输入岗位，AI 将为文字面试生成题目。
+            AI 面试官会按真实面试方式逐题提问、追问并实时语音互动。
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -49,9 +49,9 @@ export function CreateInterviewForm() {
 
             {showPosition && (
               <div className="space-y-2">
-                <Label htmlFor="position">面试岗位 *</Label>
+                <Label htmlFor="voice-position">面试岗位 *</Label>
                 <Input
-                  id="position"
+                  id="voice-position"
                   placeholder="例如：前端工程师 / 数据分析师 / 产品经理"
                   value={form.position}
                   maxLength={100}
@@ -72,8 +72,8 @@ export function CreateInterviewForm() {
                 <Label>难度</Label>
                 <Select
                   value={form.difficulty}
-                  onValueChange={(v) =>
-                    form.setDifficulty(v as typeof form.difficulty)
+                  onValueChange={(value) =>
+                    form.setDifficulty(value as typeof form.difficulty)
                   }
                 >
                   <SelectTrigger>
@@ -90,7 +90,7 @@ export function CreateInterviewForm() {
                 <Label>题目数量</Label>
                 <Select
                   value={String(form.count)}
-                  onValueChange={(v) => form.setCount(Number(v))}
+                  onValueChange={(value) => form.setCount(Number(value))}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -109,7 +109,7 @@ export function CreateInterviewForm() {
             <div className="space-y-2">
               <Label>
                 题型配比{" "}
-                <span className="text-muted-foreground text-xs">(选填)</span>
+                <span className="text-xs text-muted-foreground">(选填)</span>
               </Label>
               <Select
                 value={form.typeProfile}
@@ -119,7 +119,7 @@ export function CreateInterviewForm() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="default">默认（AI 自主分配）</SelectItem>
+                  <SelectItem value="default">默认：AI 自主分配</SelectItem>
                   <SelectItem value="tech">技术侧重</SelectItem>
                   <SelectItem value="behavior">行为侧重</SelectItem>
                   <SelectItem value="scenario">场景侧重</SelectItem>
@@ -130,11 +130,11 @@ export function CreateInterviewForm() {
 
             <div className="space-y-2">
               <Label>
-                热门公司{" "}
-                <span className="text-muted-foreground text-xs">(选填)</span>
+                目标公司{" "}
+                <span className="text-xs text-muted-foreground">(选填)</span>
               </Label>
               <Input
-                placeholder="例如：字节跳动 / 腾讯 / 阿里巴巴 / Google"
+                placeholder="例如：字节跳动 / 腾讯 / Google"
                 value={form.targetCompany}
                 maxLength={100}
                 onChange={(e) => form.setTargetCompany(e.target.value)}
@@ -150,13 +150,13 @@ export function CreateInterviewForm() {
             />
 
             <div className="space-y-2">
-              <Label htmlFor="jobDescription">
+              <Label htmlFor="voice-job-description">
                 岗位需求描述{" "}
-                <span className="text-muted-foreground text-xs">(选填)</span>
+                <span className="text-xs text-muted-foreground">(选填)</span>
               </Label>
               <Textarea
-                id="jobDescription"
-                placeholder="例如：岗位职责、技术栈、经验年限、业务场景、团队协作要求等"
+                id="voice-job-description"
+                placeholder="岗位职责、技术栈、经验年限、业务场景、团队协作要求等"
                 value={form.jobDescription}
                 rows={5}
                 maxLength={2000}
@@ -167,13 +167,13 @@ export function CreateInterviewForm() {
             <Button type="submit" disabled={form.loading} className="w-full">
               {form.loading ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  AI 生成中…
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  AI 正在准备语音面试
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  生成文字面试题
+                  <Mic2 className="mr-2 h-4 w-4" />
+                  创建语音面试
                 </>
               )}
             </Button>
@@ -183,4 +183,3 @@ export function CreateInterviewForm() {
     </div>
   );
 }
-

@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect, Link, useRouter } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Home, Plus, History, BookOpen, Settings } from "lucide-react";
+import { LogOut, Home, Plus, History, BookOpen, Settings, Mic2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -31,7 +31,10 @@ function AuthedLayout() {
               <Link to="/dashboard"><Home className="w-4 h-4 mr-1" />主页</Link>
             </Button>
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/new"><Plus className="w-4 h-4 mr-1" />新面试</Link>
+              <Link to="/new"><Plus className="w-4 h-4 mr-1" />文字面试</Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/voice/new"><Mic2 className="w-4 h-4 mr-1" />语音面试</Link>
             </Button>
             <Button variant="ghost" size="sm" asChild>
               <Link to="/history"><History className="w-4 h-4 mr-1" />历史</Link>

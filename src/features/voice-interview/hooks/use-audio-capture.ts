@@ -72,12 +72,30 @@ export function useAudioCapture(params: {
       speaking: false,
       state: "starting",
     });
-    const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const audioContext = new AudioContext();
-    await audioContext.resume();
-    const blob = new Blob([workletSource], { type: "text/javascript" });
-    const url = URL.createObjectURL(blob);
-    await audioContext.audioWorklet.addModule(url);
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("当前浏览器不支持麦克风录音或页面不是安全上下文");
+    }
+
+    let mediaStream: MediaStream | null = null;
+    let audioContext: AudioContext | null = null;
+    let url: string | null = null;
+
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioContext = new AudioContext();
+      await audioContext.resume();
+      const blob = new Blob([workletSource], { type: "text/javascript" });
+      url = URL.createObjectURL(blob);
+      await audioContext.audioWorklet.addModule(url);
+    } catch (err) {
+      for (const track of mediaStream?.getTracks() ?? []) track.stop();
+      if (audioContext && audioContext.state !== "closed") {
+        await audioContext.close();
+      }
+      if (url) URL.revokeObjectURL(url);
+      throw err;
+    }
 
     const audioSource = audioContext.createMediaStreamSource(mediaStream);
     const processor = new AudioWorkletNode(audioContext, "pcm-capture-processor", {
@@ -100,7 +118,7 @@ export function useAudioCapture(params: {
       const now = Date.now();
       if (
         chunks.current === 1 ||
-        chunks.current % 20 === 0 ||
+        chunks.current % 100 === 0 ||
         now - lastDebugAt.current > 1000
       ) {
         lastDebugAt.current = now;

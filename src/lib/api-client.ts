@@ -34,7 +34,9 @@ import {
 } from "@/features/settings/api";
 import {
   connectVoiceSession,
+  createVoiceInterviewSession,
   endVoiceSession,
+  getVoiceSession,
   listVoiceMessages,
 } from "@/features/voice-interview/api";
 export type {
@@ -56,6 +58,8 @@ export const apiClient = {
   listFavoriteQuestions,
   getSettings,
   updateSettings,
+  createVoiceInterviewSession,
+  getVoiceSession,
   connectVoiceSession,
   listVoiceMessages,
   endVoiceSession,

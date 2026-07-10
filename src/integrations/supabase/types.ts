@@ -119,6 +119,7 @@ export type Database = {
           created_at: string
           difficulty: string
           id: string
+          interview_mode: string
           job_description: string | null
           last_activity_at: string | null
           model_name: string | null
@@ -139,6 +140,7 @@ export type Database = {
           created_at?: string
           difficulty: string
           id?: string
+          interview_mode?: string
           job_description?: string | null
           last_activity_at?: string | null
           model_name?: string | null
@@ -159,6 +161,7 @@ export type Database = {
           created_at?: string
           difficulty?: string
           id?: string
+          interview_mode?: string
           job_description?: string | null
           last_activity_at?: string | null
           model_name?: string | null

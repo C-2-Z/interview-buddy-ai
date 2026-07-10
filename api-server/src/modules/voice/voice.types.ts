@@ -15,8 +15,32 @@ export type VoiceClientEvent =
 
 export type VoiceServerEvent =
   | { type: "ready"; sessionId: string }
-  | { type: "error"; message: string }
+  | {
+      type: "session_ready";
+      sessionId: string;
+      questionId: string | null;
+      currentQuestionIndex: number;
+      totalQuestions: number;
+    }
+  | {
+      type: "error";
+      message: string;
+      code?: string;
+      stage?: string;
+      turnId?: string;
+      retryable?: boolean;
+      detail?: string;
+    }
   | { type: "voice_stage"; stage: string; message: string; turnId?: string }
+  | {
+      type: "interviewer_prompt_start";
+      turnId: string;
+      questionId: string;
+      text: string;
+      currentQuestionIndex: number;
+      totalQuestions: number;
+    }
+  | { type: "interviewer_prompt_end"; turnId: string; questionId: string }
   | { type: "transcript_partial"; text: string; turnId: string }
   | { type: "transcript_final"; text: string; turnId: string }
   | { type: "assistant_text"; text: string; turnId: string }
@@ -38,7 +62,12 @@ export type VoiceServerEvent =
       score: number;
       feedback: string;
     }
-  | { type: "next_question"; questionId: string }
+  | {
+      type: "next_question";
+      questionId: string;
+      currentQuestionIndex: number;
+      totalQuestions: number;
+    }
   | {
       type: "session_completed";
       overallScore: number;
