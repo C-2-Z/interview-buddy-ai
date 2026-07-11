@@ -127,18 +127,13 @@ export async function getSessionWithQuestions(
   supabase: UserSupabaseClient,
   sessionId: string,
 ) {
-  const { data: session, error } = await supabase
-    .from("interview_sessions")
-    .select("*")
-    .eq("id", sessionId)
-    .single();
+  const [sessionResult, questionResult] = await Promise.all([
+    supabase.from("interview_sessions").select("*").eq("id", sessionId).single(),
+    supabase.from("interview_questions").select("*").eq("session_id", sessionId).order("order_index"),
+  ]);
+  const { data: session, error } = sessionResult;
+  const { data: questions, error: qErr } = questionResult;
   if (error) throw new Error(error.message);
-
-  const { data: questions, error: qErr } = await supabase
-    .from("interview_questions")
-    .select("*")
-    .eq("session_id", sessionId)
-    .order("order_index");
   if (qErr) throw new Error(qErr.message);
 
   return {

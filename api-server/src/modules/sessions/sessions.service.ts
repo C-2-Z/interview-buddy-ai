@@ -28,6 +28,11 @@ import type {
   GeneratedGenericQuestion,
   GeneratedSkillQuestion,
 } from "./session.types.js";
+import {
+  createProgressiveSession,
+  progressiveGenerationEnabled,
+  queueReport,
+} from "../generation/generation.service.js";
 
 function questionConfig(input: CreateSessionInput) {
   return input.questionTypeConfig
@@ -92,6 +97,15 @@ export async function createInterviewSession(params: {
   userId: string;
   input: CreateSessionInput;
 }): Promise<{ sessionId: string }> {
+  if (progressiveGenerationEnabled()) {
+    return createProgressiveSession({
+      ...params,
+      input: {
+        ...params.input,
+        interviewMode: params.input.interviewMode ?? "text",
+      },
+    });
+  }
   const provider = await resolveProviderForCreation(
     params.supabase,
     params.userId,
@@ -153,6 +167,26 @@ export async function finishSession(params: {
   userId: string;
   sessionId: string;
 }): Promise<{ overallScore: number; overallFeedback: string }> {
+  const questions = await getScoredQuestions(params.supabase, params.sessionId);
+  const scored = questions.filter((question) => question.score != null);
+  const overallScore = scored.length
+    ? Math.round(
+        scored.reduce((sum, question) => sum + (question.score ?? 0), 0) /
+          scored.length,
+      )
+    : 0;
+
+  if (progressiveGenerationEnabled()) {
+    const pendingFeedback = scored.length > 0 ? "综合报告生成中…" : "暂无已评分题目。";
+    await completeSession(params.supabase, params.sessionId, overallScore, pendingFeedback);
+    await (params.supabase as any)
+      .from("interview_sessions")
+      .update({ report_status: scored.length > 0 ? "queued" : "ready" })
+      .eq("id", params.sessionId);
+    if (scored.length > 0) await queueReport(params.sessionId);
+    return { overallScore, overallFeedback: pendingFeedback };
+  }
+
   const providerConfig = await getSessionProviderConfig(
     params.supabase,
     params.sessionId,
@@ -162,14 +196,6 @@ export async function finishSession(params: {
     params.userId,
     providerConfig,
   );
-  const questions = await getScoredQuestions(params.supabase, params.sessionId);
-  const scored = questions.filter((question) => question.score != null);
-  const overallScore = scored.length
-    ? Math.round(
-        scored.reduce((sum, question) => sum + (question.score ?? 0), 0) /
-          scored.length,
-      )
-    : 0;
 
 
   // 多维度评分聚合

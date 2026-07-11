@@ -9,9 +9,12 @@ import { QuestionResult } from "./question-result";
 import { SessionProgress } from "./session-progress";
 import { useConversation } from "../hooks/use-conversation";
 import { useSession } from "../hooks/use-session";
+import { GenerationProgress } from "@/features/progressive-generation/components/generation-progress";
+import { useProgressiveGeneration } from "@/features/progressive-generation/hooks/use-progressive-generation";
 
 export function InterviewSessionPage({ sessionId }: { sessionId: string }) {
   const sessionState = useSession(sessionId);
+  const generation = useProgressiveGeneration(sessionId, sessionState.refresh);
   const conversation = useConversation({
     sessionId,
     currentIndex: sessionState.current,
@@ -47,6 +50,11 @@ export function InterviewSessionPage({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="space-y-5">
+      <GenerationProgress
+        snapshot={generation.snapshot}
+        retrying={generation.retrying}
+        onRetry={() => void generation.retry()}
+      />
       <SessionProgress
         session={sessionState.session}
         progress={sessionState.progress}

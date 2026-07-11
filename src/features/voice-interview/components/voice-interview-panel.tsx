@@ -304,6 +304,11 @@ export function VoiceInterviewPanel({
     sessionId,
     onEvent: handleServerEvent,
     onAudioChunk: (turnId, chunk) => playback.addChunk(turnId, chunk),
+    onBackpressure: () => {
+      setStatus("error");
+      setStageMessage("网络发送队列已超过 2 秒，录音已停止，请重新连接后重试");
+      toast.error("网络拥堵，录音已安全停止");
+    },
     onDebug: (event) => {
       pushDebugLog(event.level, event.label, event.detail);
       if (event.level === "error") {
@@ -385,6 +390,10 @@ export function VoiceInterviewPanel({
       );
     },
   });
+
+  useEffect(() => {
+    if (!voiceSocket.connected && capture.recording) void capture.stop();
+  }, [capture, voiceSocket.connected]);
 
   async function connect() {
     await voiceSocket.connect();

@@ -118,6 +118,11 @@ export type Database = {
         Row: {
           created_at: string
           difficulty: string
+          generated_count: number
+          generation_completed_at: string | null
+          generation_error: string | null
+          generation_started_at: string | null
+          generation_status: string
           id: string
           interview_mode: string
           job_description: string | null
@@ -128,6 +133,8 @@ export type Database = {
           overall_score: number | null
           position: string
           question_type_config: Json | null
+          report_status: string
+          requested_count: number
           resume_text: string | null
           skill_id: string | null
           status: string
@@ -139,6 +146,11 @@ export type Database = {
         Insert: {
           created_at?: string
           difficulty: string
+          generated_count?: number
+          generation_completed_at?: string | null
+          generation_error?: string | null
+          generation_started_at?: string | null
+          generation_status?: string
           id?: string
           interview_mode?: string
           job_description?: string | null
@@ -149,6 +161,8 @@ export type Database = {
           overall_score?: number | null
           position: string
           question_type_config?: Json | null
+          report_status?: string
+          requested_count?: number
           resume_text?: string | null
           skill_id?: string | null
           status?: string
@@ -160,6 +174,11 @@ export type Database = {
         Update: {
           created_at?: string
           difficulty?: string
+          generated_count?: number
+          generation_completed_at?: string | null
+          generation_error?: string | null
+          generation_started_at?: string | null
+          generation_status?: string
           id?: string
           interview_mode?: string
           job_description?: string | null
@@ -170,6 +189,8 @@ export type Database = {
           overall_score?: number | null
           position?: string
           question_type_config?: Json | null
+          report_status?: string
+          requested_count?: number
           resume_text?: string | null
           skill_id?: string | null
           status?: string
