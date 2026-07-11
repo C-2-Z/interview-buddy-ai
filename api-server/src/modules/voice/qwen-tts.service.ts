@@ -1,5 +1,4 @@
 import {
-  createQwenTtsSession,
   runQwenRealtimeTask,
   streamQwenTtsAudio,
 } from "./qwen-realtime.client.js";
@@ -39,13 +38,5 @@ export function streamSpeechWithQwen(params: {
     voice: process.env.QWEN_TTS_VOICE?.trim() || "Cherry",
     sampleRate,
     signal: params.signal,
-  });
-}
-
-export function createReusableSpeechSession() {
-  return createQwenTtsSession({
-    model: process.env.QWEN_TTS_MODEL?.trim() || "qwen3-tts-flash-realtime",
-    voice: process.env.QWEN_TTS_VOICE?.trim() || "Cherry",
-    sampleRate: qwenTtsSampleRate(),
   });
 }

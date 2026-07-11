@@ -11,14 +11,14 @@ type ProviderConfig = {
 
 export const DEFAULT_PROVIDER: ModelProvider = {
   name: "deepseek",
-  model: "deepseek-v4-flash",
+  model: "deepseek-chat",
 };
 
 export const PROVIDER_CONFIGS: Record<ProviderName, ProviderConfig> = {
   deepseek: {
     baseUrl: "https://api.deepseek.com/v1",
     envKey: "DEEPSEEK_API_KEY",
-    defaultModel: "deepseek-v4-flash",
+    defaultModel: "deepseek-chat",
   },
   openai: {
     baseUrl: "https://api.openai.com/v1",

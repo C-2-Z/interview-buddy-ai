@@ -41,93 +41,8 @@ export function buildGenericQuestionGenerationPrompt(
 - 涵盖技术、行为、场景等不同类型
 - 每道题独立、清晰、具体
 
-请严格以 JSON 数组格式返回，每项只包含 question 字段，例如:
-[{"question":"题目1"},{"question":"题目2"},{"question":"题目3"}]`;
-}
-
-export type StreamedQuestion = { question: string; category: string | null };
-
-export class IncrementalQuestionParser {
-  private buffer = "";
-  private cursor = 0;
-  private objectStart = -1;
-  private depth = 0;
-  private inString = false;
-  private escaped = false;
-
-  push(chunk: string): StreamedQuestion[] {
-    this.buffer += chunk;
-    const results: StreamedQuestion[] = [];
-    for (; this.cursor < this.buffer.length; this.cursor += 1) {
-      const char = this.buffer[this.cursor];
-      if (this.escaped) {
-        this.escaped = false;
-        continue;
-      }
-      if (this.inString && char === "\\") {
-        this.escaped = true;
-        continue;
-      }
-      if (char === '"') {
-        this.inString = !this.inString;
-        continue;
-      }
-      if (this.inString) continue;
-      if (char === "{") {
-        if (this.depth === 0) this.objectStart = this.cursor;
-        this.depth += 1;
-      } else if (char === "}" && this.depth > 0) {
-        this.depth -= 1;
-        if (this.depth === 0 && this.objectStart >= 0) {
-          const raw = this.buffer.slice(this.objectStart, this.cursor + 1);
-          try {
-            const parsed = JSON.parse(raw) as Record<string, unknown>;
-            const question = String(parsed.question ?? "").trim();
-            if (question) {
-              results.push({
-                question,
-                category:
-                  typeof parsed.category === "string" ? parsed.category : null,
-              });
-            }
-          } catch {
-            // A malformed object is ignored; the worker can request missing items.
-          }
-          this.objectStart = -1;
-        }
-      }
-    }
-    if (this.objectStart < 0 && this.cursor > 8192) {
-      this.buffer = this.buffer.slice(this.cursor);
-      this.cursor = 0;
-    }
-    return results;
-  }
-}
-
-export async function* streamGeneratedQuestions(params: {
-  prompt: string;
-  provider: ModelProvider;
-  signal?: AbortSignal;
-  traceId?: string;
-}): AsyncIterable<StreamedQuestion> {
-  const parser = new IncrementalQuestionParser();
-  for await (const delta of (await import("../../shared/ai/ai-client.js")).streamAI(
-    [
-      { role: "system", content: QUESTION_GEN_SYSTEM_PROMPT },
-      { role: "user", content: params.prompt },
-    ],
-    params.provider,
-    params.signal,
-    {
-      taskProfile: "generation",
-      maxTokens: 2048,
-      thinkingMode: "disabled",
-      traceId: params.traceId,
-    },
-  )) {
-    for (const question of parser.push(delta)) yield question;
-  }
+请严格以 JSON 数组格式返回，只包含题目文本，例如:
+["题目1", "题目2", "题目3"]`;
 }
 
 export async function generateGenericQuestions(
@@ -141,9 +56,7 @@ export async function generateGenericQuestions(
     ],
     provider,
   );
-  const questions = parseJsonFromAI<Array<string | { question: string }>>(text)
-    .map((item) => typeof item === "string" ? item : item.question)
-    .filter(Boolean);
+  const questions = parseJsonFromAI<string[]>(text);
   if (!Array.isArray(questions) || questions.length === 0) {
     throw new Error("生成的题目格式错误");
   }

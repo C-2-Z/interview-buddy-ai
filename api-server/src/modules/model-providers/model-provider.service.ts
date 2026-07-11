@@ -27,13 +27,6 @@ function defaultModel(name: ProviderName): string {
   return PROVIDER_CONFIGS[name].defaultModel;
 }
 
-function supportedModel(name: ProviderName, model: string): string {
-  if (name === "deepseek" && (model === "deepseek-chat" || model === "deepseek-reasoner")) {
-    return "deepseek-v4-flash";
-  }
-  return model;
-}
-
 function keyColumn(name: ProviderName) {
   return `${name}_api_key` as const;
 }
@@ -68,7 +61,7 @@ export async function resolveProviderForCreation(
   const providerName = name ?? "deepseek";
   return {
     name: providerName,
-    model: supportedModel(providerName, model || defaultModel(providerName)),
+    model: model || defaultModel(providerName),
     apiKey,
   };
 }
@@ -95,7 +88,7 @@ export async function resolveProviderForSession(
   }
   return {
     name,
-    model: supportedModel(name, session.model_name || defaultModel(name)),
+    model: session.model_name || defaultModel(name),
     apiKey,
   };
 }

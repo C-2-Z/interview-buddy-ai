@@ -6,16 +6,13 @@ import { markTurnInterrupted } from "../questions/messages.repository.js";
 import { createStreamingAsrSession } from "./qwen-asr.service.js";
 import {
   qwenTtsSampleRate,
-  createReusableSpeechSession,
   streamSpeechWithQwen,
 } from "./qwen-tts.service.js";
 import {
-    appendVoiceAssistantMessage,
-    applyVoiceDecision,
-    decideVoiceTurn,
-    prepareVoiceTurn,
-    streamCombinedVoiceTurn,
-    streamVoiceReply,
+  appendVoiceAssistantMessage,
+  decideVoiceTurn,
+  prepareVoiceTurn,
+  streamVoiceReply,
   type PreparedVoiceTurn,
   type VoiceTurnResult,
 } from "./voice-turn.service.js";
@@ -295,26 +292,10 @@ export function installVoiceWebSocket(server: ServerType): void {
     let activeTurn: AudioTurnState | null = null;
     let pendingAudioStart: PendingAudioStart | null = null;
     let activePromptTurn: SpeechTurnState | null = null;
-    let reusableTts = createReusableSpeechSession();
-    let warmedAsr: ReturnType<typeof createStreamingAsrSession> | null = null;
     const interruptedTurns = new Set<string>();
 
     function isInterrupted(turnId: string): boolean {
       return interruptedTurns.has(turnId);
-    }
-
-    function reusableSpeech(text: string, signal?: AbortSignal): AsyncIterable<Buffer> {
-      if (process.env.VOICE_PERSISTENT_TTS_ENABLED === "0") {
-        return streamSpeechWithQwen({ text, signal });
-      }
-      if (reusableTts.closed) reusableTts = createReusableSpeechSession();
-      return reusableTts.speak(text, signal);
-    }
-
-    function warmAsr(): void {
-      if (warmedAsr) return;
-      warmedAsr = createStreamingAsrSession({ sampleRate: 16000 });
-      voiceLog("asr_prewarmed", { sessionId: payload.sessionId });
     }
 
     async function interrupt(turnId: string) {
@@ -423,7 +404,6 @@ export function installVoiceWebSocket(server: ServerType): void {
           turnId,
           questionId: question.id,
         });
-        warmAsr();
       }
     }
 
@@ -483,7 +463,10 @@ export function installVoiceWebSocket(server: ServerType): void {
       ensureAudioStart();
       sendStage(ws, "tts_streaming", "TTS: synthesizing assistant audio", turn.turnId);
       voiceLog("tts_speak_start", { turnId: turn.turnId, textLength: text.length });
-      for await (const chunk of reusableSpeech(text, turn.abortController.signal)) {
+      for await (const chunk of streamSpeechWithQwen({
+        text,
+        signal: turn.abortController.signal,
+      })) {
         if (isInterrupted(turn.turnId)) return;
         sequence += 1;
         sendJson(ws, {
@@ -506,7 +489,6 @@ export function installVoiceWebSocket(server: ServerType): void {
       prepared: PreparedVoiceTurn,
     ): Promise<void> {
       let assistantText = "";
-      let inlineDecision: import("./voice.types.js").VoiceDecision | null = null;
       let ttsBuffer = "";
       let ttsChain = Promise.resolve();
       let audioStarted = false;
@@ -530,7 +512,10 @@ export function installVoiceWebSocket(server: ServerType): void {
           ensureAudioStart();
           sendStage(ws, "tts_streaming", "TTS: synthesizing assistant audio", turn.turnId);
           voiceLog("tts_segment_start", { turnId: turn.turnId, textLength: text.length });
-          for await (const chunk of reusableSpeech(text, turn.abortController.signal)) {
+          for await (const chunk of streamSpeechWithQwen({
+            text,
+            signal: turn.abortController.signal,
+          })) {
             if (isInterrupted(turn.turnId)) return;
             sequence += 1;
             sendJson(ws, {
@@ -575,20 +560,11 @@ export function installVoiceWebSocket(server: ServerType): void {
         }
 
         try {
-          const responseEvents = process.env.VOICE_SINGLE_PASS_DECISION_ENABLED === "0"
-            ? (async function* () {
-                for await (const text of streamVoiceReply(prepared, turn.abortController.signal)) {
-                  yield { type: "speech" as const, text };
-                }
-              })()
-            : streamCombinedVoiceTurn(prepared, turn.abortController.signal);
-          for await (const event of responseEvents) {
+          for await (const delta of streamVoiceReply(
+            prepared,
+            turn.abortController.signal,
+          )) {
             if (isInterrupted(turn.turnId)) return;
-            if (event.type === "decision") {
-              inlineDecision = event.decision;
-              continue;
-            }
-            const delta = event.text;
             assistantText += delta;
             ttsBuffer += delta;
             sendJson(ws, {
@@ -636,9 +612,7 @@ export function installVoiceWebSocket(server: ServerType): void {
         }, VOICE_DECISION_TIMEOUT_MS);
         voiceLog("decision_start", { turnId: turn.turnId });
         const decisionPromise: Promise<VoiceTurnResult | Error> = Promise.race([
-          inlineDecision
-            ? applyVoiceDecision(prepared, assistantText, inlineDecision)
-            : decideVoiceTurn(prepared, assistantText),
+          decideVoiceTurn(prepared, assistantText),
           new Promise<VoiceTurnResult>((_, reject) => {
             decisionController.signal.addEventListener(
               "abort",
@@ -959,12 +933,11 @@ export function installVoiceWebSocket(server: ServerType): void {
           audioChunks: 0,
           audioBytes: 0,
           abortController,
-          asr: warmedAsr ?? createStreamingAsrSession({
+          asr: createStreamingAsrSession({
             sampleRate: event.sampleRate,
             signal: abortController.signal,
           }),
         };
-        warmedAsr = null;
         activeTurn = nextTurn;
         sendStage(ws, "listening", "WS: receiving microphone audio", event.turnId);
         void consumeAsrEvents(nextTurn);
@@ -1090,8 +1063,6 @@ export function installVoiceWebSocket(server: ServerType): void {
       activeTurn?.abortController.abort();
       pendingAudioStart = null;
       activePromptTurn?.abortController.abort();
-      reusableTts.close();
-      warmedAsr?.abort();
     });
 
     sendJson(ws, { type: "ready", sessionId: payload.sessionId });

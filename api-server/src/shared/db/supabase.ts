@@ -46,18 +46,5 @@ export function createUserClient(token: string) {
   });
 }
 
-export function createServiceClient() {
-  const supabaseUrl = getRequiredEnv("SUPABASE_URL");
-  const serviceKey = getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY");
-  return createClient<Database>(supabaseUrl, serviceKey, {
-    auth: {
-      storage: undefined,
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-}
-
 export type UserSupabaseClient = ReturnType<typeof createUserClient>;
-export type ServiceSupabaseClient = ReturnType<typeof createServiceClient>;
 

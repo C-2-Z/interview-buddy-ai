@@ -52,7 +52,7 @@ voice.post("/sessions", async (c) => {
     userId: c.var.userId,
     sessionId: result.sessionId,
   });
-  return "generationStatus" in result ? c.json(result, 202) : c.json(result);
+  return c.json(result);
 });
 
 voice.get("/sessions/:sessionId", async (c) => {

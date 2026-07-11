@@ -273,12 +273,7 @@ npm install
 cd api-server && npm install && cd ..
 npm run dev          # 前端 (localhost:3000)
 npm run api:dev      # API 服务 (localhost:3001)
-cd api-server && npm run worker:dev  # 渐进出题 BullMQ Worker
 ```
-
-启用渐进生成前需要执行最新 Supabase migration，并配置同区域原生
-Redis/Valkey TCP 地址 `REDIS_URL`。生产环境必须同时运行 API 进程和
-`npm run worker:start`；未配置 Redis 时自动保留原同步出题流程。
 
 构建验证：
 
@@ -295,9 +290,6 @@ cd api-server && npm run build
 | GET | `/api/sessions` | 列出面试记录 |
 | GET | `/api/sessions/:id` | 获取面试详情和题目 |
 | POST | `/api/sessions/:id/finish` | 完成面试并生成总结 |
-| GET | `/api/sessions/:id/generation` | 获取渐进生成状态 |
-| GET | `/api/sessions/:id/generation/events` | 订阅题目生成 SSE 事件 |
-| POST | `/api/sessions/:id/generation/retry` | 重试未完成的生成任务 |
 | POST | `/api/questions/:id/message` | 发送回答并获取 AI 追问 |
 | POST | `/api/questions/:id/evaluate` | 手动结束对话并评分 |
 | GET | `/api/bank` | 题库列表 |

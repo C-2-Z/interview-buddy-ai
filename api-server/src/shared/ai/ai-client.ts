@@ -7,36 +7,17 @@ import {
   getProviderConfig,
   PROVIDER_CONFIGS,
 } from "./providers.js";
-import { startPerformanceSpan } from "../../modules/performance/performance.service.js";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
 
-export type AiTaskProfile = "interactive" | "generation" | "evaluation" | "report";
-
-export type AiCallOptions = {
-  stream?: boolean;
-  taskProfile?: AiTaskProfile;
-  maxTokens?: number;
-  thinkingMode?: "enabled" | "disabled";
-  outputMode?: "text" | "json";
-  signal?: AbortSignal;
-  traceId?: string;
-};
-
-function taskTimeoutMs(profile?: AiTaskProfile): number {
-  if (profile === "generation") return Number(process.env.AI_GENERATION_TIMEOUT_MS || "90000");
-  if (profile === "report") return Number(process.env.AI_REPORT_TIMEOUT_MS || "60000");
-  return Number(process.env.AI_INTERACTIVE_TIMEOUT_MS || "45000");
-}
-
 function buildProviderRequest(
   provider: ModelProvider,
   messages: ChatMessage[],
   apiKey: string,
-  options?: AiCallOptions,
+  options?: { stream?: boolean },
 ): { url: string; headers: Record<string, string>; body: string } {
   const cfg = getProviderConfig(provider.name);
   const model = provider.model || cfg.defaultModel;
@@ -48,7 +29,7 @@ function buildProviderRequest(
       .map((m) => ({ role: m.role, content: m.content }));
     const body: Record<string, unknown> = {
       model,
-      max_tokens: options?.maxTokens ?? 4096,
+      max_tokens: 4096,
       messages: chatMessages,
     };
     if (options?.stream) body.stream = true;
@@ -64,35 +45,14 @@ function buildProviderRequest(
     };
   }
 
-  const body: Record<string, unknown> = {
-    model,
-    messages,
-    stream: options?.stream ?? false,
-    max_tokens: options?.maxTokens,
-  };
-  if (resolvedThinkingMode(provider, options)) {
-    body.thinking = { type: resolvedThinkingMode(provider, options) };
-  }
-  if (options?.outputMode === "json") {
-    body.response_format = { type: "json_object" };
-  }
   return {
     url: `${cfg.baseUrl}/chat/completions`,
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify(Object.fromEntries(Object.entries(body).filter(([, value]) => value !== undefined))),
+    body: JSON.stringify({ model, messages, stream: options?.stream ?? false }),
   };
-}
-
-function resolvedThinkingMode(
-  provider: ModelProvider,
-  options?: AiCallOptions,
-): "enabled" | "disabled" | undefined {
-  if (provider.name !== "deepseek") return undefined;
-  return options?.thinkingMode ??
-    (options?.taskProfile === "report" ? "enabled" : "disabled");
 }
 
 function extractResponseText(
@@ -114,23 +74,14 @@ function extractResponseText(
 export async function callAI(
   messages: ChatMessage[],
   provider?: ModelProvider,
-  options?: AiCallOptions,
 ): Promise<string> {
   const resolved = provider ?? DEFAULT_PROVIDER;
-  const endSpan = options?.traceId
-    ? startPerformanceSpan("ai.complete", {
-        traceId: options.traceId,
-        provider: resolved.name,
-        model: resolved.model,
-      })
-    : null;
   const cfg = getProviderConfig(resolved.name);
   const apiKey = resolved.apiKey || process.env[cfg.envKey];
   if (!apiKey) throw new Error(`Missing ${cfg.envKey} environment variable`);
 
-  const { url, headers, body } = buildProviderRequest(resolved, messages, apiKey, options);
-  const requestSignal = options?.signal ?? AbortSignal.timeout(taskTimeoutMs(options?.taskProfile));
-  const res = await fetch(url, { method: "POST", headers, body, signal: requestSignal });
+  const { url, headers, body } = buildProviderRequest(resolved, messages, apiKey);
+  const res = await fetch(url, { method: "POST", headers, body });
 
   if (!res.ok) {
     const text = await res.text();
@@ -143,7 +94,6 @@ export async function callAI(
   const data = (await res.json()) as Record<string, unknown>;
   const content = extractResponseText(resolved.name, data);
   if (!content) throw new Error("AI 未返回内容");
-  endSpan?.("ok");
   return content;
 }
 
@@ -220,23 +170,8 @@ export async function* streamAI(
   messages: ChatMessage[],
   provider?: ModelProvider,
   signal?: AbortSignal,
-  options?: Omit<AiCallOptions, "stream" | "signal">,
 ): AsyncIterable<string> {
   const resolved = provider ?? DEFAULT_PROVIDER;
-  const endSpan = options?.traceId
-    ? startPerformanceSpan("ai.stream.total", {
-        traceId: options.traceId,
-        provider: resolved.name,
-        model: resolved.model,
-      })
-    : null;
-  const endFirstToken = options?.traceId
-    ? startPerformanceSpan("ai.stream.ttft", {
-        traceId: options.traceId,
-        provider: resolved.name,
-        model: resolved.model,
-      })
-    : null;
   const cfg = getProviderConfig(resolved.name);
   const apiKey = resolved.apiKey || process.env[cfg.envKey];
   if (!apiKey) throw new Error(`Missing ${cfg.envKey} environment variable`);
@@ -245,10 +180,9 @@ export async function* streamAI(
     resolved,
     messages,
     apiKey,
-    { ...options, stream: true },
+    { stream: true },
   );
-  const requestSignal = signal ?? AbortSignal.timeout(taskTimeoutMs(options?.taskProfile));
-  const res = await fetch(url, { method: "POST", headers, body, signal: requestSignal });
+  const res = await fetch(url, { method: "POST", headers, body, signal });
 
   if (!res.ok) {
     const text = await res.text();
@@ -258,19 +192,8 @@ export async function* streamAI(
     throw new Error(`AI 调用失败 (${resolved.name}): ${res.status} ${text}`);
   }
 
-  let first = true;
-  try {
-    for await (const delta of parseSseTextStream(res, resolved.name)) {
-      if (first) {
-        first = false;
-        endFirstToken?.("ok");
-      }
-      yield delta;
-    }
-    endSpan?.("ok");
-  } catch (error) {
-    endSpan?.(requestSignal.aborted ? "cancelled" : "error");
-    throw error;
+  for await (const delta of parseSseTextStream(res, resolved.name)) {
+    yield delta;
   }
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 const TARGET_SAMPLE_RATE = 16000;
 
@@ -8,45 +8,28 @@ class PcmCaptureProcessor extends AudioWorkletProcessor {
     super();
     this.targetSampleRate = options.processorOptions.targetSampleRate || 16000;
     this.ratio = sampleRate / this.targetSampleRate;
-    this.frameLength = Math.round(this.targetSampleRate * 0.02);
-    this.frame = new Int16Array(this.frameLength);
-    this.frameOffset = 0;
-    this.squareSum = 0;
-    this.active = false;
-    this.port.onmessage = (event) => {
-      if (event.data && event.data.type === 'active') {
-        this.active = Boolean(event.data.value);
-        if (!this.active) {
-          this.frameOffset = 0;
-          this.squareSum = 0;
-        }
-      }
-    };
   }
 
   process(inputs) {
     const input = inputs[0] && inputs[0][0];
-    if (!this.active || !input || input.length === 0) return true;
+    if (!input || input.length === 0) return true;
 
     const outputLength = Math.max(1, Math.floor(input.length / this.ratio));
+    const pcm = new Int16Array(outputLength);
+    let sum = 0;
+
     for (let i = 0; i < outputLength; i += 1) {
       const sourceIndex = Math.min(input.length - 1, Math.floor(i * this.ratio));
       const sample = Math.max(-1, Math.min(1, input[sourceIndex]));
-      this.squareSum += sample * sample;
-      this.frame[this.frameOffset] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
-      this.frameOffset += 1;
-      if (this.frameOffset === this.frameLength) {
-        const pcm = this.frame;
-        const rms = Math.sqrt(this.squareSum / this.frameLength);
-        this.port.postMessage(
-          { audio: pcm.buffer, rms, speaking: rms > 0.02 },
-          [pcm.buffer],
-        );
-        this.frame = new Int16Array(this.frameLength);
-        this.frameOffset = 0;
-        this.squareSum = 0;
-      }
+      sum += sample * sample;
+      pcm[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
     }
+
+    const rms = Math.sqrt(sum / outputLength);
+    this.port.postMessage(
+      { audio: pcm.buffer, rms, speaking: rms > 0.02 },
+      [pcm.buffer],
+    );
     return true;
   }
 }
@@ -92,13 +75,6 @@ export function useAudioCapture(params: {
 
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error("当前浏览器不支持麦克风录音或页面不是安全上下文");
-    }
-
-    if (context.current && stream.current && node.current) {
-      for (const track of stream.current.getAudioTracks()) track.enabled = true;
-      node.current.port.postMessage({ type: "active", value: true });
-      setRecording(true);
-      return;
     }
 
     let mediaStream: MediaStream | null = null;
@@ -158,7 +134,6 @@ export function useAudioCapture(params: {
 
     audioSource.connect(processor);
     processor.connect(audioContext.destination);
-    processor.port.postMessage({ type: "active", value: true });
 
     stream.current = mediaStream;
     context.current = audioContext;
@@ -181,8 +156,19 @@ export function useAudioCapture(params: {
 
   async function stop() {
     if (noInputTimer.current) clearTimeout(noInputTimer.current);
-    node.current?.port.postMessage({ type: "active", value: false });
-    for (const track of stream.current?.getAudioTracks() ?? []) track.enabled = false;
+    node.current?.disconnect();
+    source.current?.disconnect();
+    for (const track of stream.current?.getTracks() ?? []) track.stop();
+    if (context.current && context.current.state !== "closed") {
+      await context.current.close();
+    }
+    if (workletUrl.current) URL.revokeObjectURL(workletUrl.current);
+
+    stream.current = null;
+    context.current = null;
+    node.current = null;
+    source.current = null;
+    workletUrl.current = null;
     speaking.current = false;
     params.onDebug?.({
       chunks: chunks.current,
@@ -193,16 +179,6 @@ export function useAudioCapture(params: {
     });
     setRecording(false);
   }
-
-  useEffect(() => {
-    return () => {
-      node.current?.disconnect();
-      source.current?.disconnect();
-      for (const track of stream.current?.getTracks() ?? []) track.stop();
-      if (context.current && context.current.state !== "closed") void context.current.close();
-      if (workletUrl.current) URL.revokeObjectURL(workletUrl.current);
-    };
-  }, []);
 
   return {
     recording,

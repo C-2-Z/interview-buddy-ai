@@ -15,12 +15,9 @@ import { Progress } from "@/components/ui/progress";
 import { CompletedSession } from "@/features/interview-session/components/completed-session";
 import { VoiceInterviewPanel } from "./voice-interview-panel";
 import { useVoiceSession } from "../hooks/use-voice-session";
-import { GenerationProgress } from "@/features/progressive-generation/components/generation-progress";
-import { useProgressiveGeneration } from "@/features/progressive-generation/hooks/use-progressive-generation";
 
 export function VoiceSessionPage({ sessionId }: { sessionId: string }) {
   const voiceSession = useVoiceSession(sessionId);
-  const generation = useProgressiveGeneration(sessionId, voiceSession.refresh);
 
   if (!voiceSession.session) {
     return (
@@ -35,9 +32,7 @@ export function VoiceSessionPage({ sessionId }: { sessionId: string }) {
   }
 
   return (
-    <div className="space-y-4">
-      <GenerationProgress snapshot={generation.snapshot} retrying={generation.retrying} onRetry={() => void generation.retry()} />
-      <div className="overflow-hidden rounded-3xl border border-voice-border bg-voice-background text-voice-foreground shadow-2xl">
+    <div className="overflow-hidden rounded-3xl border border-voice-border bg-voice-background text-voice-foreground shadow-2xl">
       <div className="relative">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-voice-accent/10" />
         <header className="relative border-b border-voice-border px-4 py-4 sm:px-6">
@@ -107,28 +102,22 @@ export function VoiceSessionPage({ sessionId }: { sessionId: string }) {
         </header>
 
         <main className="relative px-3 py-4 pb-24 sm:px-6 sm:py-6">
-          {voiceSession.currentQuestion ? <VoiceInterviewPanel
+          <VoiceInterviewPanel
             sessionId={sessionId}
-            initialQuestionId={voiceSession.currentQuestion.id}
+            initialQuestionId={voiceSession.currentQuestion?.id ?? null}
             initialQuestionIndex={voiceSession.currentQuestionIndex}
             totalQuestions={voiceSession.questions.length}
             completed={voiceSession.isComplete}
             onQuestionScored={voiceSession.updateQuestionScore}
             onSessionCompleted={voiceSession.applyCompletion}
             onRefresh={voiceSession.refresh}
-          /> : (
-            <div className="flex min-h-64 flex-col items-center justify-center gap-3 text-voice-muted">
-              <Loader2 className="h-6 w-6 animate-spin" />
-              <span>第一道题生成后即可进入语音面试</span>
-            </div>
-          )}
+          />
         </main>
 
         <footer className="relative flex items-center justify-center gap-2 border-t border-voice-border px-4 py-3 text-xs text-voice-muted">
           <ShieldCheck className="h-3.5 w-3.5" />
           面试音频仅用于本次实时识别与评估
         </footer>
-      </div>
       </div>
     </div>
   );

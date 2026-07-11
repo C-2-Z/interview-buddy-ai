@@ -21,12 +21,6 @@ export type QwenAsrSession = {
   abort: () => void;
 };
 
-export type QwenTtsSession = {
-  readonly closed: boolean;
-  speak: (text: string, signal?: AbortSignal) => AsyncIterable<Buffer>;
-  close: () => void;
-};
-
 class AsyncQueue<T> implements AsyncIterable<T> {
   private readonly items: T[] = [];
   private readonly waiters: Array<{
@@ -600,93 +594,6 @@ export async function* streamQwenTtsAudio(params: {
   } finally {
     cleanup();
   }
-}
-
-export function createQwenTtsSession(params: {
-  model: string;
-  sampleRate: number;
-  voice?: string;
-}): QwenTtsSession {
-  if (process.env.VOICE_MOCK_QWEN === "1") {
-    let closed = false;
-    return {
-      get closed() { return closed; },
-      async *speak() { yield Buffer.alloc(Math.round(params.sampleRate * 0.2) * 2); },
-      close() { closed = true; },
-    };
-  }
-
-  const url = qwenRealtimeUrl("tts", params.model);
-  const ws = new WebSocket(url, { headers: qwenHeaders() });
-  let ready = false;
-  let closed = false;
-  let active: AsyncQueue<Buffer> | null = null;
-  let readyResolve: (() => void) | null = null;
-  let readyReject: ((error: Error) => void) | null = null;
-  const readyPromise = new Promise<void>((resolve, reject) => {
-    readyResolve = resolve;
-    readyReject = reject;
-  });
-
-  function close(error?: Error) {
-    if (closed) return;
-    closed = true;
-    if (error) active?.fail(error); else active?.close();
-    active = null;
-    if (!ready) readyReject?.(error ?? new Error("Qwen TTS connection closed before ready"));
-    if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) ws.close();
-  }
-
-  ws.on("open", () => sendTtsSessionUpdate(ws, {
-    voice: params.voice,
-    sampleRate: params.sampleRate,
-  }));
-  ws.on("message", (data, isBinary) => {
-    if (isBinary) return;
-    const payload = parseJsonMessage(data);
-    if (!payload) return;
-    const failure = extractQwenError(payload);
-    if (failure) return close(failure);
-    if (payload.type === "session.updated") {
-      ready = true;
-      readyResolve?.();
-      return;
-    }
-    if (payload.type === "response.audio.delta") {
-      const delta = typeof payload.delta === "string" ? payload.delta : "";
-      if (delta) active?.push(Buffer.from(delta, "base64"));
-      return;
-    }
-    if (payload.type === "response.done") {
-      active?.close();
-      active = null;
-      return;
-    }
-    if (payload.type === "session.finished") close();
-  });
-  ws.on("error", (error) => close(error));
-  ws.on("close", () => close());
-
-  return {
-    get closed() { return closed; },
-    async *speak(text: string, signal?: AbortSignal) {
-      await readyPromise;
-      if (closed) throw new Error("Qwen TTS session is closed");
-      if (active) throw new Error("Qwen TTS session already has an active response");
-      const queue = new AsyncQueue<Buffer>();
-      active = queue;
-      const abort = () => close();
-      signal?.addEventListener("abort", abort, { once: true });
-      sendJson(ws, { event_id: eventId(), type: "input_text_buffer.append", text });
-      sendJson(ws, { event_id: eventId(), type: "input_text_buffer.commit" });
-      try {
-        for await (const chunk of queue) yield chunk;
-      } finally {
-        signal?.removeEventListener("abort", abort);
-      }
-    },
-    close,
-  };
 }
 
 export async function runQwenRealtimeTask(params: {

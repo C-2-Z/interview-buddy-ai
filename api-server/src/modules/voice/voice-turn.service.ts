@@ -169,6 +169,16 @@ export async function prepareVoiceTurn(params: {
     legacyAnswer: question.answer,
   });
 
+  await appendInterviewMessage(params.supabase, {
+    questionId: params.questionId,
+    role: "user",
+    content: params.transcript,
+    source: "voice",
+    turnId: params.turnId,
+    sttConfidence: params.confidence,
+    endedAt: new Date().toISOString(),
+  });
+
   const conversation = [
     ...toConversationMessages(history),
     { role: "user" as const, content: params.transcript },
@@ -183,15 +193,6 @@ export async function prepareVoiceTurn(params: {
   };
 
   if (isCopiedQuestion(params.transcript, question.question)) {
-    await appendInterviewMessage(params.supabase, {
-      questionId: params.questionId,
-      role: "user",
-      content: params.transcript,
-      source: "voice",
-      turnId: params.turnId,
-      sttConfidence: params.confidence,
-      endedAt: new Date().toISOString(),
-    });
     return {
       ...base,
       kind: "redirect",
@@ -199,29 +200,17 @@ export async function prepareVoiceTurn(params: {
     };
   }
 
-  const [provider, context] = await Promise.all([
-    resolveProviderForSession(
-      params.supabase,
-      params.userId,
-      question.interview_sessions,
-    ),
-    buildContext(question, params.supabase),
-    appendInterviewMessage(params.supabase, {
-      questionId: params.questionId,
-      role: "user",
-      content: params.transcript,
-      source: "voice",
-      turnId: params.turnId,
-      sttConfidence: params.confidence,
-      endedAt: new Date().toISOString(),
-    }),
-  ]);
+  const provider = await resolveProviderForSession(
+    params.supabase,
+    params.userId,
+    question.interview_sessions,
+  );
 
   return {
     ...base,
     kind: "interview",
     provider,
-    context,
+    context: await buildContext(question, params.supabase),
   };
 }
 
@@ -242,80 +231,8 @@ export async function* streamVoiceReply(
     ],
     turn.provider,
     signal,
-    {
-      taskProfile: "interactive",
-      maxTokens: 320,
-      thinkingMode: "disabled",
-      traceId: turn.turnId,
-    },
   )) {
     yield delta;
-  }
-}
-
-export type VoiceTurnStreamEvent =
-  | { type: "speech"; text: string }
-  | { type: "decision"; decision: VoiceDecision };
-
-export async function* streamCombinedVoiceTurn(
-  turn: Extract<PreparedVoiceTurn, { kind: "interview" }>,
-  signal?: AbortSignal,
-): AsyncIterable<VoiceTurnStreamEvent> {
-  const open = "<speech>";
-  const close = "</speech>";
-  let state: "before" | "speech" | "decision" = "before";
-  let buffer = "";
-  let raw = "";
-  for await (const delta of streamVoiceReply(turn, signal)) {
-    raw += delta;
-    buffer += delta;
-    if (state === "before") {
-      const index = buffer.indexOf(open);
-      if (index === -1) continue;
-      buffer = buffer.slice(index + open.length);
-      state = "speech";
-    }
-    if (state === "speech") {
-      const closeIndex = buffer.indexOf(close);
-      if (closeIndex >= 0) {
-        const text = buffer.slice(0, closeIndex);
-        if (text) yield { type: "speech", text };
-        buffer = buffer.slice(closeIndex + close.length);
-        state = "decision";
-      } else if (buffer.length > close.length) {
-        const safeLength = buffer.length - close.length;
-        const text = buffer.slice(0, safeLength);
-        buffer = buffer.slice(safeLength);
-        if (text) yield { type: "speech", text };
-      }
-    }
-  }
-  if (state === "speech" && buffer) yield { type: "speech", text: buffer };
-  if (state === "before") {
-    const fallback = raw.trim();
-    if (fallback) yield { type: "speech", text: fallback };
-    return;
-  }
-  const decisionStart = buffer.indexOf("<decision>");
-  const decisionEnd = buffer.lastIndexOf("</decision>");
-  if (decisionStart >= 0) {
-    const json = buffer.slice(
-      decisionStart + "<decision>".length,
-      decisionEnd > decisionStart ? decisionEnd : undefined,
-    );
-    try {
-      const parsed = parseJsonFromAI<Record<string, unknown>>(json);
-      const action = parsed.action;
-      const response = String(parsed.response ?? "").trim();
-      if (
-        response &&
-        (action === "follow_up" || action === "finish_question" || action === "finish_session" || action === "redirect")
-      ) {
-        yield { type: "decision", decision: normalizeDecision(json) };
-      }
-    } catch {
-      // The caller falls back to the dedicated decision request.
-    }
   }
 }
 
@@ -337,14 +254,29 @@ export async function appendVoiceAssistantMessage(params: {
   });
 }
 
-export async function applyVoiceDecision(
+export async function decideVoiceTurn(
   turn: PreparedVoiceTurn,
   assistantResponse: string,
-  decision: VoiceDecision,
 ): Promise<VoiceTurnResult> {
   if (turn.kind === "redirect") {
     return { response: assistantResponse || turn.response, action: "redirect" };
   }
+
+  const text = await callAI(
+    [
+      { role: "system", content: buildVoiceInterviewerSystemPrompt(turn.context) },
+      {
+        role: "user",
+        content: buildVoiceDecisionUserPrompt({
+          history: turn.historyText,
+          latestAnswer: turn.transcript,
+          assistantResponse,
+        }),
+      },
+    ],
+    turn.provider,
+  );
+  const decision = normalizeDecision(text);
   const response = assistantResponse.trim() || decision.response;
 
   if (decision.action === "finish_question") {
@@ -399,31 +331,10 @@ export async function applyVoiceDecision(
     };
   }
 
-  return { response, action: decision.action };
-}
-
-export async function decideVoiceTurn(
-  turn: PreparedVoiceTurn,
-  assistantResponse: string,
-): Promise<VoiceTurnResult> {
-  if (turn.kind === "redirect") return applyVoiceDecision(turn, assistantResponse, { action: "redirect", response: turn.response });
-  const text = await callAI(
-    [
-      { role: "system", content: buildVoiceInterviewerSystemPrompt(turn.context) },
-      {
-        role: "user",
-        content: buildVoiceDecisionUserPrompt({
-          history: turn.historyText,
-          latestAnswer: turn.transcript,
-          assistantResponse,
-        }),
-      },
-    ],
-    turn.provider,
-    { taskProfile: "interactive", maxTokens: 320, thinkingMode: "disabled", outputMode: "json", traceId: turn.turnId },
-  );
-  const decision = normalizeDecision(text);
-  return applyVoiceDecision(turn, assistantResponse, decision);
+  return {
+    response,
+    action: decision.action,
+  };
 }
 
 export async function handleVoiceTranscript(params: {
@@ -441,16 +352,8 @@ export async function handleVoiceTranscript(params: {
   if (turn.kind === "redirect") {
     response = turn.response;
   } else {
-    let inlineDecision: VoiceDecision | null = null;
-    for await (const event of streamCombinedVoiceTurn(turn)) {
-      if (event.type === "speech") response += event.text;
-      else inlineDecision = event.decision;
-    }
+    for await (const delta of streamVoiceReply(turn)) response += delta;
     response = response.trim() || "Please continue with your answer.";
-    await appendVoiceAssistantMessage({ turn, content: response });
-    return inlineDecision
-      ? applyVoiceDecision(turn, response, inlineDecision)
-      : decideVoiceTurn(turn, response);
   }
 
   await appendVoiceAssistantMessage({ turn, content: response });

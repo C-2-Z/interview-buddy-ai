@@ -10,19 +10,6 @@ export function AppShell({ children, userEmail }: { children: ReactNode; userEma
     document.getElementById("main-content")?.focus({ preventScroll: true });
   }, [pathname]);
 
-  useEffect(() => {
-    const apiUrl = import.meta.env.VITE_API_URL;
-    if (!apiUrl) return;
-    const origin = new URL(apiUrl, window.location.href).origin;
-    if (document.head.querySelector(`link[rel="preconnect"][href="${origin}"]`)) return;
-    const link = document.createElement("link");
-    link.rel = "preconnect";
-    link.href = origin;
-    link.crossOrigin = "anonymous";
-    document.head.appendChild(link);
-    return () => link.remove();
-  }, []);
-
   return (
     <SidebarProvider>
       <a
