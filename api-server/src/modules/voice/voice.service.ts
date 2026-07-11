@@ -1,3 +1,4 @@
+/** 语音面试业务：创建/获取/结束 */
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import {
   createInterviewSession,

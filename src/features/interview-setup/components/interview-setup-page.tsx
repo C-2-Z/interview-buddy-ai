@@ -1,3 +1,4 @@
+/** interview-setup - 面试设置页面 */
 import { ChevronDown, FileText, Keyboard, Loader2, Mic2, Settings2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

@@ -1,3 +1,4 @@
+/** Provider 解析：按用户设置和 session 配置选择 AI 模型 */
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import { PROVIDER_CONFIGS } from "../../shared/ai/providers.js";
 import { decrypt } from "../settings/encryption.service.js";

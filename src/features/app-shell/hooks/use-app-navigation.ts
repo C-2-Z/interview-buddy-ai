@@ -1,3 +1,4 @@
+/** app-shell - 应用导航状态 */
 import { useRouter, useRouterState } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";

@@ -1,3 +1,4 @@
+/** 简历业务：上传、解析、AI 分析 */
 import { parseResume, isSupportedType } from "../../lib/resume-parser.js";
 import { analyzeResume } from "../../lib/resume-analyzer.js";
 import {

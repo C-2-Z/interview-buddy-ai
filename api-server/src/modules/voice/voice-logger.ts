@@ -1,3 +1,4 @@
+/** 语音模块 consola logger（含脱敏）*/
 import { createConsola } from "consola";
 
 function sanitize(meta: Record<string, unknown>): Record<string, unknown> {

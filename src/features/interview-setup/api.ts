@@ -1,3 +1,4 @@
+/** 面试设置：Skill 选择 - API 调用函数 */
 import { createInterviewSession, listSkills } from "@/features/interview-create/api";
 import { getSession } from "@/features/interview-session/api";
 import { createVoiceInterviewSession } from "@/features/voice-interview/api";

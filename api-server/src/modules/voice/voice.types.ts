@@ -1,3 +1,4 @@
+/** 语音面试 WebSocket 事件类型 */
 import type { InterviewMessage } from "../questions/messages.repository.js";
 
 export type VoiceClientEvent =

@@ -1,3 +1,4 @@
+/** 题目分配算法兼容导出 */
 export {
   buildDedupInstruction,
   buildReferenceSection,

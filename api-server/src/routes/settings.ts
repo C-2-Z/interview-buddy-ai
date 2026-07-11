@@ -1,3 +1,4 @@
+/**（旧）设置路由兼容导出 */
 import { Hono } from "hono";
 import { z } from "zod";
 import { requireAuth } from "../middleware/auth.js";

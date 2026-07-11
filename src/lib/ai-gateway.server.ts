@@ -1,3 +1,4 @@
+/** 服务端 AI 调用封装（兼容旧 API Key 配置）*/
 // Server-only helper for DeepSeek (OpenAI-compatible API)
 
 export interface ChatMessage {

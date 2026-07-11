@@ -1,3 +1,4 @@
+/** voice-interview - 实时语音转写文本 */
 import { Bot, Captions, Mic2 } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import type { VoiceMessage } from "../types";

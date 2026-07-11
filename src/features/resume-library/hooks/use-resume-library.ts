@@ -1,3 +1,4 @@
+/** resume-library - 简历库列表 */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { deleteResume, listResumes, uploadResume } from "../api";

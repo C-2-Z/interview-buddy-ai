@@ -1,3 +1,4 @@
+/** 响应式：检测移动端视口 */
 import * as React from "react";
 
 const MOBILE_BREAKPOINT = 768;

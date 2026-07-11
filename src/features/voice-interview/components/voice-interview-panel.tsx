@@ -1,3 +1,4 @@
+/** voice-interview - 语音面试主面板 */
 import { AlertTriangle, Clock3, Mic, MicOff, PhoneCall, Radio, XCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";

@@ -1,3 +1,4 @@
+/** 面试报告 - 雷达图组件 */
 import type { DimensionSummary } from "@/features/interview-session/types";
 import {
   PolarAngleAxis,

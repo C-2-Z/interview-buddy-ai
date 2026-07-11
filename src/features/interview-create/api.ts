@@ -1,3 +1,4 @@
+/** 创建面试：表单、Skill 选择、Model 选择 - API 调用函数 */
 import { apiRequest } from "@/shared/api/http-client";
 import { getAccessToken } from "@/shared/api/auth-token";
 import type { CreateSessionParams, SkillMeta } from "./types";

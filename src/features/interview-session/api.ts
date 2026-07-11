@@ -1,3 +1,4 @@
+/** 面试会话：对话面板、状态管理 - API 调用函数 */
 import { apiRequest } from "@/shared/api/http-client";
 import type { QuestionItem, SessionDetail, SessionItem } from "./types";
 

@@ -1,3 +1,4 @@
+/** interview-setup - 面试设置 */
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";

@@ -1,3 +1,4 @@
+/** 发送消息请求体的 Zod Schema */
 import { z } from "zod";
 
 export const SendMessageSchema = z.object({

@@ -1,3 +1,4 @@
+/** TanStack Router 初始化 */
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "../routeTree.gen";

@@ -1,3 +1,4 @@
+/** interview-hub - 面试中心数据 */
 import { useCallback, useEffect, useState } from "react";
 import { listRecentInterviews } from "../api";
 import type { RecentInterview } from "../types";

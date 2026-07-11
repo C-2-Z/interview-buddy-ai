@@ -1,3 +1,4 @@
+/** question-bank - 题库题目详情页 */
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, BookOpen, Heart, Loader2 } from "lucide-react";

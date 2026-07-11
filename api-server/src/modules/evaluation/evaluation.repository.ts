@@ -1,3 +1,4 @@
+/** 维度评分 DB 访问 */
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import type { DimensionScores, DimensionSummary } from "./evaluation.types.js";
 

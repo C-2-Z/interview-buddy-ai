@@ -1,3 +1,4 @@
+/** 用户设置 DB 访问 */
 export const KEY_COLUMNS = [
   "deepseek_api_key",
   "openai_api_key",

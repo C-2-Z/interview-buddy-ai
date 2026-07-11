@@ -1,3 +1,4 @@
+/** interview-create - 创建面试表单组件 */
 import { Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

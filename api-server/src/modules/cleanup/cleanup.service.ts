@@ -1,3 +1,4 @@
+/** 过期面试场次自动关闭 */
 import { findStaleIdleSessions, findExpiredSessions, closeSession } from "./cleanup.repository.js";
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import { getRequiredEnv } from "../../config/env.js";

@@ -1,3 +1,4 @@
+/** interview-session - 面试对话页面 */
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

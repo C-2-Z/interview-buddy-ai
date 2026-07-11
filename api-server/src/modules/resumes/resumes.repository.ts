@@ -1,3 +1,4 @@
+/** 简历 DB 访问 */
 import { createHash } from "node:crypto";
 
 export interface ResumeRow {

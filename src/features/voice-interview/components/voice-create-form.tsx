@@ -1,3 +1,4 @@
+/** voice-interview - 创建语音面试表单 */
 import { Loader2, Mic2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

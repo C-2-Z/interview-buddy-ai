@@ -1,3 +1,4 @@
+/** 面试对话业务：处理消息/检测完成/触发评分 */
 import { callAI } from "../../shared/ai/ai-client.js";
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import { resolveProviderForSession } from "../model-providers/model-provider.service.js";
@@ -53,6 +54,13 @@ function buildContext(
   };
 }
 
+
+/** 处理用户发送的消息：
+ *  1. 追加对话历史
+ *  2. 检测复制题目
+ *  3. 检查追问上限
+ *  4. 调用 AI 生成追问
+ *  5. 检测完成信号触发评分 */
 export async function sendMessage(params: {
   supabase: UserSupabaseClient;
   userId: string;
@@ -190,6 +198,8 @@ export async function sendMessage(params: {
   return { response };
 }
 
+
+/** 手动触发当前题目的 AI 评分 */
 export async function evaluateQuestionConversation(params: {
   supabase: UserSupabaseClient;
   userId: string;

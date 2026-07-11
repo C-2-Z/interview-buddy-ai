@@ -1,3 +1,4 @@
+/** AI 评分调用：构建 prompt、解析维度评分 */
 import { callAI } from "../../shared/ai/ai-client.js";
 import { parseJsonFromAI } from "../../shared/ai/json-parser.js";
 import type { ModelProvider } from "../model-providers/provider.types.js";
@@ -19,6 +20,9 @@ export type EvaluationResult = {
   dimensions?: DimensionScores;
 };
 
+
+/** 调用 AI 评估面试对话：构建 prompt、调用 AI、解析 JSON
+ *  @returns score(1-100) + feedback + dimensions */
 export async function evaluateConversation(params: {
   context: InterviewContext;
   conversationText: string;

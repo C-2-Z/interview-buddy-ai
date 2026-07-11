@@ -1,3 +1,4 @@
+/** app-shell - 应用外壳布局与路由出口 */
 import { useRouterState } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";

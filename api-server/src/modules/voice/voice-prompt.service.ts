@@ -1,3 +1,4 @@
+/** 语音面试面试官决策 prompt */
 import type { InterviewContext } from "../questions/prompt-builders.js";
 
 function jobDescriptionInfo(jobDescription: string | null): string {

@@ -1,3 +1,4 @@
+/** resume-library - 简历详情 */
 import { useCallback, useEffect, useState } from "react";
 import { getResume } from "../api";
 import type { ResumeDetail } from "../types";

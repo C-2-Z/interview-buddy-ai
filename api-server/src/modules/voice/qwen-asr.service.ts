@@ -1,3 +1,4 @@
+/** 通义千问语音识别 WebSocket 客户端 */
 import {
   createQwenAsrSession,
   runQwenRealtimeTask,

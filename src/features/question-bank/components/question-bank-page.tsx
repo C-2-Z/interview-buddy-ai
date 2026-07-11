@@ -1,3 +1,4 @@
+/** question-bank - 题库主页面 */
 import { BookOpen, Loader2, Plus } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";

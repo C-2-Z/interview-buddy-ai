@@ -1,3 +1,4 @@
+/** interview-create - 简历上传组件 */
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";

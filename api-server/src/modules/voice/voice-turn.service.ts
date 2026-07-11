@@ -1,3 +1,4 @@
+/** 语音轮次：ASR 决策 TTS 编排 */
 import { callAI, streamAI } from "../../shared/ai/ai-client.js";
 import { parseJsonFromAI } from "../../shared/ai/json-parser.js";
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";

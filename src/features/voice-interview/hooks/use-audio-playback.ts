@@ -1,3 +1,4 @@
+/** voice-interview - 音频播放 */
 import { useRef, useState } from "react";
 
 function pcm16ToFloat32(chunk: ArrayBuffer): Float32Array {

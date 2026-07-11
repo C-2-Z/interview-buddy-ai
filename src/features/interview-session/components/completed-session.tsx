@@ -1,3 +1,4 @@
+/** interview-session - 已完成面试状态 */
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, CheckCircle2, Keyboard, Mic2, Trophy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

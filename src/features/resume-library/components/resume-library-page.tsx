@@ -1,3 +1,4 @@
+/** resume-library - 简历库主页面 */
 import { Link, useNavigate } from "@tanstack/react-router";
 import { FilePlus2, FileText, Search, Sparkles, Trash2, UploadCloud } from "lucide-react";
 import { useRef } from "react";

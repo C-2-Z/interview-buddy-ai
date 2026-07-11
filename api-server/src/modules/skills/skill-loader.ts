@@ -1,3 +1,4 @@
+/** Skill 配置文件加载（skill.json + persona.md）*/
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

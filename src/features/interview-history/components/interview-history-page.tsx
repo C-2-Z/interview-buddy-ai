@@ -1,3 +1,4 @@
+/** interview-history - 历史面试列表页 */
 import { Link } from "@tanstack/react-router";
 import { FileSearch, Keyboard, Mic2, RotateCw, Search, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

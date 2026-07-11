@@ -1,3 +1,4 @@
+/** 面试中心：概览仪表盘 - 类型定义 */
 import type { SessionItem } from "@/features/interview-session/types";
 
 export type RecentInterview = SessionItem;

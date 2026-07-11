@@ -1,3 +1,4 @@
+/** HTTP 客户端封装：自动注入 Bearer Token，统一错误处理 */
 import { getAccessToken } from "./auth-token";
 
 const baseUrl = import.meta.env.VITE_API_URL || "";

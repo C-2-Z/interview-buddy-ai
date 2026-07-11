@@ -1,3 +1,4 @@
+/** AI 统一网关：封装多 Provider 的 HTTP 请求，提供 callAI / streamAI 两种调用方式 */
 import type {
   ModelProvider,
   ProviderName,
@@ -8,11 +9,15 @@ import {
   PROVIDER_CONFIGS,
 } from "./providers.js";
 
+/** 聊天消息的基本结构 */
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
 
+/** 根据 Provider 类型构建不同的 HTTP 请求参数（URL、Headers、Body）
+ *  Anthropic 使用 /v1/messages 端点，system prompt 放在顶层而非 messages 数组
+ *  DeepSeek 和 OpenAI 兼容 /v1/chat/completions 格式 */
 function buildProviderRequest(
   provider: ModelProvider,
   messages: ChatMessage[],
@@ -23,6 +28,7 @@ function buildProviderRequest(
   const model = provider.model || cfg.defaultModel;
 
   if (provider.name === "anthropic") {
+    // Anthropic: 分离 system prompt 和 chat messages
     const systemMsg = messages.find((m) => m.role === "system");
     const chatMessages = messages
       .filter((m) => m.role !== "system")
@@ -45,6 +51,7 @@ function buildProviderRequest(
     };
   }
 
+  // DeepSeek / OpenAI: 标准 OpenAI-compatible 格式
   return {
     url: `${cfg.baseUrl}/chat/completions`,
     headers: {
@@ -55,6 +62,7 @@ function buildProviderRequest(
   };
 }
 
+/** 从非流式响应中提取文本内容（不同 Provider 的响应结构不同） */
 function extractResponseText(
   provider: ProviderName,
   data: Record<string, unknown>,
@@ -71,6 +79,8 @@ function extractResponseText(
   return choices?.[0]?.message?.content ?? "";
 }
 
+/** 非流式调用 AI：发送 messages 数组，返回完整文本
+ *  @throws 当 API Key 缺失、请求频率过高、或响应为空时抛出错误 */
 export async function callAI(
   messages: ChatMessage[],
   provider?: ModelProvider,
@@ -97,6 +107,7 @@ export async function callAI(
   return content;
 }
 
+/** 从 SSE 流式响应的每个 chunk 中提取文本增量 */
 function extractStreamText(
   provider: ProviderName,
   data: Record<string, unknown>,
@@ -115,6 +126,7 @@ function extractStreamText(
   return choices?.[0]?.delta?.content ?? choices?.[0]?.text ?? "";
 }
 
+/** 解析 SSE (Server-Sent Events) 文本流为 AsyncIterable<string> */
 async function* parseSseTextStream(
   response: Response,
   provider: ProviderName,
@@ -166,6 +178,8 @@ async function* parseSseTextStream(
   }
 }
 
+/** 流式调用 AI：返回 AsyncIterable，逐块产生文本增量
+ *  支持 AbortSignal 取消正在进行中的请求 */
 export async function* streamAI(
   messages: ChatMessage[],
   provider?: ModelProvider,
@@ -197,6 +211,7 @@ export async function* streamAI(
   }
 }
 
+/** 便捷函数：通过 Provider 名称直接调用，无需构造 ModelProvider 对象 */
 export function callAIWithProvider(
   messages: ChatMessage[],
   name: ProviderName,

@@ -1,3 +1,4 @@
+/** voice-interview - 麦克风录音 */
 import { useRef, useState } from "react";
 
 const TARGET_SAMPLE_RATE = 16000;

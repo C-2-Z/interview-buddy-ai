@@ -4,65 +4,48 @@
 
 ---
 
-## Phase 0 — 架构约束（所有开发必须遵守）
-
-> 新增功能必须遵循 **"功能即模块"** 原则，详见 `AGENTS.md`。
-
-### 模块化创建流程
-
-```
-后端: api-server/src/modules/<feature>/ → routes + service + repository + schemas
-前端: src/features/<feature>/          → api.ts + types.ts + hooks + components
-```
-
-### 禁止行为
-
-- ❌ 在已有路由文件中堆砌多功能的端点
-- ❌ 在已有 feature 目录中塞另一个功能域的代码
-- ❌ 路由文件直接写业务逻辑（应 import features/）
-
----
-
 ## Phase 1 — 已完成功能 ✅
 
-- [x] 着陆页 (/) — 品牌展示 + CTA
-- [x] 用户认证 (/auth) — 邮箱/密码登录注册
-- [x] 仪表盘 (/dashboard) — 功能入口
-- [x] 创建面试 (/new) — AI 出题配置
-- [x] 面试会话 (/session/$id) — 多轮对话 + 评分 + 完成
-- [x] 面试完成页 — 综合评分 + 逐题反馈
-- [x] 历史记录 (/history) — 列表回顾
-- [x] 认证布局 — 全局导航 + 鉴权守卫
+- [X] 着陆页 (/) — 品牌展示 + CTA
+- [X] 用户认证 (/auth) — 邮箱/密码登录注册
+- [X] 仪表盘 (/dashboard) — 功能入口
+- [X] 创建面试 (/new) — AI 出题配置
+- [X] 面试会话 (/session/$id) — 多轮对话 + 评分 + 完成
+- [X] 面试完成页 — 综合评分 + 逐题反馈
+- [X] 历史记录 (/history) — 列表回顾
+- [X] 认证布局 — 全局导航 + 鉴权守卫
 
 ## Phase 1b — 已完成的架构重构 ✅
 
-- [x] 前后端分离重构 — 提取独立 Hono API 服务 (api-server/)
-- [x] API 客户端 — src/lib/api-client.ts 替代 createServerFn
-- [x] 路由组件更新 — new / history / session 页面改为 API 调用
-- [x] 开发代理配置 — Vite /api 代理到 API 服务
-- [x] 一键启动脚本 — AI面试官助手.ps1 支持双服务启动
-- [x] 文档更新 — README / AGENTS / requirements 同步
+- [X] 前后端分离重构 — 提取独立 Hono API 服务 (api-server/)
+- [X] API 客户端 — src/lib/api-client.ts 替代 createServerFn
+- [X] 路由组件更新 — new / history / session 页面改为 API 调用
+- [X] 开发代理配置 — Vite /api 代理到 API 服务
+- [X] 一键启动脚本 — AI面试官助手.ps1 支持双服务启动
+- [X] 文档更新 — README / AGENTS / requirements 同步
 
 ## Phase 1c — 已验证的基本功能 ✅
 
 根据 [comparison-analysis.md](./comparison-analysis.md) 功能矩阵验证，以下基础功能已可用：
 
-- [x] C1 公司定制出题 — 基于目标公司出题 ✅ 已验证
-- [x] C3 题型混合配置 — 题型比例自定义 ✅ 已验证
-- [x] C4 题库模式 — 公共题库 + 刷题模式 ✅ 已验证
-- [x] C0 Skill 驱动出题 + 历史去重 — 按岗位定义 SKILL.md 配置，出题前过滤已出题目 ✅ 已验证
+- [X] C1 公司定制出题 — 基于目标公司出题 ✅ 已验证
+- [X] C3 题型混合配置 — 题型比例自定义 ✅ 已验证
+- [X] C4 题库模式 — 公共题库 + 刷题模式 ✅ 已验证
+- [X] C0 Skill 驱动出题 + 历史去重 — 按岗位定义 SKILL.md 配置，出题前过滤已出题目 ✅ 已验证
 
 ---
 
 ## Phase 2 — 面试体验增强
 
 ### P1 — 第一优先级
-- [ ] A4 追问策略优化 — 改进 AI 面试官的 Prompt，使其追问更具深度和针对性
+
+- [X] A4 追问策略优化 — 改进 AI 面试官的 Prompt，使其追问更具深度和针对性
 - [ ] A2 限时模式 — 每题倒计时功能
 - [ ] A5 前端性能优化 — TanStack Router 路由级懒加载 + 骨架屏，改善首屏加载速度
+
 ### P2 — 第二优先级
 
-- [ ] A1 语音回答 — 麦克风录入 + STT 转换（可先用 Web Speech API 做 MVP）
+- [X] A1 语音回答 — 麦克风录入 + STT 转换（可先用 Web Speech API 做 MVP）
 - [ ] A3 编程题 + 在线编辑器 — 内置代码编辑器 + AI 代码评审
 
 ---
@@ -71,11 +54,11 @@
 
 ### P0 — 核心竞争力
 
-- [ ] C2 简历解析出题 — 支持 PDF/DOCX 上传，AI 提取分析原简历并基于简历生成个性化题目（移自 Phase 4，提升至 P0）
+- [X] C2 简历解析出题 — 支持 PDF/DOCX 上传，AI 提取分析原简历并基于简历生成个性化题目（移自 Phase 4，提升至 P0）
 
 ### P1 — 体验提升
 
-- [ ] B1 能力雷达图 / 多维评分体系 — AI 按岗位 Skill 维度 + 通用维度(沟通/逻辑/解题) 逐题评分，加权聚合计算总分，雷达图展示弱项分析
+- [ ] B1 能力雷达图 / 多维评分体系 — LLM 结构化输出多维度评分（技术/沟通/逻辑/深度）+ Recharts 雷达图展示 + 趋势图表
 
 ### P2 — 第二优先级
 
@@ -95,7 +78,7 @@
 
 ### P0 — 核心竞争力
 
-- [x] D1 多模型支持 — 支持 DeepSeek / GPT-4o / Claude Provider 切换，用户设置页可配置加密 API Key
+- [X] D1 多模型支持 — 支持 OpenAI 兼容 API 的多 Provider 切换（DeepSeek / GPT-4o / Claude 等），用户设置页可配置 API Key
 
 ### P1 — 体验提升
 

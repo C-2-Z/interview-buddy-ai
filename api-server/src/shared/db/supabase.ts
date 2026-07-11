@@ -1,3 +1,4 @@
+/** Supabase 客户端工厂 */
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "../../lib/supabase-types.js";
 import { getRequiredEnv } from "../../config/env.js";

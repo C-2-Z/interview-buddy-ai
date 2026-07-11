@@ -1,3 +1,4 @@
+/** Prompt 模板兼容导出 */
 export {
   buildEvaluationPrompt,
   buildInterviewerSystemPrompt,

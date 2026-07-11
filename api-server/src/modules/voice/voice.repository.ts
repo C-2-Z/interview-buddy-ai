@@ -1,3 +1,4 @@
+/** 语音面试 DB 访问 */
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 
 export type VoiceSessionQuestion = {

@@ -1,3 +1,4 @@
+/** AES-256-GCM 加密工具 */
 export {
   decrypt,
   encrypt,

@@ -1,3 +1,4 @@
+/** 清理服务 DB 访问 */
 import { getRequiredEnv } from "../../config/env.js";
 
 function apiUrl(path: string): string {

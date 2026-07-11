@@ -1,3 +1,4 @@
+/** voice-interview - 语音面试页面 */
 import { BriefcaseBusiness, Loader2, Mic2, ShieldCheck, Square } from "lucide-react";
 import {
   AlertDialog,

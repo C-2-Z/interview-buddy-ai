@@ -1,3 +1,4 @@
+/** 通义千问实时语音客户端 */
 import { randomUUID } from "node:crypto";
 import { WebSocket } from "ws";
 import { getRequiredEnv } from "../../config/env.js";

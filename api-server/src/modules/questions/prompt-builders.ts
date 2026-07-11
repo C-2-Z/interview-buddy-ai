@@ -1,3 +1,4 @@
+/** Prompt 模板：面试官人格、追问、评分 prompt 构建 */
 import { parseJsonFromAI } from "../../shared/ai/json-parser.js";
 
 export type InterviewContext = {
@@ -16,6 +17,8 @@ function jobDescriptionInfo(jobDescription: string | null): string {
     : "";
 }
 
+
+/** 构建面试官系统 prompt */
 export function buildInterviewerSystemPrompt(ctx: InterviewContext): string {
   return `你是一位资深面试官，正在进行证据深挖型面试。
 
@@ -47,6 +50,8 @@ export function buildInterviewerSystemPrompt(ctx: InterviewContext): string {
 - 正常追问控制在 80-160 字`;
 }
 
+
+/** 构建面试官用户 prompt */
 export function buildInterviewerUserPrompt(
   conversationText: string,
   latestAnswer: string,
@@ -63,6 +68,8 @@ ${latestAnswer}
 export const EVALUATION_SYSTEM_PROMPT =
   "你是严谨的面试评审官，输出必须是有效 JSON。";
 
+
+/** 构建评分 prompt：要求 AI 输出 score + feedback + dimensions JSON */
 export function buildEvaluationPrompt(
   ctx: InterviewContext,
   conversationText: string,
@@ -86,6 +93,8 @@ ${conversationText}
   ` + (dimensionPrompt ?? "");
 }
 
+
+/** 从 AI 回复解析完成信号 {"type":"complete"} 触发评分 */
 export function parseCompletionSignal(
   text: string,
 ): { summary: string } | null {

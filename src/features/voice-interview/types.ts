@@ -1,3 +1,4 @@
+/** 语音面试：WebSocket 会话、音频控制 - 类型定义 */
 import type { Message, QuestionItem } from "@/features/interview-session/types";
 
 export type VoiceServerEvent =
