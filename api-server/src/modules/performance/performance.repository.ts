@@ -1,3 +1,7 @@
+import { createModuleLogger } from "../voice/voice-logger.js";
+
+const logger = createModuleLogger("performance");
+
 export type PerformanceEvent = {
   traceId: string;
   stage: string;
@@ -10,5 +14,5 @@ export type PerformanceEvent = {
 export function writePerformanceEvent(event: PerformanceEvent): void {
   const sampleRate = Math.max(0, Math.min(1, Number(process.env.PERFORMANCE_SAMPLE_RATE || "1")));
   if (event.outcome === "ok" && Math.random() > sampleRate) return;
-  console.info("[performance]", JSON.stringify(event));
+  logger.info("stage_completed", event);
 }

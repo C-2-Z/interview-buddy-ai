@@ -1,11 +1,17 @@
 import "../../preload.js";
 import { Worker } from "bullmq";
 import { bullMqConnection, GENERATION_QUEUE } from "./generation.queue.js";
-import { dispatchPendingGenerationJobs, processGenerationJob, processReportJob } from "./generation.service.js";
+import {
+  dispatchPendingGenerationJobs,
+  processGenerationJob,
+  processReportJob,
+} from "./generation.service.js";
 import { createServiceClient } from "../../shared/db/supabase.js";
 import { completeOutboxForSession } from "./generation.repository.js";
+import { createModuleLogger } from "../voice/voice-logger.js";
 
 const concurrency = Math.max(1, Number(process.env.QUESTION_WORKER_CONCURRENCY || "4"));
+const logger = createModuleLogger("generation-worker");
 
 const worker = new Worker(
   GENERATION_QUEUE,
@@ -19,9 +25,14 @@ const worker = new Worker(
 );
 
 worker.on("failed", (job, error) => {
-  console.error("[generation-worker] failed", JSON.stringify({ jobId: job?.id, error: error.message }));
+  logger.error(error, { jobId: job?.id, event: "job_failed" });
   if (job?.name === "generate-questions" && job.attemptsMade >= (job.opts.attempts ?? 1)) {
-    void completeOutboxForSession(createServiceClient(), String(job.data.sessionId), "failed", error.message);
+    void completeOutboxForSession(
+      createServiceClient(),
+      String(job.data.sessionId),
+      "failed",
+      error.message,
+    );
   }
 });
 worker.on("completed", (job) => {
@@ -32,4 +43,4 @@ worker.on("completed", (job) => {
 
 await dispatchPendingGenerationJobs();
 setInterval(() => void dispatchPendingGenerationJobs().catch(() => undefined), 2_000);
-console.log(`[generation-worker] ready concurrency=${concurrency}`);
+logger.success("worker_ready", { concurrency });

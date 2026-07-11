@@ -1,9 +1,11 @@
 import { findStaleIdleSessions, findExpiredSessions, closeSession } from "./cleanup.repository.js";
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import { getRequiredEnv } from "../../config/env.js";
+import { createModuleLogger } from "../voice/voice-logger.js";
 
 const IDLE_TIMEOUT_MINUTES = 10;
 const EXPIRED_TIMEOUT_HOURS = 24;
+const logger = createModuleLogger("cleanup");
 
 /**
  * Lazy cleanup — runs within the user's request lifecycle.
@@ -37,11 +39,13 @@ export async function closeStaleSessionsForUser(
         })
         .eq("id", session.id);
       if (updateError) throw updateError;
-      console.log(`[cleanup] Closed stale session ${session.id} for user ${userId}`);
+      logger.info("stale_session_closed", { sessionId: session.id, userId });
     }
   } catch (err) {
     // Non-critical — don't disrupt the main request
-    console.error("[cleanup] Lazy cleanup failed:", err);
+    logger.error(err instanceof Error ? err : new Error(String(err)), {
+      event: "lazy_cleanup_failed",
+    });
   }
 }
 
@@ -62,7 +66,7 @@ export async function runCleanup(): Promise<void> {
       await closeSession(session.id, "面试因长时间无活动自动结束");
     }
     if (idleSessions.length > 0) {
-      console.log(`[cleanup] Closed ${idleSessions.length} idle session(s)`);
+      logger.info("idle_sessions_closed", { count: idleSessions.length });
     }
 
     // — expired sessions (created > 24h ago, still in_progress) —
@@ -74,7 +78,7 @@ export async function runCleanup(): Promise<void> {
       }
     }
     if (expiredSessions.length > 0) {
-      console.log(`[cleanup] Closed ${expiredSessions.length} expired session(s)`);
+      logger.info("expired_sessions_closed", { count: expiredSessions.length });
     }
   } catch (err) {
     const cause = (err as any)?.cause;
@@ -84,6 +88,8 @@ export async function runCleanup(): Promise<void> {
     if (err instanceof Error && err.message?.includes("fetch failed")) {
       return;
     }
-    console.error("[cleanup] Error during cleanup:", err);
+    logger.error(err instanceof Error ? err : new Error(String(err)), {
+      event: "cleanup_failed",
+    });
   }
 }

@@ -1,5 +1,8 @@
 ﻿import { callAI } from "../shared/ai/ai-client.js";
 import { parseJsonFromAI } from "../shared/ai/json-parser.js";
+import { createModuleLogger } from "../modules/voice/voice-logger.js";
+
+const logger = createModuleLogger("resume-analyzer");
 
 /** AI 结构化分析结果 */
 export interface ResumeAnalysis {
@@ -44,22 +47,21 @@ const SYSTEM_PROMPT = `你是一位专业的技术简历分析专家。
  * 调用 DeepSeek 对简历进行结构化分析
  * 返回结构化 JSON，解析失败时返回 null
  */
-export async function analyzeResume(
-  parsedText: string,
-): Promise<ResumeAnalysis | null> {
+export async function analyzeResume(parsedText: string): Promise<ResumeAnalysis | null> {
   try {
-    const text = await callAI(
-      [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `请分析以下简历内容：\n\n${parsedText.slice(0, 3000)}`,
-        },
+    const text = await callAI([
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: `请分析以下简历内容：\n\n${parsedText.slice(0, 3000)}`,
+      },
     ]);
 
     return parseJsonFromAI<ResumeAnalysis>(text);
   } catch (err) {
-    console.error("Resume analysis failed:", err);
+    logger.error(err instanceof Error ? err : new Error(String(err)), {
+      event: "resume_analysis_failed",
+    });
     return null;
   }
 }
