@@ -12,16 +12,13 @@ import type {
   GeneratedSkillQuestion,
 } from "./session.types.js";
 
-// AI 出题系统 Prompt：设定 AI 角色为面试官助手，要求输出有效 JSON
 export const QUESTION_GEN_SYSTEM_PROMPT =
   "你是专业的面试官助手，回答必须是有效的 JSON。";
 
 export const FINISH_SYSTEM_PROMPT =
   "你是资深面试官，用中文给出简洁总结。";
 
-// AI 出题 Prompt 工厂：组装岗位/难度/目标公司/简历等信息，由 AI 生成初始题目
-// （禁飞区① 范围之外：题目文本由 AI 生成，追问策略才属于禁飞区）
-export function buildGenericQuestionGenerationPrompt( {
+export function buildGenericQuestionGenerationPrompt(
   input: CreateSessionInput,
 ): string {
   const companyHint = input.targetCompany
@@ -48,8 +45,7 @@ export function buildGenericQuestionGenerationPrompt( {
 ["题目1", "题目2", "题目3"]`;
 }
 
-// 通用出题：调用 AI 生成题目 JSON 数组，包含格式校验和错误处理
-export async function generateGenericQuestions( {
+export async function generateGenericQuestions(
   input: CreateSessionInput,
   provider: ModelProvider,
 ): Promise<GeneratedGenericQuestion[]> {
@@ -67,8 +63,7 @@ export async function generateGenericQuestions( {
   return questions;
 }
 
-// Skill 驱动出题：根据 Skill JSON 预设知识点和难度分布生成针对性题目
-export async function generateSkillQuestions(params: { {
+export async function generateSkillQuestions(params: {
   supabase: UserSupabaseClient;
   input: CreateSessionInput;
   skill: SkillDef;
@@ -97,3 +92,4 @@ export async function generateSkillQuestions(params: { {
   }
   return questions;
 }
+

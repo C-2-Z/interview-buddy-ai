@@ -24,9 +24,7 @@ import {
   updateLastActivity,
 } from "./questions.repository.js";
 
-// 禁飞区① 手写硬限制：每题最多追问 3 轮（与 Prompt 中的规则双重保障）
 const MAX_FOLLOWUPS = 3;
-// 禁飞区① 手写安全阀：每题总消息数上限 20 条，防止无限循环
 const MAX_TOTAL_MESSAGES = 20;
 
 function isVoiceInterviewQuestion(
@@ -38,7 +36,6 @@ function isVoiceInterviewQuestion(
   );
 }
 
-// 禁飞区① 辅助：构建面试上下文快照，每次追问时注入 Prompt
 function buildContext(
   question: Awaited<ReturnType<typeof getQuestionWithSession>>,
   totalQuestions: number,
@@ -56,13 +53,6 @@ function buildContext(
   };
 }
 
-// ===== 禁飞区① 核心：追问循环控制中枢 =====
-// 每次用户发送回答都会进入此函数，由手写决策树决定：
-//   1. 作弊检测 → 拒绝代答
-//   2. 轮次检测 → 超限则自动评分
-//   3. 正常追问 → 调用 AI（由 buildInterviewerSystemPrompt 控制规则）
-//   4. 完成信号检测 → 触发评分
-//   5. 消息数量检测 → 超限则自动结束
 export async function sendMessage(params: {
   supabase: UserSupabaseClient;
   userId: string;
@@ -92,7 +82,6 @@ export async function sendMessage(params: {
     source: "text",
   });
 
-    // 步骤3：作弊检测 — 候选人复制题目文本时拒绝代答
   if (isCopiedQuestion(params.content, question.question)) {
     const response = buildRedirectResponse();
     conversation.push({ role: "assistant", content: response });
@@ -113,7 +102,6 @@ export async function sendMessage(params: {
   );
 
   const userMessages = conversation.filter((m) => m.role === "user").length;
-    // 步骤4：轮次上限 — 已回答 > 3 轮时不再追问，自动评分
   if (userMessages > MAX_FOLLOWUPS) {
     await updateLastActivity(params.supabase, question.session_id);
     return autoEvaluateQuestion({
@@ -127,7 +115,6 @@ export async function sendMessage(params: {
 
   const context = buildContext(question, totalQuestions);
   const conversationText = formatConversation(conversation);
-    // 步骤5：正常追问 — 调用 AI（规则由 buildInterviewerSystemPrompt 控制）
   const response = await callAI(
     [
       { role: "system", content: buildInterviewerSystemPrompt(context) },
@@ -140,7 +127,6 @@ export async function sendMessage(params: {
   );
   conversation.push({ role: "assistant", content: response });
 
-    // 步骤6：安全阀 — 消息总数 >= 20 条时强制结束
   if (conversation.length >= MAX_TOTAL_MESSAGES) {
     await updateLastActivity(params.supabase, question.session_id);
     return autoEvaluateQuestion({
@@ -152,7 +138,6 @@ export async function sendMessage(params: {
     });
   }
 
-    // 步骤7：检测完成信号 — AI 输出 {type:complete} 则本题结束
   const completionSignal = parseCompletionSignal(response);
   if (completionSignal) {
     const closingResponse = `感谢你的回答。${completionSignal.summary}下面我们进入下一题。`;
@@ -248,7 +233,6 @@ export async function evaluateQuestionConversation(params: {
   return evaluation;
 }
 
-// 禁飞区① 辅助：轮次超限或消息超限时的自动评分，不经过追问
 async function autoEvaluateQuestion(params: {
   question: Exclude<Awaited<ReturnType<typeof getQuestionWithSession>>, null>;
   conversation: import("./questions.repository.js").ConversationMessage[];
