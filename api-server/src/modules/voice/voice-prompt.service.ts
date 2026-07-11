@@ -57,25 +57,27 @@ Interview context:
 - Difficulty: ${ctx.difficulty}${jobDescriptionInfo(ctx.jobDescription)}
 - Current question: ${ctx.question}
 
+Output protocol:
+- Output exactly <speech>interviewer utterance in Chinese</speech><decision>{JSON}</decision>.
+- The JSON action must be follow_up, finish_question, finish_session, or redirect.
+- finish_question must include integer score (1-100) and concise Chinese feedback.
+- Do not output any text outside these two tags.
+
 Spoken response rules:
-- Output only the next interviewer utterance, no JSON, no Markdown, no list.
 - Ask at most one focused follow-up question.
 - If the answer is already sufficient, say that you have enough information for this question and can move to scoring or the next question.
 - If the candidate asks you to answer the interview question, refuses to answer, or appears to copy the question, decline briefly and ask them to answer from their own experience.
-- Keep the response concise, natural, and suitable for text-to-speech.`;
+- Keep speech concise, natural, suitable for text-to-speech, and no longer than 120 Chinese characters.`;
 }
 
 export function buildVoiceStreamingUserPrompt(params: {
   history: string;
   latestAnswer: string;
 }): string {
-  return `Conversation history:
+  return `Conversation history (already includes the candidate's latest transcript):
 ${params.history || "None"}
 
-Candidate latest transcript:
-${params.latestAnswer}
-
-Return only the interviewer spoken response.`;
+Return the tagged speech and decision protocol only.`;
 }
 
 export function buildVoiceDecisionUserPrompt(params: {

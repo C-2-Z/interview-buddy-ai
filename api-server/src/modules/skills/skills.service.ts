@@ -25,6 +25,7 @@ export async function buildSkillQuestionPrompt(params: {
   questionCount: number;
   targetCompany?: string;
   resumeText?: string;
+  userId?: string;
 }): Promise<string> {
   const allocation = calculateAllocation(
     params.skill.categories,
@@ -33,6 +34,7 @@ export async function buildSkillQuestionPrompt(params: {
   const historicalTopics = await queryHistoricalTopics(
     params.supabase,
     params.skill.id,
+    params.userId,
   );
   const referenceSection = buildReferenceSection(params.skill, allocation);
   const allocationTable = renderAllocationTable(params.skill.categories, allocation);

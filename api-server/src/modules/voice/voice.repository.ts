@@ -160,14 +160,30 @@ export async function getNextUnscoredQuestionId(
   supabase: UserSupabaseClient,
   sessionId: string,
 ): Promise<string | null> {
-  const questions = await listSessionQuestions(supabase, sessionId);
-  return questions.find((question) => question.score == null)?.id ?? null;
+  const { data, error } = await supabase
+    .from("interview_questions")
+    .select("id")
+    .eq("session_id", sessionId)
+    .is("score", null)
+    .order("order_index", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.id ?? null;
 }
 
 export async function getNextUnscoredQuestion(
   supabase: UserSupabaseClient,
   sessionId: string,
 ): Promise<VoiceSessionQuestion | null> {
-  const questions = await listSessionQuestions(supabase, sessionId);
-  return questions.find((question) => question.score == null) ?? null;
+  const { data, error } = await supabase
+    .from("interview_questions")
+    .select("id, question, order_index, score")
+    .eq("session_id", sessionId)
+    .is("score", null)
+    .order("order_index", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ?? null;
 }
