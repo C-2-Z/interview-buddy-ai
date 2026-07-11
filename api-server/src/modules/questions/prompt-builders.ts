@@ -16,13 +16,13 @@ function jobDescriptionInfo(jobDescription: string | null): string {
     : "";
 }
 
-// === 禁飞区① 核心：手写三级追问递进策略 ===
-// 该函数通过 system prompt 定义 AI 面试官的追问行为规则：
-// 1. 三级递进层次（初级→中级→高级），每轮追问深度递增
-// 2. 轮次控制（最多 3 轮）和结束条件（4 个 OR 条件）
-// 3. 行为约束（禁止代答/提前评分/一次多问）
-// 4. 输出约束（80-160字，JSON 完成信号格式）
-export function buildInterviewerSystemPrompt(ctx: InterviewContext): string { {
+// 禁飞区① 核心：手写三级追问递进策略
+// buildInterviewerSystemPrompt 通过 system prompt 定义追问规则：
+// - 三级递进：初级(概念理解)→中级(实践细节)→高级(架构权衡)
+// - 轮次控制：每道题最多追问 3 轮
+// - 结束条件：覆盖/放弃/满3轮/过长，任一满足即结束
+// - 行为约束：禁止代答、禁止提前评分、禁止一次多问
+export function buildInterviewerSystemPrompt(ctx: InterviewContext): string {
   return `你是一位资深面试官，正在进行证据深挖型面试。
 
 面试上下文:
@@ -53,8 +53,8 @@ export function buildInterviewerSystemPrompt(ctx: InterviewContext): string { {
 - 正常追问控制在 80-160 字`;
 }
 
-// 禁飞区① 辅助：将历史对话+最新回答拼成 user prompt，约束 AI 输出格式
-export function buildInterviewerUserPrompt( {
+// 禁飞区1 辅助：将历史对话+最新回答拼成 user prompt，约束 AI 只输出下一句追问
+export function buildInterviewerUserPrompt(
   conversationText: string,
   latestAnswer: string,
 ): string {
@@ -67,11 +67,13 @@ ${latestAnswer}
 请只输出面试官下一句话。`;
 }
 
+// 禁飞区2 评分系统 Prompt：设定 AI 角色为严谨的面试评审官，输出必须为有效 JSON
 export const EVALUATION_SYSTEM_PROMPT =
   "你是严谨的面试评审官，输出必须是有效 JSON。";
 
-// 禁飞区② 评分 Prompt：要求 AI 按多维度评分，返回结构化 JSON（含 dimensions）
-export function buildEvaluationPrompt( {
+// 禁飞区2 评分 Prompt：要求 AI 按多维度（准确性/深度/逻辑/沟通/岗位匹配）评分
+// 返回结构化 JSON 含 dimensions 字段，由 evaluation/evaluation.service.ts 聚合
+export function buildEvaluationPrompt(
   ctx: InterviewContext,
   conversationText: string,
   dimensionPrompt?: string,
@@ -94,8 +96,9 @@ ${conversationText}
   ` + (dimensionPrompt ?? "");
 }
 
-// 禁飞区① 完成信号解析：AI 输出 {type:complete} 时结束本题并触发评分
-export function parseCompletionSignal( {
+// 禁飞区1 完成信号解析：AI 输出 {type:complete,summary:...} 时表示本题结束
+// 返回 summary -> sendMessage 触发评分；返回 null -> 继续追问
+export function parseCompletionSignal(
   text: string,
 ): { summary: string } | null {
   try {
@@ -104,8 +107,8 @@ export function parseCompletionSignal( {
       return { summary: parsed.summary ?? "" };
     }
   } catch {
-    // JSON 解析失败视为未结束，继续追问
     return null;
   }
   return null;
 }
+
