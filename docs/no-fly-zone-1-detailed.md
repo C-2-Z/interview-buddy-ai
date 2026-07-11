@@ -30,11 +30,11 @@
 
 | 文件 | 功能 | 核心函数 |
 |------|------|----------|
-| questions/prompt-builders.ts | 追问规则 Prompt 工厂 | buildInterviewerSystemPrompt, buildInterviewerUserPrompt, parseCompletionSignal |
-| questions/questions.service.ts | 追问循环编排 | sendMessage, autoEvaluateQuestion, buildContext |
-| questions/conversation.service.ts | 对话工具函数 | parseConversation, formatConversation, isCopiedQuestion |
-| questions/messages.repository.ts | 消息持久化 | appendInterviewMessage |
-| sessions/question-generation.service.ts | 初始出题（辅助）| generateGenericQuestions, generateSkillQuestions |
+| [prompt-builders.ts](/C:/Users/cys/ezmock/api-server/src/modules/questions/prompt-builders.ts) | 追问规则 Prompt 工厂 | [buildInterviewerSystemPrompt](/C:/Users/cys/ezmock/api-server/src/modules/questions/prompt-builders.ts:19), [buildInterviewerUserPrompt](/C:/Users/cys/ezmock/api-server/src/modules/questions/prompt-builders.ts:50), [parseCompletionSignal](/C:/Users/cys/ezmock/api-server/src/modules/questions/prompt-builders.ts:86) |
+| [questions.service.ts](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts) | 追问循环编排 | [sendMessage](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:77), [autoEvaluateQuestion](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:177), [buildContext](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:65) |
+| [conversation.service.ts](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts) | 对话工具函数 | [parseConversation](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:3), [formatConversation](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:14), [isCopiedQuestion](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:24) |
+| [messages.repository.ts](/C:/Users/cys/ezmock/api-server/src/modules/questions/messages.repository.ts) | 消息持久化 | appendInterviewMessage |
+| [question-generation.service.ts](/C:/Users/cys/ezmock/api-server/src/modules/sessions/question-generation.service.ts) | 初始出题（辅助）| [generateGenericQuestions](/C:/Users/cys/ezmock/api-server/src/modules/sessions/question-generation.service.ts:48), [generateSkillQuestions](/C:/Users/cys/ezmock/api-server/src/modules/sessions/question-generation.service.ts:66) |
 
 ---
 
@@ -43,7 +43,7 @@
 ```
                     +--------------------------------------+
                     |  创建面试 (sessions.service.ts)      |
-                    |  -> generateGenericQuestions()       |
+                    |  -> [generateGenericQuestions](/C:/Users/cys/ezmock/api-server/src/modules/sessions/question-generation.service.ts:48)()       |
                     |  -> AI 出初始题目列表                |
                     |  -> 保存到数据库                     |
                     +------------------+-------------------+
@@ -55,7 +55,7 @@
                     |                                       |
                     |  对每一题，循环执行：                |
                     |                                       |
-                    |   用户回答 -> sendMessage() -> AI     |
+                    |   用户回答 -> [sendMessage](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:77)() -> AI     |
                     |        ^              |               |
                     |        |              +- 作弊? 拒答   |
                     |        |              +- 超轮次? 评分 |
@@ -63,8 +63,8 @@
                     |        |              +- 正常追问 ---+ |
                     |        |                              |
                     |   循环结束条件：                      |
-                    |     1) 用户回答 > 3 轮（MAX_FOLLOWUPS）
-                    |     2) 总消息数 >= 20（MAX_TOTAL_MESSAGES）
+                    |     1) 用户回答 > 3 轮（[MAX_FOLLOWUPS](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:25)）
+                    |     2) 总消息数 >= 20（[MAX_TOTAL_MESSAGES](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:26)）
                     |     3) AI 返回完成信号                |
                     |                                       |
                     +------------------+-------------------+
@@ -80,7 +80,7 @@
 
 ## 四、阶段A：初始出题（辅助，非禁飞区）
 
-文件: sessions/question-generation.service.ts
+文件: [question-generation.service.ts](/C:/Users/cys/ezmock/api-server/src/modules/sessions/question-generation.service.ts)
 
 这个阶段不在禁飞区1 范围内，但理解它是理解整体流程的前提。
 
@@ -94,11 +94,11 @@ AI 以 JSON 数组格式返回题目列表。例如：
 
 ## 五、阶段B：多轮追问核心（禁飞区1 全部内容）
 
-### 5.1 buildContext() - 构建面试上下文快照
+### 5.1 [buildContext](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:65)() - 构建面试上下文快照
 
 文件: questions.service.ts 第65-76行
 
-每次用户回答后，sendMessage 都会调用 buildContext 构造一个上下文快照。这个快照包含当前面试状态：什么岗位、什么难度、问到第几题、题目是什么。后续拼入 Prompt 让 AI 知道我现在处于什么位置。
+每次用户回答后，[sendMessage](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:77) 都会调用 [buildContext](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:65) 构造一个上下文快照。这个快照包含当前面试状态：什么岗位、什么难度、问到第几题、题目是什么。后续拼入 Prompt 让 AI 知道我现在处于什么位置。
 
 对应的 InterviewContext 类型：
 
@@ -114,14 +114,14 @@ AI 以 JSON 数组格式返回题目列表。例如：
 
 ---
 
-### 5.2 sendMessage() - 追问循环主控（核心手写逻辑）
+### 5.2 [sendMessage](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:77)() - 追问循环主控（核心手写逻辑）
 
 文件: questions.service.ts 第77-168行
 
 这是整个追问循环的控制中枢，每次用户发送回答都会经过这个函数。它包含一个手写的决策树，决定了下一步怎么做。
 
 ```
-sendMessage(params)
+[sendMessage](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:77)(params)
   |  输入：用户回答文本 + 题目ID
   |
   +-- 步骤1：加载题目信息
@@ -129,42 +129,42 @@ sendMessage(params)
   |     从数据库加载题目、所属会话信息
   |
   +-- 步骤2：解析已有对话
-  |     conversation = parseConversation(question.answer)
+  |     conversation = [parseConversation](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:3)(question.answer)
   |     把用户最新回答追加到对话末尾
   |     + 保存消息到数据库 interview_messages
   |
   +-- 步骤3：作弊检测
-  |     isCopiedQuestion(content, question.question)
-  |     如果用户复制题目文本 -> buildRedirectResponse() 拒绝代答
+  |     [isCopiedQuestion](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:24)(content, question.question)
+  |     如果用户复制题目文本 -> [buildRedirectResponse](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:28)() 拒绝代答
   |     直接返回，不进 AI
   |
   +-- 步骤4：轮次上限检测（手写硬限制）
-  |     MAX_FOLLOWUPS = 3
-  |     userMessages > MAX_FOLLOWUPS?
-  |     是 -> autoEvaluateQuestion()  // 超限，自动结束
+  |     [MAX_FOLLOWUPS](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:25) = 3
+  |     userMessages > [MAX_FOLLOWUPS](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:25)?
+  |     是 -> [autoEvaluateQuestion](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:177)()  // 超限，自动结束
   |     否 -> 继续
   |
   +-- 步骤5：正常追问
-  |     1) buildContext() 构建上下文
-  |     2) formatConversation() 格式化对话
-  |     3) callAI(system=buildInterviewerSystemPrompt)
+  |     1) [buildContext](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:65)() 构建上下文
+  |     2) [formatConversation](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:14)() 格式化对话
+  |     3) callAI(system=[buildInterviewerSystemPrompt](/C:/Users/cys/ezmock/api-server/src/modules/questions/prompt-builders.ts:19))
   |         这里调用的就是禁飞区1 的核心 Prompt 规则
   |     4) 保存 AI 回复
   |
   +-- 步骤6：总消息上限检测
-  |     MAX_TOTAL_MESSAGES = 20
+  |     [MAX_TOTAL_MESSAGES](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:26) = 20
   |     conversation.length >= 20?
-  |     是 -> autoEvaluateQuestion()
+  |     是 -> [autoEvaluateQuestion](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:177)()
   |
   +-- 步骤7：解析完成信号
-  |     parseCompletionSignal(response)
+  |     [parseCompletionSignal](/C:/Users/cys/ezmock/api-server/src/modules/questions/prompt-builders.ts:86)(response)
   |     +-- type === complete -> 评分并结束本题
   |     +-- 否则 -> 返回追问给前端，等用户下一次回答
   |
   +-- 回到步骤1（等待用户下一次输入）
 ```
 
-### 5.3 buildInterviewerSystemPrompt() - 追问规则 Prompt（核心手写）
+### 5.3 [buildInterviewerSystemPrompt](/C:/Users/cys/ezmock/api-server/src/modules/questions/prompt-builders.ts:19)() - 追问规则 Prompt（核心手写）
 
 文件: prompt-builders.ts 第19-48行
 
@@ -172,7 +172,7 @@ sendMessage(params)
 
 **面试上下文段**（第22-26行）
 
-告诉 AI 当前面试状态：什么岗位、什么难度、当前题目、全场进度。这些参数由 buildContext() 动态注入，每次追问都不一样。
+告诉 AI 当前面试状态：什么岗位、什么难度、当前题目、全场进度。这些参数由 [buildContext](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:65)() 动态注入，每次追问都不一样。
 
 **三级递进规则**（第28-34行）- 难度递进的核心
 
@@ -209,7 +209,7 @@ sendMessage(params)
 |------|------|------|
 | 回答充分覆盖知识点 | AI 主观判断 | AI 认为已经问够了 |
 | 候选人说不知道/不会/没接触过 | 硬终止 | 候选人放弃回答 |
-| 已追问满 3 轮 | 轮次硬限制 | MAX_FOLLOWUPS=3，与代码层双重保障 |
+| 已追问满 3 轮 | 轮次硬限制 | [MAX_FOLLOWUPS](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:25)=3，与代码层双重保障 |
 | 回答 >500 字且涵盖关键点 | 长度硬阈值 | 回答已经够详细了 |
 
 **完成信号格式**（第42-43行）
@@ -217,7 +217,7 @@ sendMessage(params)
 当 AI 判定结束本题时，必须输出固定格式的 JSON：
 {"type":"complete","summary":"我对这个问题已经有了足够了解，可以进入评分或下一题。"}
 
-后端的 parseCompletionSignal() 解析这个 JSON，检测到 type=complete 就触发评分。
+后端的 [parseCompletionSignal](/C:/Users/cys/ezmock/api-server/src/modules/questions/prompt-builders.ts:86)() 解析这个 JSON，检测到 type=complete 就触发评分。
 
 **输出约束**（第45-47行）
 
@@ -225,7 +225,7 @@ sendMessage(params)
 
 ---
 
-### 5.4 buildInterviewerUserPrompt() - 用户消息 Prompt
+### 5.4 [buildInterviewerUserPrompt](/C:/Users/cys/ezmock/api-server/src/modules/questions/prompt-builders.ts:50)() - 用户消息 Prompt
 
 文件: prompt-builders.ts 第50-60行
 
@@ -233,13 +233,13 @@ sendMessage(params)
 
 ---
 
-### 5.5 parseCompletionSignal() - 完成信号解析
+### 5.5 [parseCompletionSignal](/C:/Users/cys/ezmock/api-server/src/modules/questions/prompt-builders.ts:86)() - 完成信号解析
 
 文件: prompt-builders.ts 第86-98行
 
-当 AI 判定这题问够了时，输出固定格式的 JSON 完成信号。parseCompletionSignal 解析这个 JSON：
+当 AI 判定这题问够了时，输出固定格式的 JSON 完成信号。[parseCompletionSignal](/C:/Users/cys/ezmock/api-server/src/modules/questions/prompt-builders.ts:86) 解析这个 JSON：
 
-| AI 回复 | 返回值 | sendMessage 行为 |
+| AI 回复 | 返回值 | [sendMessage](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:77) 行为 |
 |---------|--------|-----------------|
 | {"type":"complete","summary":"..."} | {summary: "..."} | 触发评分，本题结束 |
 | 其他文本（正常追问）| null | 继续追问循环 |
@@ -250,11 +250,11 @@ sendMessage(params)
 
 | 函数 | 用途 | 边界情况 |
 |------|------|----------|
-| parseConversation | 从数据库读取对话记录 | 兼容旧格式（纯文本 vs JSON 数组）|
-| formatConversation | 对话转纯文本（给 AI 看）| 空数组返回空字符串 |
+| [parseConversation](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:3) | 从数据库读取对话记录 | 兼容旧格式（纯文本 vs JSON 数组）|
+| [formatConversation](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:14) | 对话转纯文本（给 AI 看）| 空数组返回空字符串 |
 | combinedCandidateAnswer | 提取候选人所有回答（给评分用）| 只取 role=user 的消息 |
-| isCopiedQuestion | 检测是否复制题目 | 纯字符串比较（trim 后全等）|
-| buildRedirectResponse | 代答时的拒绝回复 | 硬编码的中文字符串 |
+| [isCopiedQuestion](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:24) | 检测是否复制题目 | 纯字符串比较（trim 后全等）|
+| [buildRedirectResponse](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:28) | 代答时的拒绝回复 | 硬编码的中文字符串 |
 
 ---
 
@@ -277,8 +277,8 @@ sendMessage(params)
 
 第4轮
 用户回答: 首先做全局审计，确定哪些地方用了 content-box...（回答很长）
--> userMessages(4) > MAX_FOLLOWUPS(3)? 是 -> 轮次超限
--> autoEvaluateQuestion() -> AI 评分 -> 本题结束
+-> userMessages(4) > [MAX_FOLLOWUPS](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:25)(3)? 是 -> 轮次超限
+-> [autoEvaluateQuestion](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:177)() -> AI 评分 -> 本题结束
 ```
 
 追问的递进：
@@ -297,28 +297,28 @@ sendMessage(params)
 手写（禁飞区1 范围）：
 
 questions.service.ts:
-  sendMessage() 主循环       - 决策树逻辑
-  buildContext()            - 上下文构建
-  autoEvaluateQuestion()    - 自动评分触发
-  MAX_FOLLOWUPS = 3         - 轮次硬限制
-  MAX_TOTAL_MESSAGES = 20   - 消息总数硬限制
+  [sendMessage](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:77)() 主循环       - 决策树逻辑
+  [buildContext](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:65)()            - 上下文构建
+  [autoEvaluateQuestion](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:177)()    - 自动评分触发
+  [MAX_FOLLOWUPS](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:25) = 3         - 轮次硬限制
+  [MAX_TOTAL_MESSAGES](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:26) = 20   - 消息总数硬限制
 
 prompt-builders.ts:
-  buildInterviewerSystemPrompt() - 三级递进规则
-  buildInterviewerUserPrompt()   - 对话历史组装
-  parseCompletionSignal()        - 完成信号解析
+  [buildInterviewerSystemPrompt](/C:/Users/cys/ezmock/api-server/src/modules/questions/prompt-builders.ts:19)() - 三级递进规则
+  [buildInterviewerUserPrompt](/C:/Users/cys/ezmock/api-server/src/modules/questions/prompt-builders.ts:50)()   - 对话历史组装
+  [parseCompletionSignal](/C:/Users/cys/ezmock/api-server/src/modules/questions/prompt-builders.ts:86)()        - 完成信号解析
 
 conversation.service.ts:
-  parseConversation()       - 对话解析
-  formatConversation()      - 格式化
-  isCopiedQuestion()        - 代答检测
-  buildRedirectResponse()   - 代答拒绝
+  [parseConversation](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:3)()       - 对话解析
+  [formatConversation](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:14)()      - 格式化
+  [isCopiedQuestion](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:24)()        - 代答检测
+  [buildRedirectResponse](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:28)()   - 代答拒绝
 
 AI 参与（不在禁飞区范围）：
 
 question-generation.service.ts:
-  generateGenericQuestions()  - AI 生成初始题目
-  generateSkillQuestions()    - Skill 驱动出题
+  [generateGenericQuestions](/C:/Users/cys/ezmock/api-server/src/modules/sessions/question-generation.service.ts:48)()  - AI 生成初始题目
+  [generateSkillQuestions](/C:/Users/cys/ezmock/api-server/src/modules/sessions/question-generation.service.ts:66)()    - Skill 驱动出题
 
 每次追问中 AI 生成的具体追问语句
   - AI 按照手写规则生成追问文本
@@ -334,10 +334,10 @@ question-generation.service.ts:
 | 决策 | 选型 | 原因 |
 |------|------|------|
 | 追问规则用 Prompt 而非代码 | 自然语言描述比 if-else 更灵活 | 三级递进的边界是模糊的，用代码写 if-else 会非常僵硬 |
-| MAX_FOLLOWUPS = 3 | 3 轮追问 + 1 轮初始回答 = 每题最多 4 轮对话 | 平衡深入程度和面试时长 |
+| [MAX_FOLLOWUPS](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:25) = 3 | 3 轮追问 + 1 轮初始回答 = 每题最多 4 轮对话 | 平衡深入程度和面试时长 |
 | 双重轮次限制（Prompt + 代码）| Prompt 告诉 AI 最多问 3 轮，代码层也会拦截超过 3 轮的 | 即使 AI 不遵守 Prompt 规则，代码也能兜底 |
 | JSON 完成信号 | AI 输出结构化的 type=complete 让后端可以精确判断 | 比让 AI 说好的我们结束吧这种自然语言更可靠 |
-| 字符串比较做代答检测 | isCopiedQuestion 是纯字符串全等比较 | 简单有效，但只能检测完全复制；语义级别的检测留给 AI |
+| 字符串比较做代答检测 | [isCopiedQuestion](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:24) 是纯字符串全等比较 | 简单有效，但只能检测完全复制；语义级别的检测留给 AI |
 
 ---
 
@@ -357,16 +357,16 @@ question-generation.service.ts:
 | 代码 | 文件 | 行号 |
 |------|------|------|
 | InterviewContext 类型定义 | prompt-builders.ts | 3-11 |
-| buildInterviewerSystemPrompt() | prompt-builders.ts | 19-48 |
-| buildInterviewerUserPrompt() | prompt-builders.ts | 50-60 |
-| parseCompletionSignal() | prompt-builders.ts | 86-98 |
-| sendMessage() 追问主循环 | questions.service.ts | 77-168 |
-| buildContext() 上下文构建 | questions.service.ts | 65-76 |
-| autoEvaluateQuestion() 自动评分 | questions.service.ts | 177-200 |
-| parseConversation() | conversation.service.ts | 3-12 |
-| formatConversation() | conversation.service.ts | 14-18 |
-| isCopiedQuestion() | conversation.service.ts | 24-25 |
-| buildRedirectResponse() | conversation.service.ts | 28-30 |
-| MAX_FOLLOWUPS | questions.service.ts | 25 |
-| MAX_TOTAL_MESSAGES | questions.service.ts | 26 |
-| generateGenericQuestions() | question-generation.service.ts | 21-45 |
+| [buildInterviewerSystemPrompt](/C:/Users/cys/ezmock/api-server/src/modules/questions/prompt-builders.ts:19)() | prompt-builders.ts | 19-48 |
+| [buildInterviewerUserPrompt](/C:/Users/cys/ezmock/api-server/src/modules/questions/prompt-builders.ts:50)() | prompt-builders.ts | 50-60 |
+| [parseCompletionSignal](/C:/Users/cys/ezmock/api-server/src/modules/questions/prompt-builders.ts:86)() | prompt-builders.ts | 86-98 |
+| [sendMessage](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:77)() 追问主循环 | questions.service.ts | 77-168 |
+| [buildContext](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:65)() 上下文构建 | questions.service.ts | 65-76 |
+| [autoEvaluateQuestion](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:177)() 自动评分 | questions.service.ts | 177-200 |
+| [parseConversation](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:3)() | conversation.service.ts | 3-12 |
+| [formatConversation](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:14)() | conversation.service.ts | 14-18 |
+| [isCopiedQuestion](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:24)() | conversation.service.ts | 24-25 |
+| [buildRedirectResponse](/C:/Users/cys/ezmock/api-server/src/modules/questions/conversation.service.ts:28)() | conversation.service.ts | 28-30 |
+| [MAX_FOLLOWUPS](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:25) | questions.service.ts | 25 |
+| [MAX_TOTAL_MESSAGES](/C:/Users/cys/ezmock/api-server/src/modules/questions/questions.service.ts:26) | questions.service.ts | 26 |
+| [generateGenericQuestions](/C:/Users/cys/ezmock/api-server/src/modules/sessions/question-generation.service.ts:48)() | question-generation.service.ts | 21-45 |
