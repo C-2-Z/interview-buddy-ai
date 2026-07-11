@@ -1,0 +1,199 @@
+# EZMock 数据模型设计文档
+
+> 数据库: PostgreSQL (Supabase)
+> 版本: v1.0
+> 更新时间: 2026-07-11
+
+---
+
+## ER 关系图
+
+`
++------------------+       +----------------------+
+| auth.users       |       | interview_sessions   |
+| (Supabase Auth)  |<------| user_id (FK)         |
++------------------+       +----------------------+
+        |                          |               |
+        |                          |               v
+        |                          |       +----------------------+
+        |                          +------>| interview_questions  |
+        |                          | session_id (FK)          |
+        |                          |       +----------------------+
+        |                          |               |
+        |                          |               v
+        |                          |       +----------------------+
+        |                          |       | interview_messages   |
+        |                          |       | question_id (FK)     |
+        |                          |       +----------------------+
+        |                          |
+        v                          v
++------------------+       +----------------------+
+| profiles         |       | user_settings         |
+| id (FK)          |       | user_id (FK)          |
++------------------+       +----------------------+
+        |
+        v
++------------------+
+| resumes          |
+| user_id (FK)     |
++------------------+
+
++------------------+       +----------------------+
+| question_bank    |       | favorite_questions    |
++------------------+<------| question_id (FK)     |
+                 |       | user_id (FK)          |
+                 |       +----------------------+
+`
+
+---
+
+## 核心表定义
+
+### 1. profiles — 用户档案
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | UUID | PK, FK -> auth.users(id) | 用户 ID |
+| display_name | TEXT | - | 显示名称 |
+| created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() | 创建时间 |
+
+行级安全: 用户只能读写自己的档案。
+自动创建: 通过 auth.users 的 INSERT 触发器自动创建。
+
+---
+
+### 2. interview_sessions — 面试会话
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | UUID | PK, DEFAULT gen_random_uuid() | 主键 |
+| user_id | UUID | NOT NULL, FK -> auth.users(id) | 所属用户 |
+| position | TEXT | NOT NULL | 岗位名称 |
+| difficulty | TEXT | NOT NULL | 难度：初级/中级/高级 |
+| job_description | TEXT | - | 岗位需求描述（原 background）|
+| skill_id | TEXT | - | 关联 Skill ID |
+| status | TEXT | NOT NULL, DEFAULT "in_progress" | 状态：in_progress / completed |
+| overall_score | INT | - | 综合评分（1-100）|
+| overall_feedback | TEXT | - | 综合反馈 |
+| target_company | TEXT | - | 目标公司 |
+| question_type_config | JSONB | - | 题型比例配置 |
+| resume_id | UUID | FK -> resumes(id) | 关联简历 |
+| resume_text | TEXT | - | 简历文本 |
+| model_provider | TEXT | DEFAULT "deepseek" | AI 模型供应商 |
+| model_name | TEXT | - | 模型名称 |
+| user_api_key | TEXT | - | 用户自定义 API Key |
+| interview_mode | TEXT | NOT NULL, DEFAULT "text" | 面试模式：text / voice |
+| voice_mode | BOOLEAN | DEFAULT false | 语音模式标识（旧）|
+| last_activity_at | TIMESTAMPTZ | - | 最后活动时间 |
+| created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() | 创建时间 |
+
+行级安全: 用户只能管理自己的会话。
+索引: idx_sessions_user (user_id, created_at DESC)
+
+---
+
+### 3. interview_questions — 面试题目
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | UUID | PK, DEFAULT gen_random_uuid() | 主键 |
+| session_id | UUID | NOT NULL, FK -> interview_sessions(id) | 所属会话 |
+| order_index | INT | NOT NULL | 题目序号（从 0 开始）|
+| question | TEXT | NOT NULL | 题目内容 |
+| answer | TEXT | - | 候选人回答（JSON 序列化的对话记录）|
+| score | INT | - | AI 评分（1-100）|
+| feedback | TEXT | - | AI 反馈 |
+| skill_id | TEXT | - | 关联 Skill ID |
+| topic_summary | TEXT | - | 知识点分类 |
+| created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() | 创建时间 |
+
+行级安全: 通过 interview_sessions 的 user_id 级联控制。
+索引: idx_questions_session (session_id, order_index)
+
+---
+
+### 4. interview_messages — 对话消息
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | UUID | PK, DEFAULT gen_random_uuid() | 主键 |
+| question_id | UUID | NOT NULL, FK -> interview_questions(id) | 所属题目 |
+| role | TEXT | NOT NULL, CHECK(role IN ("user", "assistant")) | 角色 |
+| content | TEXT | NOT NULL | 消息内容 |
+| source | TEXT | DEFAULT "text" | 消息来源：text / voice |
+| audio_url | TEXT | - | 语音文件 URL |
+| started_at | TIMESTAMPTZ | - | 语音开始时间 |
+| ended_at | TIMESTAMPTZ | - | 语音结束时间 |
+| interrupted | BOOLEAN | DEFAULT false | 是否被中断 |
+| turn_id | TEXT | - | 语音轮次 ID |
+| stt_confidence | NUMERIC | - | 语音识别置信度 |
+| created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() | 创建时间 |
+
+行级安全: 通过 interview_questions -> interview_sessions 级联。
+索引: idx_messages_question (question_id, created_at), idx_messages_turn_id (turn_id)
+
+---
+
+### 5. question_bank — 公共题库
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | UUID | PK, DEFAULT gen_random_uuid() | 主键 |
+| position | TEXT | NOT NULL | 岗位 |
+| difficulty | TEXT | NOT NULL | 难度 |
+| type | TEXT | NOT NULL | 题型：技术题/行为题/场景题/系统设计 |
+| question | TEXT | NOT NULL | 题目内容 |
+| tags | TEXT[] | DEFAULT "{}" | 标签 |
+| created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() | 创建时间 |
+
+行级安全: 所有人可读，仅 service_role 可写。
+索引: idx_question_bank_position, idx_question_bank_difficulty, idx_question_bank_type
+
+---
+
+### 6. favorite_questions — 收藏题目
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | UUID | PK | 主键 |
+| user_id | UUID | FK -> auth.users(id) | 用户 ID |
+| question_id | UUID | FK -> question_bank(id) | 题目 ID |
+| created_at | TIMESTAMPTZ | DEFAULT now() | 收藏时间 |
+
+联合唯一: (user_id, question_id)
+
+---
+
+### 7. resumes — 简历
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | UUID | PK | 主键 |
+| user_id | UUID | FK -> auth.users(id) | 用户 ID |
+| file_name | TEXT | NOT NULL | 文件名 |
+| file_size | INT | - | 文件大小（字节）|
+| file_hash | TEXT | NOT NULL | 文件哈希（去重）|
+| parsed_text | TEXT | NOT NULL | 解析后的文本内容 |
+| analysis | JSONB | - | AI 分析结果（技能、经历等）|
+| created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() | 创建时间 |
+
+联合唯一: (user_id, file_hash)
+索引: idx_resumes_user (user_id, created_at DESC)
+
+---
+
+### 8. user_settings — 用户设置
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| user_id | UUID | PK, FK -> auth.users(id) | 用户 ID |
+| model_provider | TEXT | DEFAULT "deepseek" | 默认 AI 供应商 |
+| model_name | TEXT | - | 模型名称 |
+| deepseek_api_key | TEXT | - | DeepSeek API Key（加密）|
+| openai_api_key | TEXT | - | OpenAI API Key（加密）|
+| anthropic_api_key | TEXT | - | Anthropic API Key（加密）|
+| created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() | 创建时间 |
+| updated_at | TIMESTAMPTZ | NOT NULL DEFAULT now() | 更新时间 |
+
+行级安全: 用户只能管理自己的设置。
+自动创建: 通过 auth.users INSERT 触发器自动创建。
