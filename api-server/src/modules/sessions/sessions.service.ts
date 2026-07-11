@@ -6,6 +6,7 @@ import {
 } from "../model-providers/model-provider.service.js";
 import { findSkill } from "../skills/skills.service.js";
 import { closeStaleSessionsForUser } from "../cleanup/cleanup.service.js";
+
 import { aggregateDimensions, getDimensionDefs } from "../evaluation/evaluation.service.js";
 import { loadQuestionDimensionScores, saveDimensionSummary } from "../evaluation/evaluation.repository.js";
 import {
@@ -170,6 +171,19 @@ export async function finishSession(params: {
       )
     : 0;
 
+
+  // 多维度评分聚合
+  const sessionCfg = await getSessionProviderConfig(params.supabase, params.sessionId);
+  const skill = (sessionCfg as any)?.skill_id ? findSkill((sessionCfg as any).skill_id) ?? null : null;
+  const dimensionDefs = getDimensionDefs(skill);
+  const dimensionRows = await loadQuestionDimensionScores(params.supabase, params.sessionId);
+  const validRows = dimensionRows.filter((r) => r.dimension_scores);
+  const dimensionSummary = validRows.length > 0
+    ? aggregateDimensions(dimensionRows, dimensionDefs)
+    : null;
+  if (dimensionSummary) {
+    await saveDimensionSummary(params.supabase, params.sessionId, dimensionSummary);
+  }
   let overallFeedback = "";
   if (scored.length > 0) {
     overallFeedback = await callAI(
