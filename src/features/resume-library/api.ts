@@ -1,3 +1,4 @@
+/** 简历库浏览/上传/删除 - API 调用函数 */
 import { getAccessToken } from "@/shared/api/auth-token";
 import { apiRequest } from "@/shared/api/http-client";
 import type { ResumeDetail, ResumeListItem, ResumeUploadResult } from "./types";

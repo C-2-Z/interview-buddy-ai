@@ -1,3 +1,4 @@
+/** 应用外壳：侧边栏导航 - 类型定义 */
 import type { LucideIcon } from "lucide-react";
 
 export type AppNavigationPath =

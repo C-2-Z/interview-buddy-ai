@@ -1,3 +1,4 @@
+/** 创建面试：表单、Skill 选择、Model 选择 - 类型定义 */
 export type Difficulty = "初级" | "中级" | "高级";
 export type ModelProviderName = "deepseek" | "openai" | "anthropic";
 

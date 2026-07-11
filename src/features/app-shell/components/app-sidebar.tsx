@@ -1,3 +1,4 @@
+/** app-shell - 应用侧边栏导航 */
 import { Link } from "@tanstack/react-router";
 import { Bot, ChevronUp, LogOut, UserRound } from "lucide-react";
 import {

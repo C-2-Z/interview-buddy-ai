@@ -1,3 +1,4 @@
+/** voice-interview - 会话状态 */
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { QuestionItem, SessionDetail } from "@/features/interview-session/types";

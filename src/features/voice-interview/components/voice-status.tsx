@@ -1,3 +1,4 @@
+/** voice-interview - 语音状态指示器 */
 import {
   AlertTriangle,
   AudioLines,

@@ -1,3 +1,4 @@
+/** SSR 错误页面 HTML 模板 */
 export function renderErrorPage(): string {
   return `<!doctype html>
 <html lang="en">

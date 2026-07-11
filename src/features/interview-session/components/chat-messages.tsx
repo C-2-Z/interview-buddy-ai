@@ -1,3 +1,4 @@
+/** interview-session - 面试对话消息列表 */
 import { Bot, Loader2, Sparkles, User } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { Message } from "../types";

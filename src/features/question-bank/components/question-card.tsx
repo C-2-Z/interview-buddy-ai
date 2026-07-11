@@ -1,3 +1,4 @@
+/** question-bank - 题库题目卡片 */
 import { Link } from "@tanstack/react-router";
 import { Heart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

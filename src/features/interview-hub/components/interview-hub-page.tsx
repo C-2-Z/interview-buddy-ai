@@ -1,3 +1,4 @@
+/** interview-hub - 面试中心概览页 */
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,

@@ -1,3 +1,4 @@
+/** resume-library - 简历详情页 */
 import { Link } from "@tanstack/react-router";
 import {
   ArrowLeft,

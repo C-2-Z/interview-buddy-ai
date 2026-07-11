@@ -1,3 +1,4 @@
+/** interview-session - 面试对话消息流 */
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {

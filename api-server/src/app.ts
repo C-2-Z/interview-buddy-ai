@@ -1,3 +1,4 @@
+/** Hono 服务入口：路由注册、中间件、CORS */
 ﻿import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { corsMiddleware } from "./config/cors.js";

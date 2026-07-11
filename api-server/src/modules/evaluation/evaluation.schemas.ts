@@ -1,3 +1,4 @@
+/** 维度评分校验与钳制 */
 import type { DimensionScores, DimensionSummary } from "./evaluation.types.js";
 
 export function validateDimensionScores(

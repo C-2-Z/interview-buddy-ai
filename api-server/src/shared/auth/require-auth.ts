@@ -1,3 +1,4 @@
+/** JWT 认证中间件 */
 import { createMiddleware } from "hono/factory";
 import {
   createUserClient,

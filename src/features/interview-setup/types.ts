@@ -1,3 +1,4 @@
+/** 面试设置：Skill 选择 - 类型定义 */
 import type {
   CreateSessionParams,
   Difficulty,

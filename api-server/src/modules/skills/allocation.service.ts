@@ -1,3 +1,4 @@
+/** Skill 题目数量分配算法 */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { CategoryDef, SkillDef } from "./skill.types.js";

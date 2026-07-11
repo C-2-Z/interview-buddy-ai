@@ -1,3 +1,4 @@
+/** API 客户端：统一请求路径和错误处理 */
 import { createInterviewSession, listSkills } from "@/features/interview-create/api";
 export type { CreateSessionParams, SkillMeta } from "@/features/interview-create/types";
 import {

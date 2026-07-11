@@ -1,3 +1,4 @@
+/** 用户设置业务逻辑：模型偏好、API Key 管理 */
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import {
   decrypt,
@@ -11,6 +12,8 @@ import {
 } from "./settings.repository.js";
 import type { UpdateSettingsInput } from "./settings.schemas.js";
 
+
+/** 获取用户设置：模型偏好 + API Key 配置 */
 export async function getSettings(
   supabase: UserSupabaseClient,
   userId: string,
@@ -41,6 +44,8 @@ export async function getSettings(
   };
 }
 
+
+/** 更新用户设置：保存偏好并加密 API Key */
 export async function updateSettings(
   supabase: UserSupabaseClient,
   userId: string,

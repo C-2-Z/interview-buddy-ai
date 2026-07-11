@@ -1,3 +1,4 @@
+/** Skill 历史出题记录 DB 访问 */
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 
 export async function queryHistoricalTopics(

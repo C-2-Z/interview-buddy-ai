@@ -1,3 +1,4 @@
+/** 用户设置：模型偏好、API Key 管理 - API 调用函数 */
 import { apiRequest } from "@/shared/api/http-client";
 
 export type SettingsResponse = {

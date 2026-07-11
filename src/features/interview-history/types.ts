@@ -1,3 +1,4 @@
+/** 面试历史 + 综合报告 - 类型定义 */
 import type { QuestionItem, SessionDetail, SessionItem } from "@/features/interview-session/types";
 
 export type InterviewHistoryItem = SessionItem;

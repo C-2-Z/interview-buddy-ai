@@ -1,3 +1,4 @@
+/** voice-interview - 语音调试日志 */
 import {
   Activity,
   AlertCircle,

@@ -1,3 +1,4 @@
+/** interview-history - 面试报告详情页 */
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Download, Keyboard, Mic2, RotateCw, Trophy } from "lucide-react";
 import { useState } from "react";

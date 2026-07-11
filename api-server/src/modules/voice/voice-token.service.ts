@@ -1,3 +1,4 @@
+/** WebSocket 连接 JWT 令牌 */
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { getRequiredEnv } from "../../config/env.js";
 

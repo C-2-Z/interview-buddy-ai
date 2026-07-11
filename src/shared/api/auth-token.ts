@@ -1,3 +1,4 @@
+/** Supabase Auth token 获取：SSR 兼容的 getAccessToken */
 import { supabase } from "@/integrations/supabase/client";
 
 export async function getAccessToken(): Promise<string | null> {

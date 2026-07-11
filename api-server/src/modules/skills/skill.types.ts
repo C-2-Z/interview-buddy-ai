@@ -1,3 +1,4 @@
+/** Skill 系统核心类型定义 */
 export type CategoryPriority = "CORE" | "NORMAL" | "ALWAYS_ONE";
 
 export interface CategoryDef {

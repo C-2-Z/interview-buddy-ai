@@ -1,3 +1,4 @@
+/** 语音面试：WebSocket 会话、音频控制 - API 调用函数 */
 import { apiRequest } from "@/shared/api/http-client";
 import type { CreateSessionParams } from "@/features/interview-create/types";
 import type { QuestionItem, SessionDetail } from "@/features/interview-session/types";

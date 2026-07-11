@@ -1,3 +1,4 @@
+/** voice-interview - 打断检测 */
 import { useCallback } from "react";
 
 export function useBargeIn(params: {

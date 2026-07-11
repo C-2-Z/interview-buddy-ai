@@ -1,3 +1,4 @@
+/** 语音面试 WebSocket 处理器 */
 import type { Server } from "node:http";
 import type { ServerType } from "@hono/node-server";
 import { WebSocket, WebSocketServer } from "ws";

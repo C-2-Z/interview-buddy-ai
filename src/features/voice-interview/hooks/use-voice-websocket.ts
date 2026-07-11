@@ -1,3 +1,4 @@
+/** voice-interview - WebSocket 连接 */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { connectVoiceSession } from "../api";

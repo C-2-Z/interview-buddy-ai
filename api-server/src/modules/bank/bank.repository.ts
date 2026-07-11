@@ -1,3 +1,4 @@
+/** 公共题库 DB 访问 */
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import type { BankFilters } from "./bank.schemas.js";
 

@@ -1,3 +1,4 @@
+/** 环境变量加载 */
 export function getRequiredEnv(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) {

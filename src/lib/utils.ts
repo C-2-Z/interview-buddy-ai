@@ -1,3 +1,4 @@
+/** 通用工具函数 */
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 

@@ -1,3 +1,4 @@
+/** AI 网关兼容导出：汇出 shared/ai 模块 */
 export type {
   ChatMessage,
 } from "../shared/ai/ai-client.js";

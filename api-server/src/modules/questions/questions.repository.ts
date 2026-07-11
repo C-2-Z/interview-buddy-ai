@@ -1,3 +1,4 @@
+/** 题目和评分 DB 访问（含 Schema 兼容）*/
  import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 
 export type ConversationMessage = {

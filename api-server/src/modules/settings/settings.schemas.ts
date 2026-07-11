@@ -1,3 +1,4 @@
+/** 更新设置 Zod Schema */
 import { z } from "zod";
 
 export const UpdateSettingsSchema = z.object({

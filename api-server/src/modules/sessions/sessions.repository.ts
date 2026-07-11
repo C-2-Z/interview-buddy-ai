@@ -1,3 +1,4 @@
+/** 面试场次+题目 DB 访问（含向后兼容）*/
 import type { Database, Json } from "../../lib/supabase-types.js";
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import type { ProviderName } from "../model-providers/provider.types.js";
