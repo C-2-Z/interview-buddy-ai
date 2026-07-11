@@ -1,3 +1,4 @@
+/** interview-setup - 面试设置 */
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -26,10 +27,22 @@ const DEFAULT_DRAFT: InterviewSetupDraft = {
   modelProvider: "deepseek",
 };
 
+/**
+ * storage key
+ *
+ * @param mode -
+ * @returns
+ */
 function storageKey(mode: InterviewSetupMode) {
   return `ezmock:interview-setup:${mode}`;
 }
 
+/**
+ * profile for config
+ *
+ * @param config -
+ * @returns
+ */
 function profileForConfig(config: unknown): string {
   if (!config || typeof config !== "object") return "default";
   const normalized = JSON.stringify(config);
@@ -39,6 +52,13 @@ function profileForConfig(config: unknown): string {
   );
 }
 
+/**
+ * use interview setup
+ *
+ * @param mode -
+ * @param search -
+ * @returns
+ */
 export function useInterviewSetup(mode: InterviewSetupMode, search: InterviewSetupSearch) {
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2>(1);
@@ -69,6 +89,10 @@ export function useInterviewSetup(mode: InterviewSetupMode, search: InterviewSet
 
   useEffect(() => {
     let cancelled = false;
+    /**
+     * hydrate
+     * @returns Promise<
+     */
     async function hydrate() {
       setHydrating(true);
       try {
@@ -117,6 +141,12 @@ export function useInterviewSetup(mode: InterviewSetupMode, search: InterviewSet
     [draft.selectedSkillId, skills],
   );
 
+  /**
+   * 选择 skill
+   *
+   * @param skillId -
+   * @returns
+   */
   function selectSkill(skillId: string) {
     const skill = skills.find((item) => item.id === skillId);
     patchDraft({
@@ -126,10 +156,18 @@ export function useInterviewSetup(mode: InterviewSetupMode, search: InterviewSet
     });
   }
 
+  /**
+   * 选择 custom
+   * @returns
+   */
   function selectCustom() {
     patchDraft({ selectedSkillId: null, useCustom: true, position: "" });
   }
 
+  /**
+   * go 转为 details
+   * @returns
+   */
   function goToDetails() {
     if (!draft.position.trim()) {
       toast.error("请选择面试方向或填写岗位名称");
@@ -138,6 +176,12 @@ export function useInterviewSetup(mode: InterviewSetupMode, search: InterviewSet
     setStep(2);
   }
 
+  /**
+   * 提交
+   *
+   * @param event -
+   * @returns Promise<
+   */
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (step === 1) {

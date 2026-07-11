@@ -1,3 +1,4 @@
+/** settings - 设置表单 */
 import { Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +23,10 @@ import {
   useSettings,
 } from "../hooks/use-settings";
 
+/**
+ * settings form
+ * @returns
+ */
 export function SettingsForm() {
   const settings = useSettings();
 

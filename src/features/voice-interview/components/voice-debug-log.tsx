@@ -1,3 +1,4 @@
+/** voice-interview - 语音调试日志 */
 import {
   Activity,
   AlertCircle,
@@ -46,6 +47,10 @@ const LEVEL_ICONS = {
   error: AlertCircle,
 } satisfies Record<VoiceDebugLogLevel, typeof Info>;
 
+/**
+ * voice 调试 记录
+ * @returns
+ */
 export function VoiceDebugLog({
   entries,
   onClear,

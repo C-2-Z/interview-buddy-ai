@@ -1,3 +1,4 @@
+/** 评分维度系统：定义、聚合、强弱项分析 */
 import type { SkillDef } from "../skills/skill.types.js";
 import type {
   DimensionDef,
@@ -18,6 +19,8 @@ const PRIORITY_WEIGHT: Record<string, number> = {
   ALWAYS_ONE: 1,
 };
 
+
+/** 根据 Skill 生成完整维度定义：通用维度 + 专业维度 */
 export function getDimensionDefs(skill: SkillDef | null): DimensionDef[] {
   const skillDefs: DimensionDef[] = (skill?.categories ?? [])
     .filter((c) => c.key !== "PROJECT")
@@ -30,6 +33,8 @@ export function getDimensionDefs(skill: SkillDef | null): DimensionDef[] {
   return [...UNIVERSAL_DIMENSIONS, ...skillDefs];
 }
 
+
+/** 构建维度描述文本块，用于注入评分 prompt */
 export function buildDimensionPromptSection(dimensions: DimensionDef[]): string {
   const lines = dimensions.map(
     (d) => "  - " + d.key + "（" + d.label + "）：" + d.description + "（权重" + d.weight + "）",
@@ -37,6 +42,13 @@ export function buildDimensionPromptSection(dimensions: DimensionDef[]): string 
   return "\n评分维度（逐项评分）:\n" + lines.join("\n");
 }
 
+
+/** 多维度加权聚合：
+ *  1. 初始化每个维度的桶
+ *  2. 收集所有题目分数
+ *  3. 同维度算术平均
+ *  4. 加权求和得总分
+ *  5. 识别强弱项 */
 export function aggregateDimensions(
   questions: { dimension_scores: DimensionScores | null; score: number }[],
   dimensionDefs: DimensionDef[],
@@ -67,6 +79,10 @@ export function aggregateDimensions(
   return { dimensions, overallScore, ...identifyWeaknesses(dimensions) };
 }
 
+/**
+ * identify weaknesses
+ * @returns
+ */
 function identifyWeaknesses(
   dimensions: Record<string, AggregatedDimension>,
 ): { strengths: string[]; weaknesses: string[] } {
@@ -82,6 +98,13 @@ function identifyWeaknesses(
     SYSTEM_DESIGN: "系统设计", PRODUCT_THINKING: "产品思维与设计",
     DATA_DRIVEN: "数据驱动", STRATEGY: "产品战略", PROJECT_MGMT: "项目管理", PROJECT: "项目经历",
   };
+  /**
+   * fmt
+   *
+   * @param k -
+   * @param s -
+   * @returns
+   */
   const fmt = (k: string, s: number) => (labelMap[k] || k) + "(" + s + "分)";
   const strengths = sorted.slice(0, 3).filter(([, d]) => d.score >= 70).map(([k, d]) => fmt(k, d.score));
   const weaknesses = sorted.slice(-3).filter(([, d]) => d.score < 70).map(([k, d]) => fmt(k, d.score));

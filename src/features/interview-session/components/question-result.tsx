@@ -1,8 +1,13 @@
+/** interview-session - 单题评分结果 */
 import { ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChatMessages } from "./chat-messages";
 import type { Message, QuestionItem } from "../types";
 
+/**
+ * question result
+ * @returns
+ */
 export function QuestionResult({
   question,
   messages,

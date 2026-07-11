@@ -12,6 +12,10 @@ export const Route = createFileRoute("/_authenticated/voice/new")({
   component: VoiceInterviewSetupRoute,
 });
 
+/**
+ * voice interview setup 路由
+ * @returns
+ */
 function VoiceInterviewSetupRoute() {
   return <InterviewSetupPage mode="voice" search={Route.useSearch()} />;
 }

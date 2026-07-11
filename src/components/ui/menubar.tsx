@@ -4,22 +4,42 @@ import { Check, ChevronRight, Circle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * menubar menu
+ * @returns
+ */
 function MenubarMenu({ ...props }: React.ComponentProps<typeof MenubarPrimitive.Menu>) {
   return <MenubarPrimitive.Menu {...props} />;
 }
 
+/**
+ * menubar 分组
+ * @returns
+ */
 function MenubarGroup({ ...props }: React.ComponentProps<typeof MenubarPrimitive.Group>) {
   return <MenubarPrimitive.Group {...props} />;
 }
 
+/**
+ * menubar portal
+ * @returns
+ */
 function MenubarPortal({ ...props }: React.ComponentProps<typeof MenubarPrimitive.Portal>) {
   return <MenubarPrimitive.Portal {...props} />;
 }
 
+/**
+ * menubar radio 分组
+ * @returns
+ */
 function MenubarRadioGroup({ ...props }: React.ComponentProps<typeof MenubarPrimitive.RadioGroup>) {
   return <MenubarPrimitive.RadioGroup {...props} />;
 }
 
+/**
+ * menubar sub
+ * @returns
+ */
 function MenubarSub({ ...props }: React.ComponentProps<typeof MenubarPrimitive.Sub>) {
   return <MenubarPrimitive.Sub data-slot="menubar-sub" {...props} />;
 }
@@ -199,6 +219,10 @@ const MenubarSeparator = React.forwardRef<
 ));
 MenubarSeparator.displayName = MenubarPrimitive.Separator.displayName;
 
+/**
+ * menubar shortcut
+ * @returns
+ */
 const MenubarShortcut = ({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) => {
   return (
     <span

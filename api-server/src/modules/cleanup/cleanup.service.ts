@@ -1,3 +1,4 @@
+/** 过期面试场次自动关闭 */
 import { findStaleIdleSessions, findExpiredSessions, closeSession } from "./cleanup.repository.js";
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import { getRequiredEnv } from "../../config/env.js";
@@ -49,6 +50,10 @@ export async function closeStaleSessionsForUser(
   }
 }
 
+/**
+ * 运行 cleanup
+ * @returns Promise<
+ */
 export async function runCleanup(): Promise<void> {
   // Guard — check we have the env vars needed before querying
   try {

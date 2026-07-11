@@ -1,3 +1,4 @@
+/** 简历解析：PDF/DOCX/TXT/MD 文件 */
 import mammoth from "mammoth";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.min.mjs";
 import type { TextContent, TextItem } from "pdfjs-dist/types/src/display/api.js";

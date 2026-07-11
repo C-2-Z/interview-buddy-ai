@@ -12,6 +12,10 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 
+/**
+ * not found component
+ * @returns
+ */
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -34,6 +38,13 @@ function NotFoundComponent() {
   );
 }
 
+/**
+ * error component
+ *
+ * @param error -
+ * @param reset -
+ * @returns void
+ */
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
@@ -101,6 +112,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+/**
+ * root shell
+ *
+ * @param children -
+ * @returns
+ */
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="zh-CN">
@@ -115,6 +132,10 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * root component
+ * @returns
+ */
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 

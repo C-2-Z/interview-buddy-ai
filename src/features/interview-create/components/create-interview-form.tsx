@@ -1,3 +1,4 @@
+/** interview-create - 创建面试表单组件 */
 import { Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,10 @@ import { ResumeUpload } from "./resume-upload";
 import { SkillSelector } from "./skill-selector";
 import { SkillTags } from "./skill-tags";
 
+/**
+ * 创建 interview form
+ * @returns
+ */
 export function CreateInterviewForm() {
   const form = useCreateInterview();
   const showPosition = form.useCustom || !form.selectedSkillId;

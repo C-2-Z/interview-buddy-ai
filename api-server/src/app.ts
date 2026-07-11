@@ -1,5 +1,6 @@
-﻿import { Hono } from "hono";
-import { logger } from "hono/logger";
+/** Hono 服务入口：路由注册、中间件、CORS */
+import { Hono } from "hono";
+import { logger as honoLogger } from "hono/logger";
 import { corsMiddleware } from "./config/cors.js";
 import { bank } from "./modules/bank/bank.routes.js";
 import { questions } from "./modules/questions/questions.routes.js";
@@ -10,11 +11,19 @@ import { resumes } from "./modules/resumes/resumes.routes.js";
 import { voice } from "./modules/voice/voice.routes.js";
 import { generation } from "./modules/generation/generation.routes.js";
 import { performanceRoutes } from "./modules/performance/performance.routes.js";
+import { createModuleLogger } from "./modules/voice/voice-logger.js";
 
 const app = new Hono();
+const appLogger = createModuleLogger("api-server");
+
+/** 全局错误处理：记录错误详情并返回统一格式 */
+app.onError((err, c) => {
+  appLogger.error(err, { method: c.req.method, path: c.req.path });
+  return c.json({ error: "服务器内部错误" }, 500);
+});
 
 app.use("*", corsMiddleware);
-app.use("*", logger());
+app.use("*", honoLogger());
 
 app.route("/api/sessions", generation);
 app.route("/api/sessions", sessions);
@@ -30,4 +39,3 @@ app.get("/api/health", (c) => c.json({ status: "ok" }));
 
 export const port = Number(process.env.PORT) || 3001;
 export default app;
-

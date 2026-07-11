@@ -1,3 +1,4 @@
+/** question-bank - 题库题目卡片 */
 import { Link } from "@tanstack/react-router";
 import { Heart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +10,10 @@ import {
 } from "@/components/ui/card";
 import type { BankQuestion } from "../types";
 
+/**
+ * question card
+ * @returns
+ */
 export function QuestionCard({
   question,
   onToggleFavorite,

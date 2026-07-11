@@ -1,3 +1,4 @@
+/** 公共题库浏览/筛选/收藏 - 类型定义 */
 export type BankQuestion = {
   id: string;
   position: string;

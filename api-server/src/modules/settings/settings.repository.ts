@@ -1,3 +1,4 @@
+/** 用户设置 DB 访问 */
 export const KEY_COLUMNS = [
   "deepseek_api_key",
   "openai_api_key",
@@ -14,6 +15,10 @@ export type UserSettingsRow = {
   anthropic_api_key: string | null;
 };
 
+/**
+ * 获取 user settings
+ * @returns
+ */
 export async function getUserSettings(
   supabase: any,
   userId: string,
@@ -23,6 +28,13 @@ export async function getUserSettings(
   try {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) return null;
+    /**
+     * meta
+     *
+     * @param user_metadata -
+     * @param interview_settings -
+     * @returns
+     */
     const meta = (user.user_metadata?.interview_settings ?? {}) as Record<string, unknown>;
     return {
       model_provider: (meta.model_provider as string) ?? null,
@@ -36,6 +48,10 @@ export async function getUserSettings(
   }
 }
 
+/**
+ * upsert user settings
+ * @returns
+ */
 export async function upsertUserSettings(
   supabase: any,
   userId: string,

@@ -1,3 +1,4 @@
+/** 面试会话：对话面板、状态管理 - 类型定义 */
 import type { Database } from "@/integrations/supabase/types";
 
 type SessionRow = Database["public"]["Tables"]["interview_sessions"]["Row"];

@@ -1,3 +1,4 @@
+/** Supabase 数据库行类型定义 */
 export type Json =
   | string
   | number

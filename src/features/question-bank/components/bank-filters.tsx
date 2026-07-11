@@ -1,3 +1,4 @@
+/** question-bank - 题库筛选器 */
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,10 @@ type BankFiltersProps = {
   onClear: () => void;
 };
 
+/**
+ * bank filters
+ * @returns
+ */
 export function BankFilters({ filters, onChange, onClear }: BankFiltersProps) {
   const hasFilters =
     filters.position || filters.difficulty || filters.type || filters.search;

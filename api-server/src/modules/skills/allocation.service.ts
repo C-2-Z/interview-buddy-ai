@@ -1,3 +1,4 @@
+/** Skill 题目数量分配算法 */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { CategoryDef, SkillDef } from "./skill.types.js";
@@ -5,6 +6,10 @@ import { getSkillsDir } from "./skill-loader.js";
 
 const SHARED_REF_DIR = join(getSkillsDir(), "_shared", "references");
 
+/**
+ * calculate allocation
+ * @returns
+ */
 export function calculateAllocation(
   categories: CategoryDef[],
   total: number,
@@ -51,6 +56,10 @@ export function calculateAllocation(
   return allocation;
 }
 
+/**
+ * 构建 reference section
+ * @returns
+ */
 export function buildReferenceSection(
   skill: SkillDef,
   allocation: Map<string, number>,
@@ -80,6 +89,10 @@ export function buildReferenceSection(
   return parts.join("\n\n---\n\n");
 }
 
+/**
+ * 渲染 allocation table
+ * @returns
+ */
 export function renderAllocationTable(
   categories: CategoryDef[],
   allocation: Map<string, number>,
@@ -92,6 +105,12 @@ export function renderAllocationTable(
   return `\n请生成以下分类和数量的题目：\n\n| 分类 | 数量 |\n|------|------|\n${rows}\n`;
 }
 
+/**
+ * 构建 dedup instruction
+ *
+ * @param historicalTopics -
+ * @returns
+ */
 export function buildDedupInstruction(historicalTopics: string[]): string {
   if (historicalTopics.length === 0) return "";
   return `\n注意：以下分类的题目候选人之前已经回答过，请避免出完全相同的题目，可以从其他角度或更深层次提问：\n${historicalTopics.join("、")}`;

@@ -1,3 +1,4 @@
+/** WebSocket 连接 JWT 令牌 */
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { getRequiredEnv } from "../../config/env.js";
 
@@ -11,12 +12,22 @@ export type VoiceSocketTokenPayload = {
   exp: number;
 };
 
+/**
+ * 签名
+ *
+ * @param payload -
+ * @returns
+ */
 function sign(payload: string): string {
   return createHmac("sha256", getRequiredEnv("VOICE_WS_TOKEN_SECRET"))
     .update(payload)
     .digest("base64url");
 }
 
+/**
+ * 创建 voice socket token
+ * @returns
+ */
 export function createVoiceSocketToken(params: {
   sessionId: string;
   userId: string;
@@ -37,6 +48,10 @@ export function createVoiceSocketToken(params: {
   };
 }
 
+/**
+ * 验证 voice socket token
+ * @returns
+ */
 export function verifyVoiceSocketToken(
   token: string | null,
 ): VoiceSocketTokenPayload | null {

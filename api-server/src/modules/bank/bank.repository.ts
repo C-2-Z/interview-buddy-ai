@@ -1,6 +1,11 @@
+/** 公共题库 DB 访问 */
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import type { BankFilters } from "./bank.schemas.js";
 
+/**
+ * 列出 questions
+ * @returns
+ */
 export async function listQuestions(
   supabase: UserSupabaseClient,
   filters: BankFilters,
@@ -20,6 +25,10 @@ export async function listQuestions(
   return data ?? [];
 }
 
+/**
+ * 列出 favorite question ids
+ * @returns
+ */
 export async function listFavoriteQuestionIds(
   supabase: UserSupabaseClient,
   userId: string,
@@ -32,6 +41,10 @@ export async function listFavoriteQuestionIds(
   return new Set((data ?? []).map((favorite) => favorite.question_id));
 }
 
+/**
+ * 列出 favorite questions
+ * @returns
+ */
 export async function listFavoriteQuestions(
   supabase: UserSupabaseClient,
   userId: string,
@@ -45,6 +58,10 @@ export async function listFavoriteQuestions(
   return data ?? [];
 }
 
+/**
+ * 获取 question
+ * @returns
+ */
 export async function getQuestion(
   supabase: UserSupabaseClient,
   questionId: string,
@@ -58,6 +75,10 @@ export async function getQuestion(
   return data;
 }
 
+/**
+ * 查找 favorite
+ * @returns
+ */
 export async function findFavorite(
   supabase: UserSupabaseClient,
   userId: string,
@@ -73,6 +94,10 @@ export async function findFavorite(
   return data;
 }
 
+/**
+ * 移除 favorite
+ * @returns
+ */
 export async function removeFavorite(
   supabase: UserSupabaseClient,
   favoriteId: string,
@@ -84,6 +109,10 @@ export async function removeFavorite(
   if (error) throw new Error(error.message);
 }
 
+/**
+ * 添加 favorite
+ * @returns
+ */
 export async function addFavorite(
   supabase: UserSupabaseClient,
   userId: string,

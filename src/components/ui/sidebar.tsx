@@ -37,6 +37,10 @@ type SidebarContextProps = {
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null);
 
+/**
+ * use sidebar
+ * @returns
+ */
 function useSidebar() {
   const context = React.useContext(SidebarContext);
   if (!context) {
@@ -95,6 +99,12 @@ const SidebarProvider = React.forwardRef<
 
     // Adds a keyboard shortcut to toggle the sidebar.
     React.useEffect(() => {
+      /**
+       * 处理 key down
+       *
+       * @param event -
+       * @returns
+       */
       const handleKeyDown = (event: KeyboardEvent) => {
         if (event.key === SIDEBAR_KEYBOARD_SHORTCUT && (event.metaKey || event.ctrlKey)) {
           event.preventDefault();
@@ -545,6 +555,10 @@ const SidebarMenuButton = React.forwardRef<
     const Comp = asChild ? Slot : "button";
     const { isMobile, state } = useSidebar();
 
+    /**
+     * button
+     * @returns
+     */
     const button = (
       <Comp
         ref={ref}

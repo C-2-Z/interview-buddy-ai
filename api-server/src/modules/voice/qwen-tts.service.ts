@@ -1,13 +1,22 @@
+/** 通义千问语音合成 */
 import {
   createQwenTtsSession,
   runQwenRealtimeTask,
   streamQwenTtsAudio,
 } from "./qwen-realtime.client.js";
 
+/**
+ * qwen tts sample rate
+ * @returns
+ */
 export function qwenTtsSampleRate(): number {
   return Number(process.env.QWEN_TTS_SAMPLE_RATE || "24000");
 }
 
+/**
+ * synthesize with qwen
+ * @returns
+ */
 export async function synthesizeWithQwen(params: {
   text: string;
   signal?: AbortSignal;
@@ -28,6 +37,10 @@ export async function synthesizeWithQwen(params: {
   };
 }
 
+/**
+ * stream speech with qwen
+ * @returns
+ */
 export function streamSpeechWithQwen(params: {
   text: string;
   signal?: AbortSignal;

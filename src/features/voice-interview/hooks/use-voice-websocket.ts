@@ -1,3 +1,4 @@
+/** voice-interview - WebSocket 连接 */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { connectVoiceSession } from "../api";
@@ -9,6 +10,10 @@ type VoiceSocketDebugEvent = {
   detail?: string;
 };
 
+/**
+ * use voice web socket
+ * @returns
+ */
 export function useVoiceWebSocket(params: {
   sessionId: string;
   onEvent: (event: VoiceServerEvent) => void;
@@ -120,6 +125,12 @@ export function useVoiceWebSocket(params: {
     }
   }, [connecting, params]);
 
+  /**
+   * 发送 json
+   *
+   * @param value -
+   * @returns
+   */
   function sendJson(value: unknown) {
     if (socket.current?.readyState === WebSocket.OPEN) {
       if (
@@ -135,6 +146,12 @@ export function useVoiceWebSocket(params: {
     }
   }
 
+  /**
+   * 发送 audio chunk
+   *
+   * @param chunk -
+   * @returns
+   */
   function sendAudioChunk(chunk: ArrayBuffer) {
     const ws = socket.current;
     if (ws?.readyState === WebSocket.OPEN) {
@@ -153,6 +170,10 @@ export function useVoiceWebSocket(params: {
     }
   }
 
+  /**
+   * 断开
+   * @returns
+   */
   function disconnect() {
     socket.current?.close();
     socket.current = null;

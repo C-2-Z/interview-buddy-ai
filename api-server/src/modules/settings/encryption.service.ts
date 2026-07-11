@@ -1,8 +1,13 @@
+/** API Key AES-256-GCM 加密/解密 */
 import crypto from "crypto";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16;
 
+/**
+ * 获取 key
+ * @returns
+ */
 function getKey(): Buffer {
   const hex = process.env.ENCRYPTION_KEY;
   if (!hex) {
@@ -15,6 +20,12 @@ function getKey(): Buffer {
   return key;
 }
 
+/**
+ * 加密
+ *
+ * @param plaintext -
+ * @returns
+ */
 export function encrypt(plaintext: string): string {
   const key = getKey();
   const iv = crypto.randomBytes(IV_LENGTH);
@@ -27,6 +38,12 @@ export function encrypt(plaintext: string): string {
   return `${iv.toString("hex")}:${tag.toString("hex")}:${encrypted.toString("hex")}`;
 }
 
+/**
+ * 解密
+ *
+ * @param encryptedText -
+ * @returns
+ */
 export function decrypt(encryptedText: string): string {
   const key = getKey();
   const parts = encryptedText.split(":");
@@ -41,6 +58,12 @@ export function decrypt(encryptedText: string): string {
   return decipher.update(ciphertext) + decipher.final("utf8");
 }
 
+/**
+ * mask api key
+ *
+ * @param plaintext -
+ * @returns
+ */
 export function maskApiKey(plaintext: string | null): string | null {
   if (!plaintext || plaintext.length < 12) return null;
   return `${plaintext.slice(0, 8)}...${plaintext.slice(-4)}`;

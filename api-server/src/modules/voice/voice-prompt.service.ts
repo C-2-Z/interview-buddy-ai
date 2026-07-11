@@ -1,11 +1,22 @@
+/** 语音面试面试官决策 prompt */
 import type { InterviewContext } from "../questions/prompt-builders.js";
 
+/**
+ * job description info
+ *
+ * @param jobDescription -
+ * @returns
+ */
 function jobDescriptionInfo(jobDescription: string | null): string {
   return jobDescription?.trim()
     ? `\n- Job description: ${jobDescription}`
     : "";
 }
 
+/**
+ * 构建 voice interviewer system prompt
+ * @returns
+ */
 export function buildVoiceInterviewerSystemPrompt(
   ctx: InterviewContext,
 ): string {
@@ -33,6 +44,10 @@ Return valid JSON only:
 {"action":"redirect","response":"redirect sentence in Chinese"}`;
 }
 
+/**
+ * 构建 voice interviewer user prompt
+ * @returns
+ */
 export function buildVoiceInterviewerUserPrompt(params: {
   history: string;
   latestAnswer: string;
@@ -46,6 +61,10 @@ ${params.latestAnswer}
 Return only the JSON decision.`;
 }
 
+/**
+ * 构建 voice streaming system prompt
+ * @returns
+ */
 export function buildVoiceStreamingSystemPrompt(
   ctx: InterviewContext,
 ): string {
@@ -70,6 +89,10 @@ Spoken response rules:
 - Keep speech concise, natural, suitable for text-to-speech, and no longer than 120 Chinese characters.`;
 }
 
+/**
+ * 构建 voice streaming user prompt
+ * @returns
+ */
 export function buildVoiceStreamingUserPrompt(params: {
   history: string;
   latestAnswer: string;
@@ -80,6 +103,10 @@ ${params.history || "None"}
 Return the tagged speech and decision protocol only.`;
 }
 
+/**
+ * 构建 voice decision user prompt
+ * @returns
+ */
 export function buildVoiceDecisionUserPrompt(params: {
   history: string;
   latestAnswer: string;

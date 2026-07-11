@@ -1,3 +1,4 @@
+/** voice-interview - 创建语音面试表单 */
 import { Loader2, Mic2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,10 @@ import { SkillSelector } from "@/features/interview-create/components/skill-sele
 import { SkillTags } from "@/features/interview-create/components/skill-tags";
 import { useCreateVoiceInterview } from "../hooks/use-create-voice-interview";
 
+/**
+ * voice 创建 form
+ * @returns
+ */
 export function VoiceCreateForm() {
   const form = useCreateVoiceInterview();
   const showPosition = form.useCustom || !form.selectedSkillId;

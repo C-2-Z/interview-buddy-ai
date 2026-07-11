@@ -1,3 +1,4 @@
+/** 题目和评分 DB 访问（含 Schema 兼容）*/
  import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 
 export type ConversationMessage = {
@@ -25,12 +26,24 @@ export type QuestionWithSession = {
   interview_sessions: QuestionSessionContext;
 };
 
+/**
+ * 判断 missing schema column
+ *
+ * @param message -
+ * @returns
+ */
 function isMissingSchemaColumn(message: string): boolean {
   return /schema cache|column .* does not exist|Could not find the '.*' column/i.test(
     message,
   );
 }
 
+/**
+ * 归一化 question with session
+ *
+ * @param data -
+ * @returns
+ */
 function normalizeQuestionWithSession(data: unknown): QuestionWithSession {
   const question = data as QuestionWithSession;
   question.interview_sessions = {
@@ -42,6 +55,10 @@ function normalizeQuestionWithSession(data: unknown): QuestionWithSession {
   return question;
 }
 
+/**
+ * 获取 question with session
+ * @returns
+ */
 export async function getQuestionWithSession(
   supabase: UserSupabaseClient,
   questionId: string,
@@ -67,6 +84,10 @@ export async function getQuestionWithSession(
   return null;
 }
 
+/**
+ * 保存 conversation answer
+ * @returns
+ */
 export async function saveConversationAnswer(
   supabase: UserSupabaseClient,
   questionId: string,
@@ -79,6 +100,10 @@ export async function saveConversationAnswer(
   if (error) throw new Error(error.message);
 }
 
+/**
+ * 保存 evaluation
+ * @returns
+ */
 export async function saveEvaluation(params: {
   supabase: UserSupabaseClient;
   questionId: string;
@@ -96,6 +121,12 @@ export async function saveEvaluation(params: {
   if (params.dimensionScores) {
     updateData.dimension_scores = params.dimensionScores;
   }
+  /**
+   * 查询
+   *
+   * @param params.supabase as any -
+   * @returns
+   */
   let query: any = (params.supabase as any)
     .from("interview_questions")
     .update(updateData)
@@ -109,6 +140,10 @@ export async function saveEvaluation(params: {
   if (error) throw new Error(error.message);
 }
 
+/**
+ * 计数 session questions
+ * @returns
+ */
 export async function countSessionQuestions(
   supabase: UserSupabaseClient,
   sessionId: string,
@@ -121,6 +156,10 @@ export async function countSessionQuestions(
   return count ?? 0;
 }
 
+/**
+ * 更新 last activity
+ * @returns
+ */
 export async function updateLastActivity(
   supabase: UserSupabaseClient,
   sessionId: string,

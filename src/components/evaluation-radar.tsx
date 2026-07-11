@@ -1,3 +1,4 @@
+/** 面试报告 - 雷达图组件 */
 import type { DimensionSummary } from "@/features/interview-session/types";
 import {
   PolarAngleAxis,
@@ -32,6 +33,10 @@ const LABEL_MAP: Record<string, string> = {
   PROJECT: "项目",
 };
 
+/**
+ * evaluation radar
+ * @returns
+ */
 export function EvaluationRadar({
   summary,
   compact,

@@ -1,3 +1,4 @@
+/** 多维度评分系统类型定义 */
 // 单个维度评分
 export interface DimensionScoreItem {
   score: number;

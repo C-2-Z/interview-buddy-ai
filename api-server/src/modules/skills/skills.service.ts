@@ -1,3 +1,4 @@
+/** Skill 业务：出题 prompt 构建、查询 */
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import {
   buildDedupInstruction,
@@ -9,14 +10,20 @@ import { getAllSkillMetas, getSkill } from "./skill-loader.js";
 import { queryHistoricalTopics } from "./skills.repository.js";
 import type { SkillDef } from "./skill.types.js";
 
+
+/** 获取所有 Skill 元数据 */
 export function listSkillMetas() {
   return getAllSkillMetas();
 }
 
+
+/** 根据 skillId 查找 Skill 定义 */
 export function findSkill(skillId: string | undefined): SkillDef | undefined {
   return skillId ? getSkill(skillId) : undefined;
 }
 
+
+/** 构建 Skill 出题 prompt */
 export async function buildSkillQuestionPrompt(params: {
   supabase: UserSupabaseClient;
   skill: SkillDef;

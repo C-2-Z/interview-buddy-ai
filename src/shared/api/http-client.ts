@@ -1,3 +1,4 @@
+/** HTTP 客户端封装：自动注入 Bearer Token，统一错误处理 */
 import { getAccessToken } from "./auth-token";
 
 const baseUrl = import.meta.env.VITE_API_URL || "";
@@ -22,6 +23,12 @@ export async function apiRequest<T>(
   if (!res.ok) {
     let message = `请求失败 (${res.status})`;
     try {
+      /**
+       * err
+       *
+       * @param await res.json() -
+       * @returns
+       */
       const err = (await res.json()) as { error?: string };
       message = err.error ?? message;
     } catch {

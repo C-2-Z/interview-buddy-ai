@@ -1,3 +1,4 @@
+/** resume-library - 简历详情页 */
 import { Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -15,6 +16,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useResumeDetail } from "../hooks/use-resume-detail";
 
+/**
+ * 恢复 详述 page
+ *
+ * @param resumeId -
+ * @returns
+ */
 export function ResumeDetailPage({ resumeId }: { resumeId: string }) {
   const detail = useResumeDetail(resumeId);
 

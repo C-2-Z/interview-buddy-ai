@@ -1,8 +1,16 @@
+/** app-shell - 应用外壳布局与路由出口 */
 import { useRouterState } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
 
+/**
+ * app shell
+ *
+ * @param children -
+ * @param userEmail -
+ * @returns
+ */
 export function AppShell({ children, userEmail }: { children: ReactNode; userEmail?: string }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 

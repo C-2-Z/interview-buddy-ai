@@ -1,3 +1,4 @@
+/** 简历库浏览/上传/删除 - 类型定义 */
 export type ResumeAnalysis = {
   skills: string[];
   workExperience: Array<{ company: string; role: string; years: string }>;

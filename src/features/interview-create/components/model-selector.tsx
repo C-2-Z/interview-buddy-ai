@@ -1,3 +1,4 @@
+/** interview-create - AI 模型选择器 */
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -13,6 +14,10 @@ type ModelSelectorProps = {
   onChange: (value: ModelProviderName) => void;
 };
 
+/**
+ * model selector
+ * @returns
+ */
 export function ModelSelector({ value, onChange }: ModelSelectorProps) {
   return (
     <div className="space-y-2">

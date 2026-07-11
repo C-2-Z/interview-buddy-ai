@@ -1,3 +1,4 @@
+/** 面试场次业务：创建/出题/结束/聚合评分 */
 import { callAI } from "../../shared/ai/ai-client.js";
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import {
@@ -34,12 +35,22 @@ import {
   queueReport,
 } from "../generation/generation.service.js";
 
+/**
+ * question config
+ *
+ * @param input -
+ * @returns
+ */
 function questionConfig(input: CreateSessionInput) {
   return input.questionTypeConfig
     ? (input.questionTypeConfig as Record<string, number>)
     : null;
 }
 
+/**
+ * base session row
+ * @returns
+ */
 function baseSessionRow(params: {
   input: CreateSessionInput;
   userId: string;
@@ -65,6 +76,10 @@ function baseSessionRow(params: {
   };
 }
 
+/**
+ * generic question rows
+ * @returns
+ */
 function genericQuestionRows(
   sessionId: string,
   questions: GeneratedGenericQuestion[],
@@ -78,6 +93,10 @@ function genericQuestionRows(
   }));
 }
 
+/**
+ * skill question rows
+ * @returns
+ */
 function skillQuestionRows(
   sessionId: string,
   skillId: string,
@@ -92,6 +111,9 @@ function skillQuestionRows(
   }));
 }
 
+
+/** 创建面试场次：AI 出题、写入数据库、返回 sessionId
+ *  根据是否选择 Skill 走不同出题路径 */
 export async function createInterviewSession(params: {
   supabase: UserSupabaseClient;
   userId: string;
@@ -154,14 +176,24 @@ export async function createInterviewSession(params: {
   return { sessionId: session.id };
 }
 
+
+/** 列出当前用户的所有面试场次 */
 export function listSessions(supabase: UserSupabaseClient) {
   return listSessionsRepo(supabase);
 }
 
+
+/** 获取场次详情（含所有题目）*/
 export function getSession(supabase: UserSupabaseClient, sessionId: string) {
   return getSessionWithQuestions(supabase, sessionId);
 }
 
+
+/** 结束面试场次：聚合各题分数、多维度评分、AI 生成综合评语
+ *  1. 算术平均各题分数
+ *  2. 按维度聚合所有题目评分
+ *  3. 调用 AI 生成综合评语
+ *  4. 更新 session 状态为 completed */
 export async function finishSession(params: {
   supabase: UserSupabaseClient;
   userId: string;
@@ -200,6 +232,12 @@ export async function finishSession(params: {
 
   // 多维度评分聚合
   const sessionCfg = await getSessionProviderConfig(params.supabase, params.sessionId);
+  /**
+   * skill
+   *
+   * @param sessionCfg as any -
+   * @returns
+   */
   const skill = (sessionCfg as any)?.skill_id ? findSkill((sessionCfg as any).skill_id) ?? null : null;
   const dimensionDefs = getDimensionDefs(skill);
   const dimensionRows = await loadQuestionDimensionScores(params.supabase, params.sessionId);

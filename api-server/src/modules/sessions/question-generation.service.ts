@@ -1,3 +1,4 @@
+/** AI 出题服务：根据岗位/Skill/简历生成题目 */
 ﻿import { callAI } from "../../shared/ai/ai-client.js";
 import { parseJsonFromAI } from "../../shared/ai/json-parser.js";
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
@@ -18,6 +19,8 @@ export const QUESTION_GEN_SYSTEM_PROMPT =
 export const FINISH_SYSTEM_PROMPT =
   "你是资深面试官，用中文给出简洁总结。";
 
+
+/** 构建通用出题 prompt */
 export function buildGenericQuestionGenerationPrompt(
   input: CreateSessionInput,
 ): string {
@@ -130,6 +133,8 @@ export async function* streamGeneratedQuestions(params: {
   }
 }
 
+
+/** 调用 AI 生成通用面试题 */
 export async function generateGenericQuestions(
   input: CreateSessionInput,
   provider: ModelProvider,
@@ -150,6 +155,8 @@ export async function generateGenericQuestions(
   return questions;
 }
 
+
+/** 调用 AI 根据 Skill 配置生成分类面试题 */
 export async function generateSkillQuestions(params: {
   supabase: UserSupabaseClient;
   input: CreateSessionInput;

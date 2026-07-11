@@ -1,8 +1,13 @@
+/** resume-library - 简历库列表 */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { deleteResume, listResumes, uploadResume } from "../api";
 import type { ResumeListItem } from "../types";
 
+/**
+ * use 恢复 library
+ * @returns
+ */
 export function useResumeLibrary() {
   const [items, setItems] = useState<ResumeListItem[]>([]);
   const [query, setQuery] = useState("");
@@ -37,6 +42,12 @@ export function useResumeLibrary() {
     );
   }, [items, query]);
 
+  /**
+   * 上传
+   *
+   * @param file -
+   * @returns Promise<
+   */
   async function upload(file: File) {
     setUploading(true);
     try {
@@ -53,6 +64,12 @@ export function useResumeLibrary() {
     }
   }
 
+  /**
+   * 移除
+   *
+   * @param resumeId -
+   * @returns Promise<
+   */
   async function remove(resumeId: string) {
     setDeletingId(resumeId);
     try {

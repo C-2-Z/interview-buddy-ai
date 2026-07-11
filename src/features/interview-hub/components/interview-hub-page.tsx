@@ -1,3 +1,4 @@
+/** interview-hub - 面试中心概览页 */
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
@@ -42,6 +43,12 @@ const ENTRY_CARDS = [
   },
 ];
 
+/**
+ * recent interview action
+ *
+ * @param session -
+ * @returns
+ */
 function RecentInterviewAction({ session }: { session: RecentInterview }) {
   if (session.status === "completed") {
     return (
@@ -68,6 +75,10 @@ function RecentInterviewAction({ session }: { session: RecentInterview }) {
   );
 }
 
+/**
+ * interview hub page
+ * @returns
+ */
 export function InterviewHubPage() {
   const hub = useInterviewHub();
 

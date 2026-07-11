@@ -1,9 +1,16 @@
+/** AES-256-GCM 加密工具 */
 export {
   decrypt,
   encrypt,
   maskApiKey,
 } from "../modules/settings/encryption.service.js";
 
+/**
+ * provider from column
+ *
+ * @param col -
+ * @returns
+ */
 export function providerFromColumn(col: string): string {
   return col.replace("_api_key", "");
 }

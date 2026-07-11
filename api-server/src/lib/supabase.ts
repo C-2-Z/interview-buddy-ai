@@ -1,3 +1,4 @@
+/** Supabase 客户端兼容导出 */
 export {
   createUserClient,
 } from "../shared/db/supabase.js";

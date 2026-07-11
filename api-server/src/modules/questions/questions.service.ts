@@ -1,3 +1,4 @@
+/** 面试对话业务：处理消息/检测完成/触发评分 */
 import { callAI } from "../../shared/ai/ai-client.js";
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import { resolveProviderForSession } from "../model-providers/model-provider.service.js";
@@ -27,6 +28,10 @@ import {
 const MAX_FOLLOWUPS = 3;
 const MAX_TOTAL_MESSAGES = 20;
 
+/**
+ * 判断 voice interview question
+ * @returns
+ */
 function isVoiceInterviewQuestion(
   question: Exclude<Awaited<ReturnType<typeof getQuestionWithSession>>, null>,
 ): boolean {
@@ -36,6 +41,10 @@ function isVoiceInterviewQuestion(
   );
 }
 
+/**
+ * 构建 context
+ * @returns
+ */
 function buildContext(
   question: Awaited<ReturnType<typeof getQuestionWithSession>>,
   totalQuestions: number,
@@ -53,6 +62,13 @@ function buildContext(
   };
 }
 
+
+/** 处理用户发送的消息：
+ *  1. 追加对话历史
+ *  2. 检测复制题目
+ *  3. 检查追问上限
+ *  4. 调用 AI 生成追问
+ *  5. 检测完成信号触发评分 */
 export async function sendMessage(params: {
   supabase: UserSupabaseClient;
   userId: string;
@@ -190,6 +206,8 @@ export async function sendMessage(params: {
   return { response };
 }
 
+
+/** 手动触发当前题目的 AI 评分 */
 export async function evaluateQuestionConversation(params: {
   supabase: UserSupabaseClient;
   userId: string;
@@ -233,6 +251,10 @@ export async function evaluateQuestionConversation(params: {
   return evaluation;
 }
 
+/**
+ * auto 评估 question
+ * @returns
+ */
 async function autoEvaluateQuestion(params: {
   question: Exclude<Awaited<ReturnType<typeof getQuestionWithSession>>, null>;
   conversation: import("./questions.repository.js").ConversationMessage[];

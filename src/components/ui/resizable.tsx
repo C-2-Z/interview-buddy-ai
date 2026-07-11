@@ -3,6 +3,10 @@ import { Group, Panel, Separator } from "react-resizable-panels";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * resizable panel 分组
+ * @returns
+ */
 const ResizablePanelGroup = ({ className, ...props }: React.ComponentProps<typeof Group>) => (
   <Group
     className={cn("flex h-full w-full data-[panel-group-direction=vertical]:flex-col", className)}
@@ -12,6 +16,10 @@ const ResizablePanelGroup = ({ className, ...props }: React.ComponentProps<typeo
 
 const ResizablePanel = Panel;
 
+/**
+ * resizable 处理
+ * @returns
+ */
 const ResizableHandle = ({
   withHandle,
   className,

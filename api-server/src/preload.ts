@@ -1,3 +1,4 @@
+/** 服务预加载：加载 .env 环境变量 */
 import { config } from "dotenv";
 import { resolve } from "path";
 

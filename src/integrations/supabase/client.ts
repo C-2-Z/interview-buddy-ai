@@ -1,10 +1,22 @@
+/** Supabase 浏览器端客户端 */
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+/**
+ * passthrough 获取
+ *
+ * @param input -
+ * @param init -
+ * @returns
+ */
 function passthroughFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   return fetch(input, init);
 }
 
+/**
+ * 创建 supabase client
+ * @returns
+ */
 function createSupabaseClient() {
   // Use import.meta.env for client-side (Vite build-time replacement)
   // Fall back to process.env for SSR (server-side rendering)

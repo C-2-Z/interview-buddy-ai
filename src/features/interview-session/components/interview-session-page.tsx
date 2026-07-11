@@ -1,3 +1,4 @@
+/** interview-session - 面试对话页面 */
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,12 @@ import { useSession } from "../hooks/use-session";
 import { GenerationProgress } from "@/features/progressive-generation/components/generation-progress";
 import { useProgressiveGeneration } from "@/features/progressive-generation/hooks/use-progressive-generation";
 
+/**
+ * interview session page
+ *
+ * @param sessionId -
+ * @returns
+ */
 export function InterviewSessionPage({ sessionId }: { sessionId: string }) {
   const sessionState = useSession(sessionId);
   const generation = useProgressiveGeneration(sessionId, sessionState.refresh);

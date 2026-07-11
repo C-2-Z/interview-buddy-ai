@@ -1,3 +1,4 @@
+/** 通义千问语音识别 WebSocket 客户端 */
 import {
   createQwenAsrSession,
   runQwenRealtimeTask,
@@ -9,6 +10,10 @@ export type QwenAsrResult = {
   confidence: number | null;
 };
 
+/**
+ * transcribe with qwen
+ * @returns
+ */
 export async function transcribeWithQwen(params: {
   audioChunks: Buffer[];
   sampleRate: number;
@@ -28,6 +33,10 @@ export async function transcribeWithQwen(params: {
   };
 }
 
+/**
+ * 创建 streaming asr session
+ * @returns
+ */
 export function createStreamingAsrSession(params: {
   sampleRate: number;
   signal?: AbortSignal;

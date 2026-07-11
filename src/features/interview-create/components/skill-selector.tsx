@@ -1,3 +1,4 @@
+/** interview-create - Skill 选择器 */
 import type { ReactNode } from "react";
 import { Brain, Code2, Lightbulb, Palette, Pencil } from "lucide-react";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,10 @@ type SkillSelectorProps = {
   onSelectCustom: () => void;
 };
 
+/**
+ * skill selector
+ * @returns
+ */
 export function SkillSelector({
   skills,
   selectedSkillId,

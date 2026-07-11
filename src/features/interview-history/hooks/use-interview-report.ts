@@ -1,7 +1,14 @@
+/** interview-history - 面试报告详情 */
 import { useCallback, useEffect, useState } from "react";
 import { getInterviewReport } from "../api";
 import type { InterviewReport } from "../types";
 
+/**
+ * use interview report
+ *
+ * @param sessionId -
+ * @returns
+ */
 export function useInterviewReport(sessionId: string) {
   const [report, setReport] = useState<InterviewReport | null>(null);
   const [loading, setLoading] = useState(true);

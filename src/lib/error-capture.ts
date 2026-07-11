@@ -1,9 +1,16 @@
+/** 全局 SSR 错误捕获 */
 // Captures the original Error out-of-band so server.ts can recover the stack
 // when h3 has already swallowed the throw into a generic 500 Response.
 
 let lastCapturedError: { error: unknown; at: number } | undefined;
 const TTL_MS = 5_000;
 
+/**
+ * record
+ *
+ * @param error -
+ * @returns
+ */
 function record(error: unknown) {
   lastCapturedError = { error, at: Date.now() };
 }
@@ -15,6 +22,10 @@ if (typeof globalThis.addEventListener === "function") {
   );
 }
 
+/**
+ * consume last captured error
+ * @returns
+ */
 export function consumeLastCapturedError(): unknown {
   if (!lastCapturedError) return undefined;
   if (Date.now() - lastCapturedError.at > TTL_MS) {

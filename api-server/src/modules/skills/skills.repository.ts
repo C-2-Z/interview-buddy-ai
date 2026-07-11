@@ -1,5 +1,10 @@
+/** Skill 历史出题记录 DB 访问 */
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 
+/**
+ * 查询 historical topics
+ * @returns
+ */
 export async function queryHistoricalTopics(
   supabase: UserSupabaseClient,
   skillId: string,

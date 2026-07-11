@@ -1,3 +1,4 @@
+/** voice-interview - 语音面试页面 */
 import { BriefcaseBusiness, Loader2, Mic2, ShieldCheck, Square } from "lucide-react";
 import {
   AlertDialog,
@@ -18,6 +19,12 @@ import { useVoiceSession } from "../hooks/use-voice-session";
 import { GenerationProgress } from "@/features/progressive-generation/components/generation-progress";
 import { useProgressiveGeneration } from "@/features/progressive-generation/hooks/use-progressive-generation";
 
+/**
+ * voice session page
+ *
+ * @param sessionId -
+ * @returns
+ */
 export function VoiceSessionPage({ sessionId }: { sessionId: string }) {
   const voiceSession = useVoiceSession(sessionId);
   const generation = useProgressiveGeneration(sessionId, voiceSession.refresh);

@@ -1,3 +1,4 @@
+/** 公共题库业务逻辑：查询、收藏 */
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import type { BankFilters } from "./bank.schemas.js";
 import {
@@ -10,6 +11,8 @@ import {
   removeFavorite,
 } from "./bank.repository.js";
 
+
+/** 查询题库（支持筛选），标注收藏状态 */
 export async function listBankQuestions(params: {
   supabase: UserSupabaseClient;
   userId: string;
@@ -27,6 +30,10 @@ export async function listBankQuestions(params: {
   }));
 }
 
+/**
+ * 列出 favorite bank questions
+ * @returns
+ */
 export async function listFavoriteBankQuestions(params: {
   supabase: UserSupabaseClient;
   userId: string;
@@ -39,6 +46,10 @@ export async function listFavoriteBankQuestions(params: {
   }));
 }
 
+/**
+ * 获取 bank question
+ * @returns
+ */
 export async function getBankQuestion(params: {
   supabase: UserSupabaseClient;
   userId: string;
@@ -58,6 +69,8 @@ export async function getBankQuestion(params: {
   };
 }
 
+
+/** 切换收藏状态 */
 export async function toggleFavorite(params: {
   supabase: UserSupabaseClient;
   userId: string;

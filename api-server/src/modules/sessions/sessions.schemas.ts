@@ -1,3 +1,4 @@
+/** 创建面试的 Zod 请求体验证 Schema */
 import { z } from "zod";
 
 export const CreateSessionSchema = z.object({

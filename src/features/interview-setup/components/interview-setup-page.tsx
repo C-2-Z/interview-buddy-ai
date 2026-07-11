@@ -1,3 +1,4 @@
+/** interview-setup - 面试设置页面 */
 import { ChevronDown, FileText, Keyboard, Loader2, Mic2, Settings2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,10 @@ import { QUESTION_COUNTS } from "@/features/interview-create/constants";
 import { useInterviewSetup } from "../hooks/use-interview-setup";
 import type { InterviewSetupMode, InterviewSetupSearch } from "../types";
 
+/**
+ * interview setup page
+ * @returns
+ */
 export function InterviewSetupPage({
   mode,
   search,

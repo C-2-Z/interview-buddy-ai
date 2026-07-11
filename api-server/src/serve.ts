@@ -1,3 +1,4 @@
+/** 服务启动入口：启动 HTTP 服务器 */
 import "./preload.js";
 import { serve } from "@hono/node-server";
 import app, { port } from "./app.js";

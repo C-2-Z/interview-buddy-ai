@@ -1,3 +1,4 @@
+/** settings - 用户设置 */
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -12,6 +13,10 @@ export const PROVIDER_LABELS: Record<string, string> = {
   anthropic: "Anthropic",
 };
 
+/**
+ * use settings
+ * @returns
+ */
 export function useSettings() {
   const [modelProvider, setModelProvider] = useState("deepseek");
   const [keys, setKeys] = useState<Record<string, string>>({});
@@ -22,6 +27,10 @@ export function useSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  /**
+   * 重新加载
+   * @returns Promise<
+   */
   async function reload() {
     const result = await getSettings();
     setModelProvider(result.model_provider);
@@ -32,10 +41,23 @@ export function useSettings() {
     reload().finally(() => setLoading(false));
   }, []);
 
+  /**
+   * 更新 key
+   *
+   * @param provider -
+   * @param value -
+   * @returns
+   */
   function updateKey(provider: string, value: string) {
     setKeys((prev) => ({ ...prev, [provider]: value }));
   }
 
+  /**
+   * 清空 key
+   *
+   * @param provider -
+   * @returns
+   */
   function clearKey(provider: string) {
     setToClear((prev) => new Set(prev).add(provider));
     setKeyStatus((prev) => ({
@@ -44,6 +66,10 @@ export function useSettings() {
     }));
   }
 
+  /**
+   * 保存
+   * @returns Promise<
+   */
   async function save() {
     setSaving(true);
     try {

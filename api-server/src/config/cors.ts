@@ -1,3 +1,4 @@
+/** CORS 跨域配置 */
 import type { MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 

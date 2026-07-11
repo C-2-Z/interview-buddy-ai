@@ -1,5 +1,10 @@
+/** voice-interview - 打断检测 */
 import { useCallback } from "react";
 
+/**
+ * use barge in
+ * @returns
+ */
 export function useBargeIn(params: {
   speaking: boolean;
   activeTurnId: string | null;

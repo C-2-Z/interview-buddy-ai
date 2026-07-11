@@ -1,3 +1,4 @@
+/** 题目分配算法兼容导出 */
 export {
   buildDedupInstruction,
   buildReferenceSection,
@@ -9,6 +10,10 @@ import {
   queryHistoricalTopics as queryHistoricalTopicsBySkill,
 } from "../../modules/skills/skills.repository.js";
 
+/**
+ * 查询 historical topics
+ * @returns
+ */
 export function queryHistoricalTopics(
   supabase: UserSupabaseClient,
   userIdOrSkillId: string,

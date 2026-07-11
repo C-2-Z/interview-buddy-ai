@@ -12,6 +12,10 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+/**
+ * 认证 page
+ * @returns
+ */
 function AuthPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -26,6 +30,12 @@ function AuthPage() {
     });
   }, [navigate]);
 
+  /**
+   * 提交
+   *
+   * @param e -
+   * @returns Promise<
+   */
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);

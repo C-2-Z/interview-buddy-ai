@@ -1,9 +1,14 @@
+/** app-shell - 应用导航状态 */
 import { useRouter, useRouterState } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { signOut } from "../api";
 import type { AppNavigationPath } from "../types";
 
+/**
+ * use app navigation
+ * @returns
+ */
 export function useAppNavigation() {
   const router = useRouter();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -14,6 +19,10 @@ export function useAppNavigation() {
     [pathname],
   );
 
+  /**
+   * 处理 签名 out
+   * @returns Promise<
+   */
   async function handleSignOut() {
     setSigningOut(true);
     try {

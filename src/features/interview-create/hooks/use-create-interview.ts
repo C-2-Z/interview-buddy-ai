@@ -1,3 +1,4 @@
+/** interview-create - 创建面试表单提交 */
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -13,6 +14,10 @@ import type {
   SkillMeta,
 } from "../types";
 
+/**
+ * use 创建 interview
+ * @returns
+ */
 export function useCreateInterview() {
   const navigate = useNavigate();
   const [skills, setSkills] = useState<SkillMeta[]>([]);
@@ -39,6 +44,12 @@ export function useCreateInterview() {
     [selectedSkillId, skills],
   );
 
+  /**
+   * 选择 skill
+   *
+   * @param skillId -
+   * @returns
+   */
   function selectSkill(skillId: string) {
     const skill = skills.find((item) => item.id === skillId);
     setSelectedSkillId(skillId);
@@ -46,17 +57,31 @@ export function useCreateInterview() {
     if (skill) setPosition(skill.name);
   }
 
+  /**
+   * 选择 custom
+   * @returns
+   */
   function selectCustom() {
     setSelectedSkillId(null);
     setUseCustom(true);
     setPosition("");
   }
 
+  /**
+   * 清空 恢复
+   * @returns
+   */
   function clearResume() {
     setResumeText("");
     setResumeName("");
   }
 
+  /**
+   * 提交
+   *
+   * @param event -
+   * @returns Promise<
+   */
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!position.trim()) {

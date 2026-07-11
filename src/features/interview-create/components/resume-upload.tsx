@@ -1,3 +1,4 @@
+/** interview-create - 简历上传组件 */
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
@@ -13,6 +14,10 @@ type ResumeUploadProps = {
   onClear: () => void;
 };
 
+/**
+ * 恢复 上传
+ * @returns
+ */
 export function ResumeUpload({
   resumeName,
   resumeText,
@@ -22,11 +27,21 @@ export function ResumeUpload({
 }: ResumeUploadProps) {
   const [parsing, setParsing] = useState(false);
 
+  /**
+   * choose file
+   * @returns
+   */
   function chooseFile() {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".pdf,.docx,.txt,.md";
     input.onchange = async (event) => {
+      /**
+       * file
+       *
+       * @param event.target as HTMLInputElement -
+       * @returns
+       */
       const file = (event.target as HTMLInputElement).files?.[0];
       if (!file) return;
       onResumeNameChange(file.name);

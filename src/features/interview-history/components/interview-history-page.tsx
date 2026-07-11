@@ -1,3 +1,4 @@
+/** interview-history - 历史面试列表页 */
 import { Link } from "@tanstack/react-router";
 import { FileSearch, Keyboard, Mic2, RotateCw, Search, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useInterviewHistory } from "../hooks/use-interview-history";
 import { isVoiceSession, type InterviewHistoryItem } from "../types";
 
+/**
+ * interview actions
+ *
+ * @param item -
+ * @returns
+ */
 function InterviewActions({ item }: { item: InterviewHistoryItem }) {
   if (item.status === "completed") {
     return (
@@ -53,6 +60,10 @@ function InterviewActions({ item }: { item: InterviewHistoryItem }) {
   );
 }
 
+/**
+ * interview history page
+ * @returns
+ */
 export function InterviewHistoryPage() {
   const history = useInterviewHistory();
   const hasFilters = Object.values(history.filters).some(

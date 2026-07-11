@@ -1,3 +1,4 @@
+/** interview-session - 面试对话主面板 */
 import { Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +17,10 @@ type ChatPanelProps = {
   onEvaluate: () => void;
 };
 
+/**
+ * chat panel
+ * @returns
+ */
 export function ChatPanel({
   message,
   messages,
