@@ -30,6 +30,10 @@ export async function listBankQuestions(params: {
   }));
 }
 
+/**
+ * 列出 favorite bank questions
+ * @returns 
+ */
 export async function listFavoriteBankQuestions(params: {
   supabase: UserSupabaseClient;
   userId: string;
@@ -42,6 +46,10 @@ export async function listFavoriteBankQuestions(params: {
   }));
 }
 
+/**
+ * 获取 bank question
+ * @returns 
+ */
 export async function getBankQuestion(params: {
   supabase: UserSupabaseClient;
   userId: string;

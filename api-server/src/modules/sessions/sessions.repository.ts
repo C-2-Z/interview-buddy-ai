@@ -29,6 +29,12 @@ export type CreateQuestionRow = {
   topic_summary: string | null;
 };
 
+/**
+ * 判断 missing schema column
+ *
+ * @param message - 
+ * @returns 
+ */
 function isMissingSchemaColumn(message: string): boolean {
   return /schema cache|column .* does not exist|Could not find the '.*' column/i.test(
     message,
@@ -47,6 +53,10 @@ function withFallbackInterviewMode<T extends Record<string, unknown>>(row: T): T
   };
 }
 
+/**
+ * 创建 session
+ * @returns 
+ */
 export async function createSession(
   supabase: UserSupabaseClient,
   row: CreateSessionRow,
@@ -89,6 +99,10 @@ export async function createSession(
   );
 }
 
+/**
+ * 创建 questions
+ * @returns 
+ */
 export async function createQuestions(
   supabase: UserSupabaseClient,
   rows: CreateQuestionRow[],
@@ -97,6 +111,12 @@ export async function createQuestions(
   if (error) throw new Error(error.message);
 }
 
+/**
+ * 列出 sessions
+ *
+ * @param supabase - 
+ * @returns Promise<
+ */
 export async function listSessions(supabase: UserSupabaseClient) {
   const selectors = [
     "id, position, difficulty, status, overall_score, created_at, interview_mode, voice_mode",
@@ -124,6 +144,10 @@ export async function listSessions(supabase: UserSupabaseClient) {
   );
 }
 
+/**
+ * 获取 session with questions
+ * @returns 
+ */
 export async function getSessionWithQuestions(
   supabase: UserSupabaseClient,
   sessionId: string,
@@ -150,6 +174,10 @@ export async function getSessionWithQuestions(
   };
 }
 
+/**
+ * 获取 session provider config
+ * @returns 
+ */
 export async function getSessionProviderConfig(
   supabase: UserSupabaseClient,
   sessionId: string,
@@ -163,6 +191,10 @@ export async function getSessionProviderConfig(
   return data;
 }
 
+/**
+ * 获取 scored questions
+ * @returns 
+ */
 export async function getScoredQuestions(
   supabase: UserSupabaseClient,
   sessionId: string,
@@ -175,6 +207,10 @@ export async function getScoredQuestions(
   return data ?? [];
 }
 
+/**
+ * 完成 session
+ * @returns 
+ */
 export async function completeSession(
   supabase: UserSupabaseClient,
   sessionId: string,

@@ -6,10 +6,22 @@ import type { Database } from './types'
 
 
 
+/**
+ * 判断 new supabase api key
+ *
+ * @param value - 
+ * @returns 
+ */
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
 }
 
+/**
+ * 创建 supabase 获取
+ *
+ * @param supabaseKey - 
+ * @returns 
+ */
 function createSupabaseFetch(supabaseKey: string): typeof fetch {
   return (input, init) => {
     const headers = new Headers(

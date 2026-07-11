@@ -1,6 +1,12 @@
 /** 对话管理：解析、格式化、复制检测、重定向 */
 import type { ConversationMessage } from "./questions.repository.js";
 
+/**
+ * 解析 conversation
+ *
+ * @param answer - 
+ * @returns 
+ */
 export function parseConversation(answer: string | null): ConversationMessage[] {
   if (!answer) return [];
   try {

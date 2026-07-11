@@ -10,6 +10,10 @@ import {
   queryHistoricalTopics as queryHistoricalTopicsBySkill,
 } from "../../modules/skills/skills.repository.js";
 
+/**
+ * 查询 historical topics
+ * @returns 
+ */
 export function queryHistoricalTopics(
   supabase: UserSupabaseClient,
   userIdOrSkillId: string,

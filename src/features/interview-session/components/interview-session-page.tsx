@@ -11,6 +11,12 @@ import { SessionProgress } from "./session-progress";
 import { useConversation } from "../hooks/use-conversation";
 import { useSession } from "../hooks/use-session";
 
+/**
+ * interview session page
+ *
+ * @param sessionId - 
+ * @returns 
+ */
 export function InterviewSessionPage({ sessionId }: { sessionId: string }) {
   const sessionState = useSession(sessionId);
   const conversation = useConversation({

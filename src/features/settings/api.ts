@@ -13,10 +13,18 @@ export type UpdateSettingsBody = {
   keys?: Record<string, string>;
 };
 
+/**
+ * 获取 settings
+ * @returns 
+ */
 export function getSettings(): Promise<SettingsResponse> {
   return apiRequest("GET", "/api/settings");
 }
 
+/**
+ * 更新 settings
+ * @returns 
+ */
 export function updateSettings(
   body: UpdateSettingsBody,
 ): Promise<{ message: string }> {

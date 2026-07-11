@@ -20,18 +20,40 @@ export type StoredSessionProvider = {
   user_api_key: string | null;
 };
 
+/**
+ * 判断 provider name
+ *
+ * @param value - 
+ * @returns 
+ */
 function isProviderName(value: string | null | undefined): value is ProviderName {
   return value === "deepseek" || value === "openai" || value === "anthropic";
 }
 
+/**
+ * default model
+ *
+ * @param name - 
+ * @returns 
+ */
 function defaultModel(name: ProviderName): string {
   return PROVIDER_CONFIGS[name].defaultModel;
 }
 
+/**
+ * key column
+ *
+ * @param name - 
+ * @returns 
+ */
 function keyColumn(name: ProviderName) {
   return `${name}_api_key` as const;
 }
 
+/**
+ * 解析 provider for creation
+ * @returns 
+ */
 export async function resolveProviderForCreation(
   supabase: UserSupabaseClient,
   userId: string,
@@ -67,6 +89,10 @@ export async function resolveProviderForCreation(
   };
 }
 
+/**
+ * 解析 provider for session
+ * @returns 
+ */
 export async function resolveProviderForSession(
   supabase: UserSupabaseClient,
   userId: string,

@@ -27,6 +27,13 @@ settings.get("/", async (c) => {
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return c.json({ error: "无法获取用户信息" }, 401);
 
+  /**
+   * meta
+   *
+   * @param user.user_metadata - 
+   * @param unknown> - 
+   * @returns 
+   */
   const meta = (user.user_metadata?.interview_settings as Record<string, unknown>) ?? {};
 
   // Build key status — masked previews only, never the full key
@@ -83,6 +90,13 @@ settings.put("/", async (c) => {
   // Get current settings from auth metadata
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return c.json({ error: "无法获取用户信息" }, 401);
+  /**
+   * current meta
+   *
+   * @param user.user_metadata - 
+   * @param unknown> - 
+   * @returns 
+   */
   const currentMeta = (user.user_metadata?.interview_settings as Record<string, unknown>) ?? {};
 
   // Merge with new values

@@ -1,6 +1,10 @@
 /** 维度评分校验与钳制 */
 import type { DimensionScores, DimensionSummary } from "./evaluation.types.js";
 
+/**
+ * 验证 dimension scores
+ * @returns 
+ */
 export function validateDimensionScores(
   raw: unknown,
 ): DimensionScores | null {
@@ -21,6 +25,10 @@ export function validateDimensionScores(
   return Object.keys(validated).length > 0 ? validated : null;
 }
 
+/**
+ * 验证 dimension summary
+ * @returns 
+ */
 export function validateDimensionSummary(
   raw: unknown,
 ): DimensionSummary | null {
@@ -49,11 +57,25 @@ export function validateDimensionSummary(
   };
 }
 
+/**
+ * clamp
+ *
+ * @param value - 
+ * @param min - 
+ * @param max - 
+ * @returns 
+ */
 function clamp(value: unknown, min: number, max: number): number {
   const n = Math.round(Number(value) || 0);
   return Math.max(min, Math.min(max, n));
 }
 
+/**
+ * 转为 string array
+ *
+ * @param value - 
+ * @returns 
+ */
 function toStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value

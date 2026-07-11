@@ -12,6 +12,10 @@ export const Route = createFileRoute("/_authenticated")({
   component: AuthedLayout,
 });
 
+/**
+ * authed layout
+ * @returns 
+ */
 function AuthedLayout() {
   const { user } = Route.useRouteContext();
   return (

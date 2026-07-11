@@ -74,18 +74,38 @@ const VOICE_REPLY_TIMEOUT_MS = 45000;
 const VOICE_DECISION_TIMEOUT_MS = 45000;
 const SENTENCE_BREAKS = new Set([".", "!", "?", "\n", "\u3002", "\uFF01", "\uFF1F"]);
 
+/**
+ * 发送 json
+ *
+ * @param ws - 
+ * @param event - 
+ * @returns void
+ */
 function sendJson(ws: WebSocket, event: VoiceServerEvent): void {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(event));
   }
 }
 
+/**
+ * error 详述
+ *
+ * @param error - 
+ * @returns 
+ */
 function errorDetail(error: unknown): string | undefined {
   if (error instanceof Error) return error.message;
   if (error == null) return undefined;
   return String(error);
 }
 
+/**
+ * 发送 voice error
+ *
+ * @param ws - 
+ * @param options - 
+ * @returns void
+ */
 function sendVoiceError(ws: WebSocket, options: VoiceErrorOptions): void {
   const meta = {
     code: options.code,
@@ -111,6 +131,10 @@ function sendVoiceError(ws: WebSocket, options: VoiceErrorOptions): void {
   });
 }
 
+/**
+ * 发送 stage
+ * @returns 
+ */
 function sendStage(
   ws: WebSocket,
   stage: string,
@@ -121,6 +145,10 @@ function sendStage(
   sendJson(ws, { type: "voice_stage", stage, message, turnId });
 }
 
+/**
+ * 创建 turn timeout
+ * @returns 
+ */
 function createTurnTimeout(
   turn: AudioTurnState,
   ws: WebSocket,
@@ -148,12 +176,24 @@ function createTurnTimeout(
   }, timeoutMs);
 }
 
+/**
+ * raw 转为 buffer
+ *
+ * @param data - 
+ * @returns 
+ */
 function rawToBuffer(data: WebSocket.RawData): Buffer {
   if (Buffer.isBuffer(data)) return data;
   if (Array.isArray(data)) return Buffer.concat(data);
   return Buffer.from(new Uint8Array(data));
 }
 
+/**
+ * 解析 client event
+ *
+ * @param data - 
+ * @returns 
+ */
 function parseClientEvent(data: WebSocket.RawData): VoiceClientEvent | null {
   try {
     const text = typeof data === "string"
@@ -170,6 +210,10 @@ function parseClientEvent(data: WebSocket.RawData): VoiceClientEvent | null {
   }
 }
 
+/**
+ * take 下一步 speech segment
+ * @returns 
+ */
 function takeNextSpeechSegment(
   buffer: string,
   final = false,
@@ -195,6 +239,10 @@ function takeNextSpeechSegment(
   return null;
 }
 
+/**
+ * 发送 decision events
+ * @returns 
+ */
 function sendDecisionEvents(
   ws: WebSocket,
   turn: AudioTurnState,
@@ -218,6 +266,12 @@ function sendDecisionEvents(
   }
 }
 
+/**
+ * install voice web socket
+ *
+ * @param server - 
+ * @returns void
+ */
 export function installVoiceWebSocket(server: ServerType): void {
   const httpServer = server as unknown as Server;
   const wss = new WebSocketServer({ noServer: true });
@@ -295,10 +349,22 @@ export function installVoiceWebSocket(server: ServerType): void {
     let activePromptTurn: SpeechTurnState | null = null;
     const interruptedTurns = new Set<string>();
 
+    /**
+     * 判断 interrupted
+     *
+     * @param turnId - 
+     * @returns 
+     */
     function isInterrupted(turnId: string): boolean {
       return interruptedTurns.has(turnId);
     }
 
+    /**
+     * interrupt
+     *
+     * @param turnId - 
+     * @returns Promise<
+     */
     async function interrupt(turnId: string) {
       voiceLog("interrupt", { turnId });
       interruptedTurns.add(turnId);
@@ -318,6 +384,12 @@ export function installVoiceWebSocket(server: ServerType): void {
       sendJson(ws, { type: "generation_cancelled", turnId });
     }
 
+    /**
+     * 加载 question progress
+     *
+     * @param questionId - 
+     * @returns Promise<
+     */
     async function loadQuestionProgress(questionId?: string): Promise<{
       question: VoiceSessionQuestion | null;
       currentQuestionIndex: number;
@@ -334,6 +406,10 @@ export function installVoiceWebSocket(server: ServerType): void {
       };
     }
 
+    /**
+     * 发送 session ready
+     * @returns Promise<
+     */
     async function sendSessionReady(): Promise<void> {
       const progress = await loadQuestionProgress();
       sendJson(ws, {
@@ -345,6 +421,10 @@ export function installVoiceWebSocket(server: ServerType): void {
       });
     }
 
+    /**
+     * 构建 question prompt
+     * @returns 
+     */
     function buildQuestionPrompt(
       question: VoiceSessionQuestion,
       totalQuestions: number,
@@ -357,6 +437,13 @@ export function installVoiceWebSocket(server: ServerType): void {
       return `${prefix}第 ${ordinal} 题，共 ${totalQuestions} 题。${question.question}`;
     }
 
+    /**
+     * prompt question
+     *
+     * @param questionId - 
+     * @param opening - 
+     * @returns Promise<
+     */
     async function promptQuestion(questionId?: string, opening = false): Promise<void> {
       const progress = await loadQuestionProgress(questionId);
       const question = progress.question;
@@ -408,6 +495,12 @@ export function installVoiceWebSocket(server: ServerType): void {
       }
     }
 
+    /**
+     * 验证 audio question
+     *
+     * @param questionId - 
+     * @returns Promise<
+     */
     async function validateAudioQuestion(questionId: string): Promise<{
       ok: true;
       question: VoiceSessionQuestion;
@@ -447,10 +540,21 @@ export function installVoiceWebSocket(server: ServerType): void {
       return { ok: true, question };
     }
 
+    /**
+     * speak text
+     *
+     * @param turn - 
+     * @param text - 
+     * @returns Promise<
+     */
     async function speakText(turn: SpeechTurnState, text: string): Promise<void> {
       let audioStarted = false;
       let sequence = 0;
 
+      /**
+       * 确保 audio 启动
+       * @returns 
+       */
       function ensureAudioStart() {
         if (audioStarted || isInterrupted(turn.turnId)) return;
         audioStarted = true;
@@ -485,6 +589,10 @@ export function installVoiceWebSocket(server: ServerType): void {
       }
     }
 
+    /**
+     * process prepared turn
+     * @returns 
+     */
     async function processPreparedTurn(
       turn: AudioTurnState,
       prepared: PreparedVoiceTurn,
@@ -495,6 +603,10 @@ export function installVoiceWebSocket(server: ServerType): void {
       let audioStarted = false;
       let sequence = 0;
 
+      /**
+       * 确保 audio 启动
+       * @returns 
+       */
       function ensureAudioStart() {
         if (audioStarted || isInterrupted(turn.turnId)) return;
         audioStarted = true;
@@ -505,6 +617,12 @@ export function installVoiceWebSocket(server: ServerType): void {
         });
       }
 
+      /**
+       * 入队 tts
+       *
+       * @param segment - 
+       * @returns 
+       */
       function enqueueTts(segment: string) {
         const text = segment.trim();
         if (!text) return;
@@ -669,6 +787,10 @@ export function installVoiceWebSocket(server: ServerType): void {
       }
     }
 
+    /**
+     * process transcript
+     * @returns 
+     */
     async function processTranscript(
       turn: AudioTurnState,
       transcript: string,
@@ -726,6 +848,12 @@ export function installVoiceWebSocket(server: ServerType): void {
       await processPreparedTurn(turn, prepared);
     }
 
+    /**
+     * consume asr events
+     *
+     * @param turn - 
+     * @returns Promise<
+     */
     async function consumeAsrEvents(turn: AudioTurnState) {
       let finalized = false;
       try {
@@ -823,6 +951,13 @@ export function installVoiceWebSocket(server: ServerType): void {
       }
     }
 
+    /**
+     * 接收 audio chunk
+     *
+     * @param turn - 
+     * @param chunk - 
+     * @returns void
+     */
     function receiveAudioChunk(turn: AudioTurnState, chunk: Buffer): void {
       turn.audioChunks += 1;
       turn.audioBytes += chunk.length;
@@ -842,6 +977,12 @@ export function installVoiceWebSocket(server: ServerType): void {
       turn.asr.sendAudio(chunk);
     }
 
+    /**
+     * 提交 audio turn
+     *
+     * @param turn - 
+     * @returns void
+     */
     function submitAudioTurn(turn: AudioTurnState): void {
       voiceLog("ws_audio_end", {
         turnId: turn.turnId,
@@ -857,6 +998,12 @@ export function installVoiceWebSocket(server: ServerType): void {
       turn.asr.finish();
     }
 
+    /**
+     * 处理 client event
+     *
+     * @param event - 
+     * @returns Promise<
+     */
     async function handleClientEvent(event: VoiceClientEvent): Promise<void> {
       voiceLog("ws_client_event", {
         sessionId: payload.sessionId,

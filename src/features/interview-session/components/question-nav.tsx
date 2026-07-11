@@ -2,6 +2,10 @@
 import { CheckCircle2 } from "lucide-react";
 import type { QuestionItem } from "../types";
 
+/**
+ * question nav
+ * @returns 
+ */
 export function QuestionNav({
   questions,
   current,

@@ -18,6 +18,12 @@ import {
 } from "../api";
 import type { BankQuestion } from "../types";
 
+/**
+ * question 详述 page
+ *
+ * @param questionId - 
+ * @returns 
+ */
 export function QuestionDetailPage({ questionId }: { questionId: string }) {
   const [question, setQuestion] = useState<BankQuestion | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,6 +37,10 @@ export function QuestionDetailPage({ questionId }: { questionId: string }) {
       .finally(() => setLoading(false));
   }, [questionId]);
 
+  /**
+   * 处理 切换 favorite
+   * @returns Promise<
+   */
   async function handleToggleFavorite() {
     if (!question) return;
     try {
@@ -44,6 +54,10 @@ export function QuestionDetailPage({ questionId }: { questionId: string }) {
     }
   }
 
+  /**
+   * 保存 practice answer
+   * @returns 
+   */
   function savePracticeAnswer() {
     if (!question) return;
     setSaving(true);

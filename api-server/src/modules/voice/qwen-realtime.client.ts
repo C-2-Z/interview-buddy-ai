@@ -74,6 +74,10 @@ class AsyncQueue<T> implements AsyncIterable<T> {
   }
 }
 
+/**
+ * qwen headers
+ * @returns 
+ */
 function qwenHeaders() {
   return {
     Authorization: `Bearer ${getRequiredEnv("AI_BAILIAN_API_KEY")}`,
@@ -81,6 +85,13 @@ function qwenHeaders() {
   };
 }
 
+/**
+ * qwen realtime url
+ *
+ * @param kind - 
+ * @param model - 
+ * @returns 
+ */
 function qwenRealtimeUrl(kind: "asr" | "tts", model: string): string {
   const envName = kind === "asr" ? "QWEN_ASR_URL" : "QWEN_TTS_URL";
   const rawUrl = process.env[envName]?.trim();
@@ -98,6 +109,12 @@ function qwenRealtimeUrl(kind: "asr" | "tts", model: string): string {
   return url.toString();
 }
 
+/**
+ * 解析 json message
+ *
+ * @param data - 
+ * @returns 
+ */
 function parseJsonMessage(data: WebSocket.RawData): Record<string, unknown> | null {
   if (typeof data !== "string" && !Buffer.isBuffer(data)) return null;
   try {
@@ -107,16 +124,35 @@ function parseJsonMessage(data: WebSocket.RawData): Record<string, unknown> | nu
   }
 }
 
+/**
+ * 发送 json
+ *
+ * @param ws - 
+ * @param value - 
+ * @param unknown> - 
+ * @returns void
+ */
 function sendJson(ws: WebSocket, value: Record<string, unknown>): void {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(value));
   }
 }
 
+/**
+ * event id
+ * @returns 
+ */
 function eventId(): string {
   return `event_${randomUUID()}`;
 }
 
+/**
+ * 提取 qwen error
+ *
+ * @param payload - 
+ * @param unknown> - 
+ * @returns 
+ */
 function extractQwenError(payload: Record<string, unknown>): Error | null {
   if (payload.type !== "error") return null;
   const error = payload.error as Record<string, unknown> | undefined;
@@ -125,20 +161,48 @@ function extractQwenError(payload: Record<string, unknown>): Error | null {
   return new Error(`${code}: ${message}`);
 }
 
+/**
+ * 提取 asr partial text
+ *
+ * @param payload - 
+ * @param unknown> - 
+ * @returns 
+ */
 function extractAsrPartialText(payload: Record<string, unknown>): string {
   const text = typeof payload.text === "string" ? payload.text : "";
   const stash = typeof payload.stash === "string" ? payload.stash : "";
   return `${text}${stash}`.trim();
 }
 
+/**
+ * 提取 asr final text
+ *
+ * @param payload - 
+ * @param unknown> - 
+ * @returns 
+ */
 function extractAsrFinalText(payload: Record<string, unknown>): string {
   return typeof payload.transcript === "string" ? payload.transcript.trim() : "";
 }
 
+/**
+ * qwen event type
+ *
+ * @param payload - 
+ * @param unknown> - 
+ * @returns 
+ */
 function qwenEventType(payload: Record<string, unknown>): string {
   return typeof payload.type === "string" ? payload.type : "";
 }
 
+/**
+ * 发送 asr session 更新
+ *
+ * @param ws - 
+ * @param sampleRate - 
+ * @returns void
+ */
 function sendAsrSessionUpdate(ws: WebSocket, sampleRate: number): void {
   sendJson(ws, {
     event_id: eventId(),
@@ -155,6 +219,10 @@ function sendAsrSessionUpdate(ws: WebSocket, sampleRate: number): void {
   });
 }
 
+/**
+ * 发送 tts session 更新
+ * @returns 
+ */
 function sendTtsSessionUpdate(ws: WebSocket, params: {
   voice?: string;
   sampleRate: number;
@@ -172,6 +240,10 @@ function sendTtsSessionUpdate(ws: WebSocket, params: {
   });
 }
 
+/**
+ * 创建 qwen asr session
+ * @returns 
+ */
 export function createQwenAsrSession(params: {
   model: string;
   sampleRate: number;
@@ -232,12 +304,22 @@ export function createQwenAsrSession(params: {
   let sentChunks = 0;
   let sentBytes = 0;
 
+  /**
+   * cleanup
+   * @returns 
+   */
   function cleanup() {
     params.signal?.removeEventListener("abort", abort);
     if (finishTimer) clearTimeout(finishTimer);
     if (ws.readyState === WebSocket.OPEN) ws.close();
   }
 
+  /**
+   * 结束 with text
+   *
+   * @param text - 
+   * @returns 
+   */
   function finishWithText(text: string) {
     if (settled) return;
     settled = true;
@@ -260,6 +342,12 @@ export function createQwenAsrSession(params: {
     cleanup();
   }
 
+  /**
+   * fail
+   *
+   * @param error - 
+   * @returns 
+   */
   function fail(error: Error) {
     if (settled) return;
     settled = true;
@@ -268,6 +356,10 @@ export function createQwenAsrSession(params: {
     cleanup();
   }
 
+  /**
+   * 中断
+   * @returns 
+   */
   function abort() {
     if (settled) return;
     settled = true;
@@ -276,6 +368,12 @@ export function createQwenAsrSession(params: {
     cleanup();
   }
 
+  /**
+   * 标记 audio sent
+   *
+   * @param chunk - 
+   * @returns 
+   */
   function markAudioSent(chunk: Buffer) {
     sentChunks += 1;
     sentBytes += chunk.length;
@@ -284,6 +382,12 @@ export function createQwenAsrSession(params: {
     }
   }
 
+  /**
+   * 发送 audio chunk
+   *
+   * @param chunk - 
+   * @returns 
+   */
   function sendAudioChunk(chunk: Buffer) {
     markAudioSent(chunk);
     sendJson(ws, {
@@ -293,6 +397,10 @@ export function createQwenAsrSession(params: {
     });
   }
 
+  /**
+   * 发送 结束
+   * @returns 
+   */
   function sendFinish() {
     if (!opened || !ready || finishSent || settled) return;
     finishSent = true;
@@ -321,6 +429,10 @@ export function createQwenAsrSession(params: {
     }, 15000);
   }
 
+  /**
+   * flush audio
+   * @returns 
+   */
   function flushAudio() {
     if (!opened || !ready || settled) return;
     for (const chunk of pendingChunks.splice(0)) sendAudioChunk(chunk);
@@ -441,6 +553,10 @@ export function createQwenAsrSession(params: {
   };
 }
 
+/**
+ * stream qwen tts audio
+ * @returns 
+ */
 export async function* streamQwenTtsAudio(params: {
   model: string;
   inputText: string;
@@ -472,11 +588,19 @@ export async function* streamQwenTtsAudio(params: {
   let audioChunks = 0;
   let audioBytes = 0;
 
+  /**
+   * cleanup
+   * @returns 
+   */
   function cleanup() {
     params.signal?.removeEventListener("abort", abort);
     if (ws.readyState === WebSocket.OPEN) ws.close();
   }
 
+  /**
+   * 关闭
+   * @returns 
+   */
   function close() {
     if (settled) return;
     settled = true;
@@ -485,6 +609,12 @@ export async function* streamQwenTtsAudio(params: {
     cleanup();
   }
 
+  /**
+   * fail
+   *
+   * @param error - 
+   * @returns 
+   */
   function fail(error: Error) {
     if (settled) return;
     settled = true;
@@ -493,6 +623,10 @@ export async function* streamQwenTtsAudio(params: {
     cleanup();
   }
 
+  /**
+   * 中断
+   * @returns 
+   */
   function abort() {
     if (settled) return;
     settled = true;
@@ -501,6 +635,10 @@ export async function* streamQwenTtsAudio(params: {
     cleanup();
   }
 
+  /**
+   * 发送 text
+   * @returns 
+   */
   function sendText() {
     if (!ready || textSent || settled) return;
     textSent = true;
@@ -597,6 +735,10 @@ export async function* streamQwenTtsAudio(params: {
   }
 }
 
+/**
+ * 运行 qwen realtime task
+ * @returns 
+ */
 export async function runQwenRealtimeTask(params: {
   kind: "asr" | "tts";
   model: string;

@@ -23,6 +23,12 @@ export async function apiRequest<T>(
   if (!res.ok) {
     let message = `请求失败 (${res.status})`;
     try {
+      /**
+       * err
+       *
+       * @param await res.json() - 
+       * @returns 
+       */
       const err = (await res.json()) as { error?: string };
       message = err.error ?? message;
     } catch {

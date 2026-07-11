@@ -4,6 +4,10 @@ import { Button } from "@/components/ui/button";
 import { ChatMessages } from "./chat-messages";
 import type { Message, QuestionItem } from "../types";
 
+/**
+ * question result
+ * @returns 
+ */
 export function QuestionResult({
   question,
   messages,

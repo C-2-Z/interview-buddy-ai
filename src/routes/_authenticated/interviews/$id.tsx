@@ -5,6 +5,10 @@ export const Route = createFileRoute("/_authenticated/interviews/$id")({
   component: InterviewReportRoute,
 });
 
+/**
+ * interview report 路由
+ * @returns 
+ */
 function InterviewReportRoute() {
   return <InterviewReportPage sessionId={Route.useParams().id} />;
 }

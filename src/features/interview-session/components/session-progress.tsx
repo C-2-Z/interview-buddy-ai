@@ -3,6 +3,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import type { SessionDetail } from "../types";
 
+/**
+ * session progress
+ * @returns 
+ */
 export function SessionProgress({
   session,
   progress,

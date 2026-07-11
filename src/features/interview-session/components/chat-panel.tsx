@@ -17,6 +17,10 @@ type ChatPanelProps = {
   onEvaluate: () => void;
 };
 
+/**
+ * chat panel
+ * @returns 
+ */
 export function ChatPanel({
   message,
   messages,

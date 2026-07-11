@@ -8,10 +8,20 @@ import type { SetupResume } from "./types";
 
 export { getSession, listSkills };
 
+/**
+ * 获取 setup 恢复
+ *
+ * @param resumeId - 
+ * @returns 
+ */
 export function getSetupResume(resumeId: string): Promise<SetupResume> {
   return apiRequest("GET", `/api/resumes/${resumeId}`);
 }
 
+/**
+ * 创建 configured interview
+ * @returns 
+ */
 export function createConfiguredInterview(
   mode: "text" | "voice",
   params: CreateSessionParams,

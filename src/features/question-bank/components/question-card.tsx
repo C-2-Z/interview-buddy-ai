@@ -10,6 +10,10 @@ import {
 } from "@/components/ui/card";
 import type { BankQuestion } from "../types";
 
+/**
+ * question card
+ * @returns 
+ */
 export function QuestionCard({
   question,
   onToggleFavorite,

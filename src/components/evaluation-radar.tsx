@@ -33,6 +33,10 @@ const LABEL_MAP: Record<string, string> = {
   PROJECT: "项目",
 };
 
+/**
+ * evaluation radar
+ * @returns 
+ */
 export function EvaluationRadar({
   summary,
   compact,

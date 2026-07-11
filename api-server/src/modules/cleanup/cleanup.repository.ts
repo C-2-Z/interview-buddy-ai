@@ -1,11 +1,21 @@
 /** 清理服务 DB 访问 */
 import { getRequiredEnv } from "../../config/env.js";
 
+/**
+ * api url
+ *
+ * @param path - 
+ * @returns 
+ */
 function apiUrl(path: string): string {
   const base = getRequiredEnv("SUPABASE_URL");
   return `${base}/rest/v1${path}`;
 }
 
+/**
+ * admin headers
+ * @returns 
+ */
 function adminHeaders(): Record<string, string> {
   return {
     apikey: getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY"),
@@ -19,6 +29,12 @@ export interface SessionRow {
   id: string;
 }
 
+/**
+ * 查找 stale idle sessions
+ *
+ * @param idleMinutes - 
+ * @returns Promise<
+ */
 export async function findStaleIdleSessions(idleMinutes: number): Promise<SessionRow[]> {
   const cutoff = new Date(Date.now() - idleMinutes * 60 * 1000).toISOString();
   const res = await fetch(
@@ -29,6 +45,12 @@ export async function findStaleIdleSessions(idleMinutes: number): Promise<Sessio
   return res.json() as Promise<SessionRow[]>;
 }
 
+/**
+ * 查找 expired sessions
+ *
+ * @param hours - 
+ * @returns Promise<
+ */
 export async function findExpiredSessions(hours: number): Promise<SessionRow[]> {
   const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
   const res = await fetch(
@@ -39,6 +61,13 @@ export async function findExpiredSessions(hours: number): Promise<SessionRow[]> 
   return res.json() as Promise<SessionRow[]>;
 }
 
+/**
+ * 关闭 session
+ *
+ * @param sessionId - 
+ * @param feedback - 
+ * @returns Promise<
+ */
 export async function closeSession(sessionId: string, feedback: string): Promise<void> {
   const res = await fetch(
     `${apiUrl("/interview_sessions")}?id=eq.${sessionId}`,

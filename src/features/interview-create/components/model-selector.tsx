@@ -14,6 +14,10 @@ type ModelSelectorProps = {
   onChange: (value: ModelProviderName) => void;
 };
 
+/**
+ * model selector
+ * @returns 
+ */
 export function ModelSelector({ value, onChange }: ModelSelectorProps) {
   return (
     <div className="space-y-2">

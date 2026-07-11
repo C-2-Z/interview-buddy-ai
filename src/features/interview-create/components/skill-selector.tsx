@@ -19,6 +19,10 @@ type SkillSelectorProps = {
   onSelectCustom: () => void;
 };
 
+/**
+ * skill selector
+ * @returns 
+ */
 export function SkillSelector({
   skills,
   selectedSkillId,

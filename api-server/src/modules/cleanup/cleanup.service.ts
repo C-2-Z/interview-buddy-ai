@@ -46,6 +46,10 @@ export async function closeStaleSessionsForUser(
   }
 }
 
+/**
+ * 运行 cleanup
+ * @returns Promise<
+ */
 export async function runCleanup(): Promise<void> {
   // Guard — check we have the env vars needed before querying
   try {

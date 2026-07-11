@@ -10,6 +10,10 @@ import {
   getVoiceSessionWithQuestions,
 } from "./voice.repository.js";
 
+/**
+ * 创建 voice interview session
+ * @returns 
+ */
 export function createVoiceInterviewSession(params: {
   supabase: UserSupabaseClient;
   userId: string;
@@ -22,6 +26,10 @@ export function createVoiceInterviewSession(params: {
   });
 }
 
+/**
+ * 获取 voice session
+ * @returns 
+ */
 export async function getVoiceSession(params: {
   supabase: UserSupabaseClient;
   sessionId: string;
@@ -29,6 +37,10 @@ export async function getVoiceSession(params: {
   return getVoiceSessionWithQuestions(params.supabase, params.sessionId);
 }
 
+/**
+ * 结束 voice session
+ * @returns 
+ */
 export async function finishVoiceSession(params: {
   supabase: UserSupabaseClient;
   userId: string;

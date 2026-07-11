@@ -12,6 +12,10 @@ export const Route = createFileRoute("/_authenticated/new")({
   component: TextInterviewSetupRoute,
 });
 
+/**
+ * text interview setup 路由
+ * @returns 
+ */
 function TextInterviewSetupRoute() {
   return <InterviewSetupPage mode="text" search={Route.useSearch()} />;
 }

@@ -2,6 +2,12 @@
 import { apiRequest } from "@/shared/api/http-client";
 import type { BankFilters, BankQuestion } from "./types";
 
+/**
+ * 列出 bank questions
+ *
+ * @param filters - 
+ * @returns 
+ */
 export function listBankQuestions(filters?: BankFilters): Promise<BankQuestion[]> {
   const params = new URLSearchParams();
   if (filters?.position) params.set("position", filters.position);
@@ -12,16 +18,30 @@ export function listBankQuestions(filters?: BankFilters): Promise<BankQuestion[]
   return apiRequest("GET", `/api/bank${query ? `?${query}` : ""}`);
 }
 
+/**
+ * 获取 bank question
+ *
+ * @param id - 
+ * @returns 
+ */
 export function getBankQuestion(id: string): Promise<BankQuestion> {
   return apiRequest("GET", `/api/bank/${id}`);
 }
 
+/**
+ * 切换 favorite
+ * @returns 
+ */
 export function toggleFavorite(
   questionId: string,
 ): Promise<{ is_favorited: boolean }> {
   return apiRequest("POST", `/api/bank/${questionId}/favorite`);
 }
 
+/**
+ * 列出 favorite questions
+ * @returns 
+ */
 export function listFavoriteQuestions(): Promise<BankQuestion[]> {
   return apiRequest("GET", "/api/bank/favorites");
 }

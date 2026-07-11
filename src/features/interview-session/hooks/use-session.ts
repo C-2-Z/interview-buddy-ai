@@ -7,6 +7,12 @@ import {
 } from "../api";
 import type { QuestionItem, SessionDetail } from "../types";
 
+/**
+ * use session
+ *
+ * @param sessionId - 
+ * @returns 
+ */
 export function useSession(sessionId: string) {
   const [session, setSession] = useState<SessionDetail | null>(null);
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
@@ -36,12 +42,23 @@ export function useSession(sessionId: string) {
   const answeredCount = questions.filter((question) => question.score != null).length;
   const progress = questions.length ? (answeredCount / questions.length) * 100 : 0;
 
+  /**
+   * 下一步 question
+   * @returns 
+   */
   function nextQuestion() {
     if (current < questions.length - 1) {
       setCurrent(current + 1);
     }
   }
 
+  /**
+   * 更新 current question 评分
+   *
+   * @param score - 
+   * @param feedback - 
+   * @returns 
+   */
   function updateCurrentQuestionScore(score: number, feedback: string) {
     setQuestions((prev) =>
       prev.map((question, index) =>
@@ -50,6 +67,10 @@ export function useSession(sessionId: string) {
     );
   }
 
+  /**
+   * 完成 interview
+   * @returns Promise<
+   */
   async function completeInterview() {
     setFinishing(true);
     try {

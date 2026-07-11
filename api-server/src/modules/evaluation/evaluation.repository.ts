@@ -2,6 +2,10 @@
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import type { DimensionScores, DimensionSummary } from "./evaluation.types.js";
 
+/**
+ * 保存 dimension scores
+ * @returns 
+ */
 export async function saveDimensionScores(
   supabase: UserSupabaseClient,
   questionId: string,
@@ -13,6 +17,10 @@ export async function saveDimensionScores(
     .eq("id", questionId);
 }
 
+/**
+ * 保存 dimension summary
+ * @returns 
+ */
 export async function saveDimensionSummary(
   supabase: UserSupabaseClient,
   sessionId: string,
@@ -24,6 +32,10 @@ export async function saveDimensionSummary(
     .eq("id", sessionId);
 }
 
+/**
+ * 加载 question dimension scores
+ * @returns 
+ */
 export async function loadQuestionDimensionScores(
   supabase: UserSupabaseClient,
   sessionId: string,

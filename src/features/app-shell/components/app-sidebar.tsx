@@ -26,6 +26,12 @@ import {
 import { APP_NAVIGATION, APP_VERSION } from "../constants";
 import { useAppNavigation } from "../hooks/use-app-navigation";
 
+/**
+ * app sidebar
+ *
+ * @param userEmail - 
+ * @returns 
+ */
 export function AppSidebar({ userEmail }: { userEmail?: string }) {
   const navigation = useAppNavigation();
   const { setOpenMobile } = useSidebar();

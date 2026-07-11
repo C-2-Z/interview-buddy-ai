@@ -1,6 +1,12 @@
 /** voice-interview - 音频播放 */
 import { useRef, useState } from "react";
 
+/**
+ * pcm 转为 float
+ *
+ * @param chunk - 
+ * @returns 
+ */
 function pcm16ToFloat32(chunk: ArrayBuffer): Float32Array {
   const view = new DataView(chunk);
   const samples = new Float32Array(Math.floor(chunk.byteLength / 2));
@@ -11,6 +17,10 @@ function pcm16ToFloat32(chunk: ArrayBuffer): Float32Array {
   return samples;
 }
 
+/**
+ * use audio playback
+ * @returns 
+ */
 export function useAudioPlayback() {
   const [speaking, setSpeaking] = useState(false);
   const audioContext = useRef<AudioContext | null>(null);
@@ -20,6 +30,10 @@ export function useAudioPlayback() {
   const sources = useRef<Set<AudioBufferSourceNode>>(new Set());
   const finished = useRef(false);
 
+  /**
+   * 获取 context
+   * @returns 
+   */
   function getContext(): AudioContext {
     if (!audioContext.current) {
       audioContext.current = new AudioContext();
@@ -28,6 +42,10 @@ export function useAudioPlayback() {
     return audioContext.current;
   }
 
+  /**
+   * 清空 sources
+   * @returns 
+   */
   function clearSources() {
     for (const source of sources.current) {
       try {
@@ -39,6 +57,13 @@ export function useAudioPlayback() {
     sources.current.clear();
   }
 
+  /**
+   * 启动
+   *
+   * @param turnId - 
+   * @param nextSampleRate - 
+   * @returns 
+   */
   function start(turnId: string, nextSampleRate: number) {
     stop();
     currentTurnId.current = turnId;
@@ -48,6 +73,13 @@ export function useAudioPlayback() {
     setSpeaking(true);
   }
 
+  /**
+   * 添加 chunk
+   *
+   * @param turnId - 
+   * @param chunk - 
+   * @returns 
+   */
   function addChunk(turnId: string, chunk: ArrayBuffer) {
     if (currentTurnId.current !== turnId || chunk.byteLength === 0) return;
 
@@ -78,6 +110,12 @@ export function useAudioPlayback() {
     source.start(startAt);
   }
 
+  /**
+   * 结束
+   *
+   * @param turnId - 
+   * @returns Promise<
+   */
   async function finish(turnId: string) {
     if (currentTurnId.current !== turnId) return;
     finished.current = true;
@@ -87,6 +125,10 @@ export function useAudioPlayback() {
     }
   }
 
+  /**
+   * 停止
+   * @returns 
+   */
   function stop() {
     clearSources();
     setSpeaking(false);

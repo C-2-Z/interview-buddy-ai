@@ -8,6 +8,12 @@ import {
 } from "../api";
 import type { Message, QuestionItem } from "../types";
 
+/**
+ * 解析 messages
+ *
+ * @param answer - 
+ * @returns 
+ */
 function parseMessages(answer: string | null): Message[] {
   if (!answer) return [];
   try {
@@ -28,6 +34,10 @@ type UseConversationParams = {
   onRefresh: () => Promise<void>;
 };
 
+/**
+ * use conversation
+ * @returns 
+ */
 export function useConversation({
   sessionId,
   currentIndex,
@@ -50,6 +60,10 @@ export function useConversation({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  /**
+   * refetch question messages
+   * @returns Promise<
+   */
   async function refetchQuestionMessages() {
     if (!question) return;
     const refreshed = await getSession(sessionId);
@@ -57,6 +71,10 @@ export function useConversation({
     setMessages(parseMessages(refreshedQuestion?.answer ?? null));
   }
 
+  /**
+   * 处理 发送 message
+   * @returns Promise<
+   */
   async function handleSendMessage() {
     if (!question || !message.trim()) {
       toast.error("请输入你的回答");
@@ -103,6 +121,10 @@ export function useConversation({
     }
   }
 
+  /**
+   * 处理 评估
+   * @returns Promise<
+   */
   async function handleEvaluate() {
     if (!question) return;
     setEvaluating(true);

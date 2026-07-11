@@ -3,6 +3,10 @@ import { Bot, Captions, Mic2 } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import type { VoiceMessage } from "../types";
 
+/**
+ * live transcript
+ * @returns 
+ */
 export function LiveTranscript({
   messages,
   partial,

@@ -7,6 +7,10 @@ import { BankFilters } from "./bank-filters";
 import { QuestionCard } from "./question-card";
 import { useQuestionBank } from "../hooks/use-question-bank";
 
+/**
+ * question bank page
+ * @returns 
+ */
 export function QuestionBankPage() {
   const bank = useQuestionBank();
 

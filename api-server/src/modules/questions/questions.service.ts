@@ -28,6 +28,10 @@ import {
 const MAX_FOLLOWUPS = 3;
 const MAX_TOTAL_MESSAGES = 20;
 
+/**
+ * 判断 voice interview question
+ * @returns 
+ */
 function isVoiceInterviewQuestion(
   question: Exclude<Awaited<ReturnType<typeof getQuestionWithSession>>, null>,
 ): boolean {
@@ -37,6 +41,10 @@ function isVoiceInterviewQuestion(
   );
 }
 
+/**
+ * 构建 context
+ * @returns 
+ */
 function buildContext(
   question: Awaited<ReturnType<typeof getQuestionWithSession>>,
   totalQuestions: number,
@@ -243,6 +251,10 @@ export async function evaluateQuestionConversation(params: {
   return evaluation;
 }
 
+/**
+ * auto 评估 question
+ * @returns 
+ */
 async function autoEvaluateQuestion(params: {
   question: Exclude<Awaited<ReturnType<typeof getQuestionWithSession>>, null>;
   conversation: import("./questions.repository.js").ConversationMessage[];

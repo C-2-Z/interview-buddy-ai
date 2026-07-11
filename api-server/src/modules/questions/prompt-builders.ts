@@ -11,6 +11,12 @@ export type InterviewContext = {
   currentQuestionIndex: number;
 };
 
+/**
+ * job description info
+ *
+ * @param jobDescription - 
+ * @returns 
+ */
 function jobDescriptionInfo(jobDescription: string | null): string {
   return jobDescription?.trim()
     ? `\n岗位需求描述: ${jobDescription}`

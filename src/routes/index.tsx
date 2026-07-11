@@ -17,6 +17,10 @@ export const Route = createFileRoute("/")({
   component: Landing,
 });
 
+/**
+ * landing
+ * @returns 
+ */
 function Landing() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/40">
@@ -75,6 +79,14 @@ function Landing() {
   );
 }
 
+/**
+ * feature
+ *
+ * @param icon - 
+ * @param title - 
+ * @param desc - 
+ * @returns 
+ */
 function Feature({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
     <div className="rounded-xl border bg-card p-6">

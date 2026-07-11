@@ -3,6 +3,10 @@ import { useCallback, useEffect, useState } from "react";
 import { listRecentInterviews } from "../api";
 import type { RecentInterview } from "../types";
 
+/**
+ * use interview hub
+ * @returns 
+ */
 export function useInterviewHub() {
   const [sessions, setSessions] = useState<RecentInterview[]>([]);
   const [loading, setLoading] = useState(true);

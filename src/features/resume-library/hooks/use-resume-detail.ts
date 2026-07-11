@@ -3,6 +3,12 @@ import { useCallback, useEffect, useState } from "react";
 import { getResume } from "../api";
 import type { ResumeDetail } from "../types";
 
+/**
+ * use 恢复 详述
+ *
+ * @param resumeId - 
+ * @returns 
+ */
 export function useResumeDetail(resumeId: string) {
   const [resume, setResume] = useState<ResumeDetail | null>(null);
   const [loading, setLoading] = useState(true);

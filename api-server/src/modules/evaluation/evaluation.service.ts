@@ -79,6 +79,10 @@ export function aggregateDimensions(
   return { dimensions, overallScore, ...identifyWeaknesses(dimensions) };
 }
 
+/**
+ * identify weaknesses
+ * @returns 
+ */
 function identifyWeaknesses(
   dimensions: Record<string, AggregatedDimension>,
 ): { strengths: string[]; weaknesses: string[] } {
@@ -94,6 +98,13 @@ function identifyWeaknesses(
     SYSTEM_DESIGN: "系统设计", PRODUCT_THINKING: "产品思维与设计",
     DATA_DRIVEN: "数据驱动", STRATEGY: "产品战略", PROJECT_MGMT: "项目管理", PROJECT: "项目经历",
   };
+  /**
+   * fmt
+   *
+   * @param k - 
+   * @param s - 
+   * @returns 
+   */
   const fmt = (k: string, s: number) => (labelMap[k] || k) + "(" + s + "分)";
   const strengths = sorted.slice(0, 3).filter(([, d]) => d.score >= 70).map(([k, d]) => fmt(k, d.score));
   const weaknesses = sorted.slice(-3).filter(([, d]) => d.score < 70).map(([k, d]) => fmt(k, d.score));

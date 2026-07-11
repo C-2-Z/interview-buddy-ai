@@ -16,6 +16,12 @@ import { EvaluationRadar } from "@/components/evaluation-radar";
 import { useInterviewReport } from "../hooks/use-interview-report";
 import { isVoiceSession } from "../types";
 
+/**
+ * interview report page
+ *
+ * @param sessionId - 
+ * @returns 
+ */
 export function InterviewReportPage({ sessionId }: { sessionId: string }) {
   const reportState = useInterviewReport(sessionId);
   const [expandedQuestions, setExpandedQuestions] = useState<string[]>([]);
@@ -58,6 +64,10 @@ export function InterviewReportPage({ sessionId }: { sessionId: string }) {
   const isVoice = isVoiceSession(session);
   const questionValues = questions.map((question) => question.id);
 
+  /**
+   * print report
+   * @returns 
+   */
   function printReport() {
     setExpandedQuestions(questionValues);
     window.setTimeout(() => window.print(), 50);

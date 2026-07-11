@@ -17,6 +17,10 @@ export const BANK_POSITIONS = [
 export const BANK_DIFFICULTIES = ["初级", "中级", "高级"];
 export const BANK_TYPES = ["技术题", "行为题", "场景题", "系统设计"];
 
+/**
+ * use question bank
+ * @returns 
+ */
 export function useQuestionBank() {
   const [questions, setQuestions] = useState<BankQuestion[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,6 +31,12 @@ export function useQuestionBank() {
     search: "",
   });
 
+  /**
+   * 加载
+   *
+   * @param nextFilters - 
+   * @returns Promise<
+   */
   async function load(nextFilters?: BankFilters) {
     setLoading(true);
     try {
@@ -43,6 +53,13 @@ export function useQuestionBank() {
     load();
   }, []);
 
+  /**
+   * apply 过滤
+   *
+   * @param key - 
+   * @param value - 
+   * @returns 
+   */
   function applyFilter(key: keyof Required<BankFilters>, value: string) {
     const next = { ...filters, [key]: value };
     setFilters(next);
@@ -54,11 +71,21 @@ export function useQuestionBank() {
     load(Object.keys(params).length ? params : undefined);
   }
 
+  /**
+   * 清空 filters
+   * @returns 
+   */
   function clearFilters() {
     setFilters({ position: "", difficulty: "", type: "", search: "" });
     load();
   }
 
+  /**
+   * 切换 question favorite
+   *
+   * @param question - 
+   * @returns Promise<
+   */
   async function toggleQuestionFavorite(question: BankQuestion) {
     try {
       await toggleFavorite(question.id);

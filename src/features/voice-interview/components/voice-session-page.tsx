@@ -17,6 +17,12 @@ import { CompletedSession } from "@/features/interview-session/components/comple
 import { VoiceInterviewPanel } from "./voice-interview-panel";
 import { useVoiceSession } from "../hooks/use-voice-session";
 
+/**
+ * voice session page
+ *
+ * @param sessionId - 
+ * @returns 
+ */
 export function VoiceSessionPage({ sessionId }: { sessionId: string }) {
   const voiceSession = useVoiceSession(sessionId);
 

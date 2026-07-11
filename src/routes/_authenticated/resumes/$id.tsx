@@ -5,6 +5,10 @@ export const Route = createFileRoute("/_authenticated/resumes/$id")({
   component: ResumeDetailRoute,
 });
 
+/**
+ * 恢复 详述 路由
+ * @returns 
+ */
 function ResumeDetailRoute() {
   return <ResumeDetailPage resumeId={Route.useParams().id} />;
 }

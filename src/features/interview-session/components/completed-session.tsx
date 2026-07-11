@@ -7,6 +7,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import type { QuestionItem, SessionDetail } from "../types";
 import { EvaluationRadar } from "@/components/evaluation-radar";
 
+/**
+ * completed session
+ * @returns 
+ */
 export function CompletedSession({
   session,
   questions,

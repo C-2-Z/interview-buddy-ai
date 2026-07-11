@@ -6,6 +6,13 @@ export interface ChatMessage {
   content: string;
 }
 
+/**
+ * call ai
+ *
+ * @param messages - 
+ * @param model - 
+ * @returns Promise<
+ */
 export async function callAI(messages: ChatMessage[], model = "deepseek-chat"): Promise<string> {
   const key = process.env.DEEPSEEK_API_KEY;
   if (!key) throw new Error("Missing DEEPSEEK_API_KEY");
@@ -25,6 +32,12 @@ export async function callAI(messages: ChatMessage[], model = "deepseek-chat"): 
     throw new Error(`AI 调用失败: ${res.status} ${text}`);
   }
 
+  /**
+   * data
+   *
+   * @param await res.json() - 
+   * @returns 
+   */
   const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
   const content = data.choices?.[0]?.message?.content;
   if (!content) throw new Error("AI 未返回内容");

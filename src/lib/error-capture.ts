@@ -5,6 +5,12 @@
 let lastCapturedError: { error: unknown; at: number } | undefined;
 const TTL_MS = 5_000;
 
+/**
+ * record
+ *
+ * @param error - 
+ * @returns 
+ */
 function record(error: unknown) {
   lastCapturedError = { error, at: Date.now() };
 }
@@ -16,6 +22,10 @@ if (typeof globalThis.addEventListener === "function") {
   );
 }
 
+/**
+ * consume last captured error
+ * @returns 
+ */
 export function consumeLastCapturedError(): unknown {
   if (!lastCapturedError) return undefined;
   if (Date.now() - lastCapturedError.at > TTL_MS) {

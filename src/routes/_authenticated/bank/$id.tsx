@@ -5,6 +5,10 @@ export const Route = createFileRoute("/_authenticated/bank/$id")({
   component: BankQuestionRoute,
 });
 
+/**
+ * bank question 路由
+ * @returns 
+ */
 function BankQuestionRoute() {
   const { id } = Route.useParams();
   return <QuestionDetailPage questionId={id} />;

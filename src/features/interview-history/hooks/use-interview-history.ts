@@ -12,6 +12,10 @@ const DEFAULT_FILTERS: InterviewHistoryFilters = {
 
 const FILTER_STORAGE_KEY = "ezmock:interview-history:filters";
 
+/**
+ * 读取 stored filters
+ * @returns 
+ */
 function readStoredFilters(): InterviewHistoryFilters {
   if (typeof window === "undefined") return DEFAULT_FILTERS;
   try {
@@ -25,6 +29,10 @@ function readStoredFilters(): InterviewHistoryFilters {
   }
 }
 
+/**
+ * use interview history
+ * @returns 
+ */
 export function useInterviewHistory() {
   const [items, setItems] = useState<InterviewHistoryItem[]>([]);
   const [filters, setFilters] = useState(readStoredFilters);

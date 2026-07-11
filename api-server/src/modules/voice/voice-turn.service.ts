@@ -77,6 +77,13 @@ export type PreparedVoiceTurn =
       };
     });
 
+/**
+ * 构建 context
+ *
+ * @param question - 
+ * @param supabase - 
+ * @returns Promise<
+ */
 async function buildContext(question: QuestionWithSession, supabase: UserSupabaseClient) {
   const session = question.interview_sessions;
   const totalQuestions = await countSessionQuestions(supabase, question.session_id);
@@ -90,6 +97,12 @@ async function buildContext(question: QuestionWithSession, supabase: UserSupabas
   };
 }
 
+/**
+ * 转为 conversation messages
+ *
+ * @param messages - 
+ * @returns 
+ */
 function toConversationMessages(messages: InterviewMessage[]) {
   return messages.map((message) => ({
     role: message.role,
@@ -97,12 +110,24 @@ function toConversationMessages(messages: InterviewMessage[]) {
   }));
 }
 
+/**
+ * clamp 评分
+ *
+ * @param value - 
+ * @returns 
+ */
 function clampScore(value: unknown): number {
   const score = Number(value);
   if (!Number.isFinite(score)) return 60;
   return Math.max(1, Math.min(100, Math.round(score)));
 }
 
+/**
+ * 归一化 decision
+ *
+ * @param text - 
+ * @returns 
+ */
 function normalizeDecision(text: string): VoiceDecision {
   try {
     const parsed = parseJsonFromAI<Record<string, unknown>>(text);
@@ -134,6 +159,10 @@ function normalizeDecision(text: string): VoiceDecision {
   };
 }
 
+/**
+ * 加载 question messages
+ * @returns 
+ */
 async function loadQuestionMessages(params: {
   supabase: UserSupabaseClient;
   questionId: string;
@@ -147,6 +176,10 @@ async function loadQuestionMessages(params: {
   }));
 }
 
+/**
+ * 准备 voice turn
+ * @returns 
+ */
 export async function prepareVoiceTurn(params: {
   supabase: UserSupabaseClient;
   userId: string;
@@ -215,6 +248,10 @@ export async function prepareVoiceTurn(params: {
   };
 }
 
+/**
+ * stream voice reply
+ * @returns 
+ */
 export async function* streamVoiceReply(
   turn: Extract<PreparedVoiceTurn, { kind: "interview" }>,
   signal?: AbortSignal,
@@ -237,6 +274,10 @@ export async function* streamVoiceReply(
   }
 }
 
+/**
+ * 追加 voice assistant message
+ * @returns 
+ */
 export async function appendVoiceAssistantMessage(params: {
   turn: PreparedVoiceTurn;
   content: string;
@@ -255,6 +296,10 @@ export async function appendVoiceAssistantMessage(params: {
   });
 }
 
+/**
+ * 决策 voice turn
+ * @returns 
+ */
 export async function decideVoiceTurn(
   turn: PreparedVoiceTurn,
   assistantResponse: string,
@@ -338,6 +383,10 @@ export async function decideVoiceTurn(
   };
 }
 
+/**
+ * 处理 voice transcript
+ * @returns 
+ */
 export async function handleVoiceTranscript(params: {
   supabase: UserSupabaseClient;
   userId: string;

@@ -24,6 +24,10 @@ import { QUESTION_COUNTS } from "@/features/interview-create/constants";
 import { useInterviewSetup } from "../hooks/use-interview-setup";
 import type { InterviewSetupMode, InterviewSetupSearch } from "../types";
 
+/**
+ * interview setup page
+ * @returns 
+ */
 export function InterviewSetupPage({
   mode,
   search,

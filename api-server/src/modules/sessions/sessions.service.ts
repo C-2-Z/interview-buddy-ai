@@ -30,12 +30,22 @@ import type {
   GeneratedSkillQuestion,
 } from "./session.types.js";
 
+/**
+ * question config
+ *
+ * @param input - 
+ * @returns 
+ */
 function questionConfig(input: CreateSessionInput) {
   return input.questionTypeConfig
     ? (input.questionTypeConfig as Record<string, number>)
     : null;
 }
 
+/**
+ * base session row
+ * @returns 
+ */
 function baseSessionRow(params: {
   input: CreateSessionInput;
   userId: string;
@@ -61,6 +71,10 @@ function baseSessionRow(params: {
   };
 }
 
+/**
+ * generic question rows
+ * @returns 
+ */
 function genericQuestionRows(
   sessionId: string,
   questions: GeneratedGenericQuestion[],
@@ -74,6 +88,10 @@ function genericQuestionRows(
   }));
 }
 
+/**
+ * skill question rows
+ * @returns 
+ */
 function skillQuestionRows(
   sessionId: string,
   skillId: string,
@@ -188,6 +206,12 @@ export async function finishSession(params: {
 
   // 多维度评分聚合
   const sessionCfg = await getSessionProviderConfig(params.supabase, params.sessionId);
+  /**
+   * skill
+   *
+   * @param sessionCfg as any - 
+   * @returns 
+   */
   const skill = (sessionCfg as any)?.skill_id ? findSkill((sessionCfg as any).skill_id) ?? null : null;
   const dimensionDefs = getDimensionDefs(skill);
   const dimensionRows = await loadQuestionDimensionScores(params.supabase, params.sessionId);

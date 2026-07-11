@@ -19,6 +19,10 @@ import { ResumeUpload } from "./resume-upload";
 import { SkillSelector } from "./skill-selector";
 import { SkillTags } from "./skill-tags";
 
+/**
+ * 创建 interview form
+ * @returns 
+ */
 export function CreateInterviewForm() {
   const form = useCreateInterview();
   const showPosition = form.useCustom || !form.selectedSkillId;

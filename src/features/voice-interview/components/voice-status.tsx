@@ -75,6 +75,13 @@ const STATUS_CONFIG: Record<
   },
 };
 
+/**
+ * voice status
+ *
+ * @param status - 
+ * @param message - 
+ * @returns 
+ */
 export function VoiceStatus({ status, message }: { status: VoiceStatusValue; message?: string }) {
   const config = STATUS_CONFIG[status];
   const Icon = config.icon;

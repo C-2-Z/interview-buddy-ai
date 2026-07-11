@@ -38,6 +38,10 @@ class PcmCaptureProcessor extends AudioWorkletProcessor {
 registerProcessor("pcm-capture-processor", PcmCaptureProcessor);
 `;
 
+/**
+ * use audio capture
+ * @returns 
+ */
 export function useAudioCapture(params: {
   onChunk: (chunk: ArrayBuffer) => void;
   onSpeechStart?: () => void;
@@ -61,6 +65,10 @@ export function useAudioCapture(params: {
   const lastDebugAt = useRef(0);
   const noInputTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /**
+   * 启动
+   * @returns Promise<
+   */
   async function start() {
     if (recording) return;
     chunks.current = 0;
@@ -155,6 +163,10 @@ export function useAudioCapture(params: {
     }, 3000);
   }
 
+  /**
+   * 停止
+   * @returns Promise<
+   */
   async function stop() {
     if (noInputTimer.current) clearTimeout(noInputTimer.current);
     node.current?.disconnect();

@@ -101,6 +101,12 @@ export async function callAI(
     throw new Error(`AI 调用失败 (${resolved.name}): ${res.status} ${text}`);
   }
 
+  /**
+   * data
+   *
+   * @param await res.json() - 
+   * @returns 
+   */
   const data = (await res.json()) as Record<string, unknown>;
   const content = extractResponseText(resolved.name, data);
   if (!content) throw new Error("AI 未返回内容");

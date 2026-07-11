@@ -13,6 +13,12 @@ export type VoiceSessionSnapshot = {
   questions: VoiceSessionQuestion[];
 };
 
+/**
+ * 判断 missing schema column
+ *
+ * @param message - 
+ * @returns 
+ */
 function isMissingSchemaColumn(message: string): boolean {
   return /schema cache|column .* does not exist|Could not find the '.*' column/i.test(
     message,
@@ -31,10 +37,21 @@ function withFallbackInterviewMode<T extends Record<string, unknown>>(row: T): T
   };
 }
 
+/**
+ * 判断 voice session row
+ *
+ * @param row - 
+ * @param unknown> - 
+ * @returns 
+ */
 function isVoiceSessionRow(row: Record<string, unknown>): boolean {
   return row.interview_mode === "voice" || row.voice_mode === true;
 }
 
+/**
+ * 标记 session voice mode
+ * @returns 
+ */
 export async function markSessionVoiceMode(
   supabase: UserSupabaseClient,
   sessionId: string,
@@ -72,6 +89,10 @@ export async function markSessionVoiceMode(
   );
 }
 
+/**
+ * assert session access
+ * @returns 
+ */
 export async function assertSessionAccess(
   supabase: UserSupabaseClient,
   sessionId: string,
@@ -84,6 +105,10 @@ export async function assertSessionAccess(
   if (error) throw new Error("Session not found");
 }
 
+/**
+ * assert voice session access
+ * @returns 
+ */
 export async function assertVoiceSessionAccess(
   supabase: UserSupabaseClient,
   sessionId: string,
@@ -94,6 +119,10 @@ export async function assertVoiceSessionAccess(
   }
 }
 
+/**
+ * 获取 session mode row
+ * @returns 
+ */
 async function getSessionModeRow(
   supabase: UserSupabaseClient,
   sessionId: string,
@@ -124,6 +153,10 @@ async function getSessionModeRow(
   );
 }
 
+/**
+ * 获取 voice session with questions
+ * @returns 
+ */
 export async function getVoiceSessionWithQuestions(
   supabase: UserSupabaseClient,
   sessionId: string,
@@ -144,6 +177,10 @@ export async function getVoiceSessionWithQuestions(
   };
 }
 
+/**
+ * 列出 session questions
+ * @returns 
+ */
 export async function listSessionQuestions(
   supabase: UserSupabaseClient,
   sessionId: string,
@@ -157,6 +194,10 @@ export async function listSessionQuestions(
   return data ?? [];
 }
 
+/**
+ * 获取 下一步 unscored question id
+ * @returns 
+ */
 export async function getNextUnscoredQuestionId(
   supabase: UserSupabaseClient,
   sessionId: string,
@@ -165,6 +206,10 @@ export async function getNextUnscoredQuestionId(
   return questions.find((question) => question.score == null)?.id ?? null;
 }
 
+/**
+ * 获取 下一步 unscored question
+ * @returns 
+ */
 export async function getNextUnscoredQuestion(
   supabase: UserSupabaseClient,
   sessionId: string,

@@ -1,6 +1,12 @@
 /** interview-create - Skill 标签展示 */
 import type { SkillMeta } from "../types";
 
+/**
+ * skill tags
+ *
+ * @param skill - 
+ * @returns 
+ */
 export function SkillTags({ skill }: { skill: SkillMeta | null }) {
   if (!skill) return null;
 

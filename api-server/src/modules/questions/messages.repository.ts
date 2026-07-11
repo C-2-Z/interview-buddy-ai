@@ -32,12 +32,25 @@ export type InsertInterviewMessage = {
   sttConfidence?: number | null;
 };
 
+/**
+ * 判断 missing schema column
+ *
+ * @param message - 
+ * @returns 
+ */
 function isMissingSchemaColumn(message: string): boolean {
   return /schema cache|column .* does not exist|Could not find the '.*' column/i.test(
     message,
   );
 }
 
+/**
+ * 归一化 message
+ *
+ * @param row - 
+ * @param unknown> - 
+ * @returns 
+ */
 function normalizeMessage(row: Record<string, unknown>): InterviewMessage {
   return {
     id: String(row.id),
@@ -56,6 +69,12 @@ function normalizeMessage(row: Record<string, unknown>): InterviewMessage {
   };
 }
 
+/**
+ * messages from answer
+ *
+ * @param answer - 
+ * @returns 
+ */
 export function messagesFromAnswer(answer: string | null): InterviewMessage[] {
   if (!answer) return [];
   try {
@@ -99,6 +118,10 @@ export function messagesFromAnswer(answer: string | null): InterviewMessage[] {
     : [];
 }
 
+/**
+ * 追加 interview message
+ * @returns 
+ */
 export async function appendInterviewMessage(
   supabase: UserSupabaseClient,
   message: InsertInterviewMessage,
@@ -138,6 +161,10 @@ export async function appendInterviewMessage(
   return normalizeMessage(data as Record<string, unknown>);
 }
 
+/**
+ * 列出 question messages
+ * @returns 
+ */
 export async function listQuestionMessages(
   supabase: UserSupabaseClient,
   questionId: string,
@@ -151,6 +178,10 @@ export async function listQuestionMessages(
   return (data ?? []).map((row) => normalizeMessage(row));
 }
 
+/**
+ * 列出 session messages
+ * @returns 
+ */
 export async function listSessionMessages(
   supabase: UserSupabaseClient,
   sessionId: string,
@@ -161,6 +192,12 @@ export async function listSessionMessages(
     .eq("session_id", sessionId);
   if (qErr) throw new Error(qErr.message);
 
+  /**
+   * question ids
+   *
+   * @param questions - 
+   * @returns 
+   */
   const questionIds = (questions ?? []).map((question) => question.id);
   if (questionIds.length === 0) return [];
 
@@ -173,6 +210,10 @@ export async function listSessionMessages(
   return (data ?? []).map((row) => normalizeMessage(row));
 }
 
+/**
+ * 标记 turn interrupted
+ * @returns 
+ */
 export async function markTurnInterrupted(
   supabase: UserSupabaseClient,
   turnId: string,

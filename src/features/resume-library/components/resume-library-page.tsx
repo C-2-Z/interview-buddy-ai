@@ -20,6 +20,12 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useResumeLibrary } from "../hooks/use-resume-library";
 
+/**
+ * 格式化 file size
+ *
+ * @param size - 
+ * @returns 
+ */
 function formatFileSize(size: number | null): string {
   if (!size) return "未知大小";
   return size < 1024 * 1024
@@ -27,11 +33,21 @@ function formatFileSize(size: number | null): string {
     : `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
+/**
+ * 恢复 library page
+ * @returns 
+ */
 export function ResumeLibraryPage() {
   const library = useResumeLibrary();
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
+  /**
+   * 处理 file
+   *
+   * @param file - 
+   * @returns Promise<
+   */
   async function handleFile(file?: File) {
     if (!file) return;
     const result = await library.upload(file).catch(() => null);

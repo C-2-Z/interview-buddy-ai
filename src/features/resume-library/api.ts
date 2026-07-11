@@ -5,18 +5,40 @@ import type { ResumeDetail, ResumeListItem, ResumeUploadResult } from "./types";
 
 const baseUrl = import.meta.env.VITE_API_URL || "";
 
+/**
+ * 列出 resumes
+ * @returns 
+ */
 export function listResumes(): Promise<ResumeListItem[]> {
   return apiRequest("GET", "/api/resumes");
 }
 
+/**
+ * 获取 恢复
+ *
+ * @param resumeId - 
+ * @returns 
+ */
 export function getResume(resumeId: string): Promise<ResumeDetail> {
   return apiRequest("GET", `/api/resumes/${resumeId}`);
 }
 
+/**
+ * 删除 恢复
+ *
+ * @param resumeId - 
+ * @returns 
+ */
 export function deleteResume(resumeId: string): Promise<{ success: true }> {
   return apiRequest("DELETE", `/api/resumes/${resumeId}`);
 }
 
+/**
+ * 上传 恢复
+ *
+ * @param file - 
+ * @returns Promise<
+ */
 export async function uploadResume(file: File): Promise<ResumeUploadResult> {
   const token = await getAccessToken();
   const body = new FormData();
@@ -29,6 +51,12 @@ export async function uploadResume(file: File): Promise<ResumeUploadResult> {
   if (!response.ok) {
     let message = `上传失败 (${response.status})`;
     try {
+      /**
+       * data
+       *
+       * @param await response.json() - 
+       * @returns 
+       */
       const data = (await response.json()) as { error?: string };
       message = data.error ?? message;
     } catch {

@@ -10,16 +10,28 @@ export interface UploadResumeResult {
   parsedText: string;
 }
 
+/**
+ * 创建 interview session
+ * @returns 
+ */
 export function createInterviewSession(
   params: CreateSessionParams,
 ): Promise<{ sessionId: string }> {
   return apiRequest("POST", "/api/sessions", params);
 }
 
+/**
+ * 列出 skills
+ * @returns 
+ */
 export function listSkills(): Promise<SkillMeta[]> {
   return apiRequest("GET", "/api/skills");
 }
 
+/**
+ * 上传 恢复 file
+ * @returns 
+ */
 export async function uploadResumeFile(
   file: File,
 ): Promise<UploadResumeResult> {

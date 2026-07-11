@@ -4,6 +4,12 @@ import { toast } from "sonner";
 import type { QuestionItem, SessionDetail } from "@/features/interview-session/types";
 import { endVoiceSession, getVoiceSession } from "../api";
 
+/**
+ * use voice session
+ *
+ * @param sessionId - 
+ * @returns 
+ */
 export function useVoiceSession(sessionId: string) {
   const [session, setSession] = useState<SessionDetail | null>(null);
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
@@ -30,6 +36,10 @@ export function useVoiceSession(sessionId: string) {
   const answeredCount = questions.filter((question) => question.score != null).length;
   const progress = questions.length ? (answeredCount / questions.length) * 100 : 0;
 
+  /**
+   * 更新 question 评分
+   * @returns 
+   */
   function updateQuestionScore(
     questionId: string,
     score: number,
@@ -42,6 +52,10 @@ export function useVoiceSession(sessionId: string) {
     );
   }
 
+  /**
+   * apply completion
+   * @returns 
+   */
   function applyCompletion(result: {
     overallScore: number;
     overallFeedback: string;
@@ -58,6 +72,10 @@ export function useVoiceSession(sessionId: string) {
     );
   }
 
+  /**
+   * 完成 interview
+   * @returns Promise<
+   */
   async function completeInterview() {
     setFinishing(true);
     try {

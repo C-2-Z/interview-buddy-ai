@@ -12,15 +12,29 @@ import { useBargeIn } from "../hooks/use-barge-in";
 import { useVoiceWebSocket } from "../hooks/use-voice-websocket";
 import type { VoiceMessage, VoiceServerEvent } from "../types";
 
+/**
+ * 创建 turn id
+ * @returns 
+ */
 function createTurnId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `turn-${Date.now()}`;
 }
 
+/**
+ * 格式化 elapsed
+ *
+ * @param seconds - 
+ * @returns 
+ */
 function formatElapsed(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
+/**
+ * voice interview panel
+ * @returns 
+ */
 export function VoiceInterviewPanel({
   sessionId,
   initialQuestionId,
@@ -83,6 +97,13 @@ export function VoiceInterviewPanel({
     [],
   );
 
+  /**
+   * 推送 message
+   *
+   * @param message - 
+   * @param "id" | "created_at"> - 
+   * @returns 
+   */
   function pushMessage(message: Omit<VoiceMessage, "id" | "created_at">) {
     messageIndex.current += 1;
     setMessages((prev) => [
@@ -95,6 +116,14 @@ export function VoiceInterviewPanel({
     ]);
   }
 
+  /**
+   * upsert assistant message
+   *
+   * @param turnId - 
+   * @param text - 
+   * @param mode - 
+   * @returns 
+   */
   function upsertAssistantMessage(turnId: string, text: string, mode: "append" | "replace") {
     setMessages((prev) => {
       const existingIndex = prev.findIndex(
@@ -126,6 +155,10 @@ export function VoiceInterviewPanel({
     });
   }
 
+  /**
+   * 更新 question progress
+   * @returns 
+   */
   function updateQuestionProgress(event: {
     questionId: string | null;
     currentQuestionIndex: number;
@@ -331,6 +364,10 @@ export function VoiceInterviewPanel({
 
   useEffect(() => {
     if (!connectedAt) return;
+    /**
+     * 更新
+     * @returns 
+     */
     const update = () => setElapsedSeconds(Math.floor((Date.now() - connectedAt) / 1000));
     update();
     const timer = window.setInterval(update, 1000);
@@ -387,10 +424,18 @@ export function VoiceInterviewPanel({
     },
   });
 
+  /**
+   * 连接
+   * @returns Promise<
+   */
   async function connect() {
     await voiceSocket.connect();
   }
 
+  /**
+   * 启动 answer
+   * @returns Promise<
+   */
   async function startAnswer() {
     if (!voiceSocket.connected) {
       toast.error("请先开始语音面试");
@@ -436,6 +481,10 @@ export function VoiceInterviewPanel({
     }
   }
 
+  /**
+   * 停止 answer
+   * @returns Promise<
+   */
   async function stopAnswer() {
     if (!currentTurnId.current) return;
     await capture.stop();
@@ -449,6 +498,10 @@ export function VoiceInterviewPanel({
     setStageMessage("回答已发送，等待语音识别结果");
   }
 
+  /**
+   * interrupt
+   * @returns 
+   */
   function interrupt() {
     if (!activeAssistantTurnId.current || !currentQuestionId) return;
     playback.stop();

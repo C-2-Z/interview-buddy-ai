@@ -23,6 +23,10 @@ import {
   useSettings,
 } from "../hooks/use-settings";
 
+/**
+ * settings form
+ * @returns 
+ */
 export function SettingsForm() {
   const settings = useSettings();
 
