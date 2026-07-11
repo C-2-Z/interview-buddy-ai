@@ -1,5 +1,6 @@
 /** Supabase 客户端工厂 */
 import { createClient } from "@supabase/supabase-js";
+import { WebSocket } from "ws";
 import type { Database } from "../../lib/supabase-types.js";
 import { getRequiredEnv } from "../../config/env.js";
 
@@ -61,6 +62,9 @@ export function createUserClient(token: string) {
       storage: undefined,
       persistSession: false,
       autoRefreshToken: false,
+    },
+    realtime: {
+      transport: WebSocket as any,
     },
   });
 }
