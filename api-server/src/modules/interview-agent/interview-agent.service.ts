@@ -366,11 +366,13 @@ export class InterviewAgentService {
    *
    * @param sessionId - Agent 会话 UUID。
    * @param input - 已校验文本输入；content 不进入 checkpoint。
+   * @param source - 文本框或 ASR 来源；两种通道共享完全相同的 Graph 恢复路径。
    * @returns 幂等元数据和数据库最新快照。
    */
   async submitInput(
     sessionId: string,
     input: AgentInput,
+    source: "text" | "voice" = "text",
   ): Promise<AgentInputResponse> {
     const operationKey = `input:${input.inputId}`;
     if (this.dependencies.inputRepository) {
@@ -379,7 +381,7 @@ export class InterviewAgentService {
           sessionId,
           inputId: input.inputId,
           content: input.content,
-          source: "text",
+          source,
         });
       } catch (error) {
         if (error instanceof AgentInputRepositoryError) {
