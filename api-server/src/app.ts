@@ -11,6 +11,7 @@ import { resumes } from "./modules/resumes/resumes.routes.js";
 import { voice } from "./modules/voice/voice.routes.js";
 import { generation } from "./modules/generation/generation.routes.js";
 import { performanceRoutes } from "./modules/performance/performance.routes.js";
+import { interviewAgentRoutes } from "./modules/interview-agent/interview-agent.routes.js";
 import { createModuleLogger } from "./modules/voice/voice-logger.js";
 
 const app = new Hono();
@@ -34,6 +35,7 @@ app.route("/api/skills", skills);
 app.route("/api/resumes", resumes);
 app.route("/api/voice", voice);
 app.route("/api/performance", performanceRoutes);
+app.route("/api/agent", interviewAgentRoutes);
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));
 
