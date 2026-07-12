@@ -2,7 +2,7 @@ import type { Server } from "node:http";
 import type { ServerType } from "@hono/node-server";
 import { WebSocket, WebSocketServer } from "ws";
 import { createUserClient } from "../../shared/db/supabase.js";
-import { markTurnInterrupted } from "../questions/messages.repository.js";
+import { listQuestionMessages, markTurnInterrupted } from "../questions/messages.repository.js";
 import { createStreamingAsrSession } from "./qwen-asr.service.js";
 import {
   qwenTtsSampleRate,
@@ -297,6 +297,9 @@ export function installVoiceWebSocket(server: ServerType): void {
     let activePromptTurn: SpeechTurnState | null = null;
     let reusableTts = createReusableSpeechSession();
     let warmedAsr: ReturnType<typeof createStreamingAsrSession> | null = null;
+    // Agent bridge (lazily initialized in processTranscript when AGENT_INTERVIEW_ENABLED=1)
+    let agentBridge: any;
+    let voiceProvider: any;
     const interruptedTurns = new Set<string>();
 
     function isInterrupted(turnId: string): boolean {
@@ -729,10 +732,58 @@ export function installVoiceWebSocket(server: ServerType): void {
       sendJson(ws, {
         type: "transcript_final",
         text: transcript,
-        turnId: turn.turnId,
+      turnId: turn.turnId,
       });
 
       sendStage(ws, "loading_context", "DB: loading question and history", turn.turnId);
+
+      // Agent Graph path (when AGENT_INTERVIEW_ENABLED=1)
+      if (process.env.AGENT_INTERVIEW_ENABLED === "1") {
+        try {
+          if (!agentBridge) {
+            const { createAgentVoiceBridgeService } = await import("../interview-agent/voice-bridge/voice-bridge.service.js");
+            const { createInterviewAgentService } = await import("../interview-agent/interview-agent.service.js");
+            const { createQwenVoiceProvider } = await import("../interview-agent/providers/qwen-voice.provider.js");
+            const agentSvc = createInterviewAgentService(supabase, payload.userId);
+            voiceProvider = createQwenVoiceProvider();
+            agentBridge = createAgentVoiceBridgeService({
+              agentService: agentSvc,
+              voiceProvider,
+              loadLatestAssistantMessage: async (sid, qid) => {
+                const msgs = await listQuestionMessages(supabase, qid);
+                return msgs.filter((m) => m.role === "assistant").pop()?.content ?? "";
+              },
+            });
+          }
+          const { processTranscriptViaAgent, deriveNextActionFromSnapshot } = await import("../interview-agent/voice-bridge/agent-voice-handler.js");
+          const agentResult = await processTranscriptViaAgent({ bridge: agentBridge, sessionId: turn.sessionId, transcript });
+          if (isInterrupted(turn.turnId)) return;
+          const responseText = agentResult.responseText.trim();
+          if (responseText) {
+            sendStage(ws, "agent_response", "Agent: speaking interviewer response", turn.turnId);
+            sendJson(ws, { type: "assistant_text_delta", text: responseText, turnId: turn.turnId });
+            sendJson(ws, { type: "assistant_text_done", turnId: turn.turnId });
+            await speakText(turn, responseText);
+          }
+          const nextAction = deriveNextActionFromSnapshot(agentResult.bridgeResult.snapshot);
+          if (nextAction === "finish_session") {
+            sendJson(ws, { type: "session_completed", overallScore: 0, overallFeedback: "Agent interview completed." });
+          }
+          sendStage(ws, "done", "Agent voice turn completed", turn.turnId);
+          return;
+        } catch (agentError) {
+          voiceError("agent_voice_processing_failed", agentError, { turnId: turn.turnId, questionId: turn.questionId });
+          if (isInterrupted(turn.turnId) || turn.abortController.signal.aborted) return;
+          sendVoiceError(ws, {
+            code: "VOICE_AGENT_PROCESSING_FAILED",
+            stage: "agent_processing",
+            message: agentError instanceof Error ? agentError.message : "Agent processing failed",
+            turnId: turn.turnId,
+            retryable: true,
+            error: agentError,
+          });
+        }
+      }
       voiceLog("prepare_turn_start", {
         turnId: turn.turnId,
         questionId: turn.questionId,
