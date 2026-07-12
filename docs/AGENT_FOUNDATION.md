@@ -1,6 +1,6 @@
-# Interview Agent Phase 1–2 基础设施与准备流程
+# Interview Agent Phase 1–3 基础设施、准备与文本主图
 
-本文记录 `docs/AGENT_APPLICATION_IMPLEMENTATION_PLAN.md` 的 Phase 1–2 已实现范围、运行方式和安全边界。
+本文记录 `docs/AGENT_APPLICATION_IMPLEMENTATION_PLAN.md` 的 Phase 1–3 已实现范围、运行方式和安全边界。
 
 ## 当前范围
 
@@ -26,7 +26,17 @@ Phase 2 已建立：
 - `agent_plan`、`agent_research_sources` 和题目来源元数据；准备 RPC 在一个事务提交计划、研究、首题、事件和会话投影。
 - Agent 题目浏览器直写锁定为 legacy-only，研究来源通过会话所有权 RLS 隔离。
 
-Phase 2 的模型兜底仍使用确定性 Adapter。正式文本主图、真实模型提问/追问、证据评分、报告、统一语音和前端 Agent 页面必须按后续 Phase 顺序接入；`AGENT_INTERVIEW_ENABLED` 默认关闭，不会回退到旧可写流程。
+Phase 3 已建立：
+
+- 正式节点边界：`hydrate_context → research_context → build_interview_plan → select_question → wait_for_input → guard_input → extract_evidence → decide_followup → interviewer_respond → score_question → advance_stage → finalize_report`。
+- 回答正文先由 `receive:<inputId>` receipt 原子写入业务消息和事件，Graph checkpoint 只保存 inputId。
+- 空输入、复制题目、提示注入和超长回答的确定性 Guard；redirect 不占用追问次数。
+- 有效回答按最低证据信号决定追问，每题最多三轮；Persona 驱动追问由真实多模型/BYOK Adapter 输出严格 JSON。
+- 动态后续题继续题库优先、模型兜底，并通过 `question:<index>` 防止恢复重放重复插题。
+- 单角色和技术 → 主管 → HR 面板均能完成全部冻结题目，角色交接与题目事件在数据库事务中提交。
+- 旧 `POST /api/sessions` 在 Agent 开关开启时委托 Canonical Agent，旧题目消息接口对 Agent 会话转发为 inputId。
+
+Phase 4 将把当前 `extract_evidence`、`score_question` 和 `finalize_report` 节点边界替换为正式证据、版本化评分和冻结报告实现。统一语音和前端 Agent 页面仍按后续 Phase 接入；`AGENT_INTERVIEW_ENABLED` 默认关闭，可灰度回滚到旧创建路径。
 
 ## 后端依赖
 
@@ -48,6 +58,8 @@ zod                                     3.25.76
 ```text
 supabase/migrations/20260711000002_add_interview_agent_foundation.sql
 supabase/migrations/20260712000001_add_agent_preparation.sql
+supabase/migrations/20260712000002_add_agent_text_input.sql
+supabase/migrations/20260712000003_add_agent_question_progression.sql
 ```
 
 该迁移只应在隔离的本地或测试数据库演练。根据项目交接约束，禁止在没有用户再次授权时运行 `supabase db push`、`db reset` 或 `migration repair`。

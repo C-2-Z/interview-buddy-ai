@@ -7,6 +7,8 @@ export type ConversationMessage = {
 };
 
 export type QuestionSessionContext = {
+  /** Agent 会话判别版本；旧会话为 null。 */
+  agent_version?: string | null;
   position: string;
   difficulty: string;
   job_description: string | null;
@@ -51,6 +53,7 @@ function normalizeQuestionWithSession(data: unknown): QuestionWithSession {
     interview_mode:
       question.interview_sessions.interview_mode ??
       (question.interview_sessions.voice_mode === true ? "voice" : "text"),
+    agent_version: question.interview_sessions.agent_version ?? null,
   };
   return question;
 }
@@ -64,6 +67,7 @@ export async function getQuestionWithSession(
   questionId: string,
 ): Promise<QuestionWithSession | null> {
   const selectors = [
+    "id, question, answer, session_id, order_index, interview_sessions(position, difficulty, job_description, model_provider, model_name, user_api_key, interview_mode, voice_mode, agent_version)",
     "id, question, answer, session_id, order_index, interview_sessions(position, difficulty, job_description, model_provider, model_name, user_api_key, interview_mode, voice_mode)",
     "id, question, answer, session_id, order_index, interview_sessions(position, difficulty, job_description, model_provider, model_name, user_api_key, interview_mode)",
     "id, question, answer, session_id, order_index, interview_sessions(position, difficulty, job_description, model_provider, model_name, user_api_key, voice_mode)",

@@ -5,11 +5,11 @@ import {
   type AuthVariables,
 } from "../../shared/auth/require-auth.js";
 import {
-  createInterviewSession,
   finishSession,
   getSession,
   listSessions,
 } from "./sessions.service.js";
+import { createCompatibleInterviewSession } from "./agent-compat.service.js";
 import { CreateSessionSchema } from "./sessions.schemas.js";
 
 const sessions = new Hono<{ Variables: AuthVariables }>();
@@ -18,12 +18,14 @@ sessions.use("*", requireAuth);
 
 sessions.post("/", async (c) => {
   const input = CreateSessionSchema.parse(await c.req.json());
-  const result = await createInterviewSession({
+  const result = await createCompatibleInterviewSession({
     supabase: c.var.supabase,
     userId: c.var.userId,
     input: { ...input, interviewMode: "text" },
   });
-  return "generationStatus" in result ? c.json(result, 202) : c.json(result);
+  return "generationStatus" in result || "phase" in result
+    ? c.json(result, 202)
+    : c.json(result);
 });
 
 sessions.get("/", async (c) => {

@@ -1,6 +1,7 @@
 /** Interview Agent 模型适配器契约与 Phase 1 确定性 Mock 实现。 */
 import type {
   AgentDifficulty,
+  AgentModelProvider as AgentModelProviderName,
   RoleId,
   RolePersona,
 } from "../interview-agent.types.js";
@@ -22,6 +23,10 @@ export type AgentQuestionModelInput = Readonly<{
   difficulty: AgentDifficulty;
   /** 本次生成使用的冻结 Prompt 版本。 */
   promptVersion: string;
+  /** 冻结模型供应商；旧测试未提供时 Adapter 可使用项目默认值。 */
+  modelProvider?: AgentModelProviderName;
+  /** 冻结模型名称。 */
+  modelName?: string;
   /** 当前题目必须覆盖的能力维度键。 */
   dimensionKey?: string;
   /** 可信业务上下文；完整简历文件不会进入。 */
@@ -70,6 +75,42 @@ export interface AgentModelProvider {
     input: AgentQuestionModelInput,
     signal?: AbortSignal,
   ): Promise<AgentQuestionModelOutput>;
+}
+
+/** 模型生成聚焦追问时使用的受控输入。 */
+export type AgentFollowUpModelInput = Readonly<{
+  /** 会话 UUID，仅用于审计追踪。 */
+  sessionId: string;
+  /** 当前固定角色。 */
+  roleId: RoleId;
+  /** 当前 Persona。 */
+  persona: Readonly<RolePersona>;
+  /** 当前题目正文。 */
+  question: string;
+  /** 当前候选人回答；只在调用期间存在。 */
+  answer: string;
+  /** 确定性规则识别的证据缺口。 */
+  evidenceGap: "too_brief" | "missing_action" | "missing_result" | "missing_specifics";
+  /** 本题即将发出的追问序号，范围 1–3。 */
+  followUpNumber: number;
+  /** 冻结供应商。 */
+  modelProvider: AgentModelProviderName;
+  /** 冻结模型名称。 */
+  modelName: string;
+  /** 冻结 Prompt 版本。 */
+  promptVersion: string;
+}>;
+
+/** Persona 驱动的真实或测试追问模型端口。 */
+export interface AgentInterviewerModelProvider {
+  /**
+   * 生成一句聚焦追问，不得提供答案或改变控制流。
+   *
+   * @param input - 题目、回答、Persona、证据缺口和冻结模型配置。
+   * @param signal - 可选取消信号。
+   * @returns 已完成结构校验的一句话。
+   */
+  generateFollowUp(input: AgentFollowUpModelInput, signal?: AbortSignal): Promise<{ content: string }>;
 }
 
 /** 确定性 Mock 适配器的可选审计标识。 */

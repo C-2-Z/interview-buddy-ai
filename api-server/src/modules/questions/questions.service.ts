@@ -1,4 +1,5 @@
 /** 面试对话业务：处理消息/检测完成/触发评分 */
+import { randomUUID } from "node:crypto";
 import { callAI } from "../../shared/ai/ai-client.js";
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import { resolveProviderForSession } from "../model-providers/model-provider.service.js";
@@ -10,7 +11,8 @@ import {
   parseConversation,
 } from "./conversation.service.js";
 import { evaluateConversation as evaluateConversationWithAI } from "./evaluation.service.js";
-import { appendInterviewMessage } from "./messages.repository.js";
+import { appendInterviewMessage, listQuestionMessages } from "./messages.repository.js";
+import { createInterviewAgentService } from "../interview-agent/interview-agent.service.js";
 import {
   buildInterviewerSystemPrompt,
   buildInterviewerUserPrompt,
@@ -80,6 +82,28 @@ export async function sendMessage(params: {
     params.questionId,
   );
   if (!question) return { error: "题目未找到" } as const;
+  if (question.interview_sessions.agent_version === "agent-v1") {
+    const service = createInterviewAgentService(params.supabase, params.userId);
+    const result = await service.submitInput(question.session_id, {
+      inputId: randomUUID(),
+      type: "text",
+      content: params.content,
+    });
+    const messages = await listQuestionMessages(params.supabase, params.questionId);
+    const response = [...messages]
+      .reverse()
+      .find((message) => message.role === "assistant")?.content;
+    return {
+      response:
+        response ??
+        (result.snapshot.phase === "completed"
+          ? "本场面试已完成，正在生成报告。"
+          : "感谢你的回答，下面进入下一题。"),
+      done: result.snapshot.phase === "completed",
+      agent: true as const,
+      snapshot: result.snapshot,
+    };
+  }
   if (isVoiceInterviewQuestion(question)) {
     return { error: "语音面试请使用语音面试页面" } as const;
   }
@@ -218,6 +242,13 @@ export async function evaluateQuestionConversation(params: {
     params.questionId,
   );
   if (!question) return { error: "题目未找到" } as const;
+  if (question.interview_sessions.agent_version === "agent-v1") {
+    return {
+      error: "Agent 面试由评分节点自动处理，旧评分接口不可用",
+      code: "agent_evaluation_managed",
+      statusCode: 409 as const,
+    } as const;
+  }
   if (isVoiceInterviewQuestion(question)) {
     return { error: "语音面试请使用语音面试页面" } as const;
   }

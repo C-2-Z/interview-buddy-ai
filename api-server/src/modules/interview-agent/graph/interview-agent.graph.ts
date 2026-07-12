@@ -20,6 +20,7 @@ import type {
 import {
   createDeterministicMockAgentModelProvider,
   type AgentModelProvider,
+  type AgentInterviewerModelProvider,
 } from "../providers/agent-model.provider.js";
 import { buildRolePlan, getRolePersona } from "../roles/personas.js";
 import {
@@ -32,6 +33,7 @@ import {
   assessAnswerSufficiency,
   buildFocusedFollowUp,
 } from "./answer-sufficiency.js";
+import type { QuestionRuntimeService } from "../runtime/question-runtime.service.js";
 
 /** Graph 等待业务消息持久化后发出的安全 interrupt 数据。 */
 export type AgentInputRequiredInterrupt = Readonly<{
@@ -59,6 +61,10 @@ export type CompileInterviewAgentGraphOptions = Readonly<{
   modelProvider?: AgentModelProvider;
   /** Phase 3 按 inputId 加载回答并原子保存 redirect/follow-up 的业务 Repository。 */
   inputRepository?: AgentInputRepository;
+  /** Phase 3 按冻结计划选择并提交后续题目的运行时服务。 */
+  questionRuntimeService?: QuestionRuntimeService;
+  /** Persona 驱动的真实追问模型；控制流仍由确定性节点决定。 */
+  interviewerModelProvider?: AgentInterviewerModelProvider;
 }>;
 
 /** 创建初始 Agent State 所需的业务参数。 */
@@ -110,14 +116,18 @@ export const InterviewAgentStateAnnotation = AgentStateAnnotation;
 /** Phase 1 compiled graph 接受的节点名称联合。 */
 export type AgentGraphNodeName =
   | "__start__"
-  | "prepare"
-  | "ask"
+  | "hydrate_context"
+  | "research_context"
+  | "build_interview_plan"
+  | "select_question"
   | "wait_for_input"
   | "guard_input"
   | "extract_evidence"
   | "decide_followup"
   | "interviewer_respond"
-  | "complete";
+  | "score_question"
+  | "advance_stage"
+  | "finalize_report";
 
 /** 与 Phase 1 compiled graph invoke 输入严格兼容的恢复 Command。 */
 export type AgentResumeCommand = Command<
@@ -274,7 +284,7 @@ function parseAgentResumeInput(value: unknown): AgentResumeInput {
 }
 
 /**
- * 编译 Phase 1 最小可恢复图：START → prepare → ask → wait_for_input → complete → END。
+ * 编译 Interview Agent 主图；准备、输入、追问、推进和结束都具有显式节点边界。
  *
  * `wait_for_input` 使用动态 `interrupt()`；恢复值只保留消息 ID，回答正文和模型凭据既不是
  * Annotation channel，也不会被节点返回。ask 节点调用模型适配器，但只把题目 ID 写入状态，
@@ -289,8 +299,8 @@ export function compileInterviewAgentGraph(
   const modelProvider =
     options.modelProvider ?? createDeterministicMockAgentModelProvider();
 
-  /** 确保恢复旧初始状态时也按冻结配置得到确定性角色计划。 */
-  const prepare = (state: AgentGraphState): Partial<AgentGraphState> => {
+  /** 加载恢复状态中的冻结配置并补齐确定性角色计划。 */
+  const hydrateContext = (state: AgentGraphState): Partial<AgentGraphState> => {
     const rolePlan =
       state.rolePlan.length > 0
         ? state.rolePlan
@@ -303,14 +313,20 @@ export function compileInterviewAgentGraph(
     };
   };
 
-  /** 通过适配器生成 Mock 首题，但 checkpoint 只引用题目标识。 */
-  const ask = async (
+  /**
+   * 标记研究上下文边界；联网只在首次准备服务执行，恢复时复用数据库缓存而不再次联网。
+   */
+  const researchContext = (): Partial<AgentGraphState> => ({
+    phase: "preparing",
+  });
+
+  /** 构建/恢复首题引用；Phase 2 已提交首题时不会再次调用模型。 */
+  const buildInterviewPlan = async (
     state: AgentGraphState,
   ): Promise<Partial<AgentGraphState>> => {
     // Phase 2 已经完成题库优先选择时，Graph 只引用业务题目，避免重复调用模型。
     if (state.currentQuestionId) {
       return {
-        phase: "awaiting_answer",
         currentQuestionId: state.currentQuestionId,
         pendingAction: "ask",
       };
@@ -324,12 +340,13 @@ export function compileInterviewAgentGraph(
       position: state.config.position,
       difficulty: state.config.difficulty,
       promptVersion: state.config.promptVersion,
+      modelProvider: state.config.modelProvider,
+      modelName: state.config.modelName,
     });
     if (!generated.questionId.trim() || !generated.content.trim()) {
       throw new Error("Agent model provider returned an empty question");
     }
     return {
-      phase: "awaiting_answer",
       currentQuestionId: generated.questionId,
       pendingAction: "ask",
     };
@@ -404,15 +421,29 @@ export function compileInterviewAgentGraph(
     const responseType = guarded.disposition === "redirect"
       ? "redirect"
       : "follow_up";
-    const content = guarded.disposition === "redirect"
-      ? buildInputRedirect(guarded.reason)
-      : (() => {
-          const sufficiency = assessAnswerSufficiency(persisted.content);
-          if (sufficiency.sufficient) {
-            throw new Error("Interviewer follow-up requires an evidence gap");
-          }
-          return buildFocusedFollowUp(state.currentRole, sufficiency.gap);
-        })();
+    let content: string;
+    if (guarded.disposition === "redirect") {
+      content = buildInputRedirect(guarded.reason);
+    } else {
+      const sufficiency = assessAnswerSufficiency(persisted.content);
+      if (sufficiency.sufficient) {
+        throw new Error("Interviewer follow-up requires an evidence gap");
+      }
+      content = options.interviewerModelProvider
+        ? (await options.interviewerModelProvider.generateFollowUp({
+            sessionId: state.sessionId,
+            roleId: state.currentRole,
+            persona: getRolePersona(state.currentRole),
+            question: persisted.question,
+            answer: persisted.content,
+            evidenceGap: sufficiency.gap,
+            followUpNumber: state.followUpCount + 1,
+            modelProvider: state.config.modelProvider,
+            modelName: state.config.modelName,
+            promptVersion: state.config.promptVersion,
+          })).content
+        : buildFocusedFollowUp(state.currentRole, sufficiency.gap);
+    }
     const receipt = await options.inputRepository.commitInterviewerResponse({
       sessionId: state.sessionId,
       inputId: state.latestInputId,
@@ -461,26 +492,96 @@ export function compileInterviewAgentGraph(
 
   /** 追问或评分分支只读取确定性 pendingAction。 */
   const routeFollowUp = (state: AgentGraphState) =>
-    state.pendingAction === "follow_up" ? "interviewer_respond" : "complete";
+    state.pendingAction === "follow_up"
+      ? "interviewer_respond"
+      : "score_question";
 
-  /** 结束 Phase 1 骨架运行，供恢复与最终快照测试验证。 */
-  const complete = (): Partial<AgentGraphState> => ({
+  /** Phase 3 建立正式评分节点边界；Phase 4 会在此提交冻结量表评分。 */
+  const scoreQuestion = (): Partial<AgentGraphState> => ({
+    phase: "scoring",
+    pendingAction: "score",
+  });
+
+  /** 确定性推进题号和角色，模型不能改变总题数或角色顺序。 */
+  const advanceStage = (state: AgentGraphState): Partial<AgentGraphState> => {
+    const nextIndex = state.currentQuestionIndex + 1;
+    if (!options.questionRuntimeService || nextIndex >= state.config.questionCount) {
+      return { phase: "reporting", pendingAction: "finish" };
+    }
+    const stage = state.rolePlan.find(
+      (candidate) =>
+        nextIndex >= candidate.startQuestionIndex &&
+        nextIndex <= candidate.endQuestionIndex,
+    );
+    if (!stage) throw new Error("Next question is outside the frozen role plan");
+    const roleChanged = stage.roleId !== state.currentRole;
+    return {
+      phase: roleChanged ? "role_handoff" : "preparing",
+      currentQuestionIndex: nextIndex,
+      currentQuestionId: null,
+      currentRole: stage.roleId,
+      followUpCount: 0,
+      latestInputId: null,
+      latestEvidenceIds: [],
+      pendingAction: roleChanged ? "handoff" : "ask",
+    };
+  };
+
+  /** 按 plan-v1 当前索引题库优先选题，提交完成后才进入下一次 interrupt。 */
+  const selectQuestion = async (
+    state: AgentGraphState,
+  ): Promise<Partial<AgentGraphState>> => {
+    if (state.currentQuestionId) {
+      return {
+        phase: "awaiting_answer",
+        currentQuestionId: state.currentQuestionId,
+        currentRole: state.currentRole,
+        pendingAction: "ask",
+      };
+    }
+    if (!options.questionRuntimeService) {
+      throw new Error("Agent question runtime service is unavailable");
+    }
+    const selected = await options.questionRuntimeService.selectAndCommit({
+      sessionId: state.sessionId,
+      questionIndex: state.currentQuestionIndex,
+      roleId: state.currentRole,
+    });
+    return {
+      phase: "awaiting_answer",
+      currentQuestionId: selected.questionId,
+      currentRole: selected.roleId,
+      pendingAction: "ask",
+    };
+  };
+
+  /** advance_stage 的完成或继续分支。 */
+  const routeAdvancedStage = (state: AgentGraphState) =>
+    state.pendingAction === "finish" ? "finalize_report" : "select_question";
+
+  /** 结束所有冻结题目；Phase 4 会在这里读取冻结评分生成报告。 */
+  const finalizeReport = (): Partial<AgentGraphState> => ({
     phase: "completed",
     pendingAction: "finish",
   });
 
   return new StateGraph(AgentStateAnnotation)
-    .addNode("prepare", prepare)
-    .addNode("ask", ask)
+    .addNode("hydrate_context", hydrateContext)
+    .addNode("research_context", researchContext)
+    .addNode("build_interview_plan", buildInterviewPlan)
     .addNode("wait_for_input", waitForInput)
     .addNode("guard_input", guardInput)
     .addNode("extract_evidence", extractEvidence)
     .addNode("decide_followup", decideFollowUp)
     .addNode("interviewer_respond", interviewerRespond)
-    .addNode("complete", complete)
-    .addEdge(START, "prepare")
-    .addEdge("prepare", "ask")
-    .addEdge("ask", "wait_for_input")
+    .addNode("score_question", scoreQuestion)
+    .addNode("advance_stage", advanceStage)
+    .addNode("select_question", selectQuestion)
+    .addNode("finalize_report", finalizeReport)
+    .addEdge(START, "hydrate_context")
+    .addEdge("hydrate_context", "research_context")
+    .addEdge("research_context", "build_interview_plan")
+    .addEdge("build_interview_plan", "select_question")
     .addEdge("wait_for_input", "guard_input")
     .addConditionalEdges("guard_input", routeGuardedInput, [
       "interviewer_respond",
@@ -489,10 +590,16 @@ export function compileInterviewAgentGraph(
     .addEdge("extract_evidence", "decide_followup")
     .addConditionalEdges("decide_followup", routeFollowUp, [
       "interviewer_respond",
-      "complete",
+      "score_question",
     ])
     .addEdge("interviewer_respond", "wait_for_input")
-    .addEdge("complete", END)
+    .addEdge("score_question", "advance_stage")
+    .addConditionalEdges("advance_stage", routeAdvancedStage, [
+      "select_question",
+      "finalize_report",
+    ])
+    .addEdge("select_question", "wait_for_input")
+    .addEdge("finalize_report", END)
     .compile({
       checkpointer: withAgentCheckpointNamespace(options.checkpointer),
       name: "interview-agent-v1",

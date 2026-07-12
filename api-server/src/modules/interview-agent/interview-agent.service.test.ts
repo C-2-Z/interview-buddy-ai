@@ -1,6 +1,7 @@
 /** Interview Agent Service 的创建、幂等恢复和 checkpoint 安全测试。 */
 import assert from "node:assert/strict";
 import test from "node:test";
+import { randomUUID } from "node:crypto";
 import { MemorySaver } from "@langchain/langgraph";
 import type { AgentRuntimeConfig } from "./interview-agent.config.js";
 import type { CreateAgentSessionRepositoryInput } from "./interview-agent.repository.js";
@@ -36,6 +37,7 @@ import type {
 } from "./tools/preparation.repository.js";
 import { InterviewPreparationService } from "./tools/preparation.service.js";
 import type { AgentInputRepository } from "./input/input.repository.js";
+import type { QuestionRuntimeService } from "./runtime/question-runtime.service.js";
 
 const SESSION_ID = "11111111-1111-4111-8111-111111111111";
 const USER_ID = "22222222-2222-4222-8222-222222222222";
@@ -289,7 +291,7 @@ class MemoryInterviewAgentRepository implements InterviewAgentRepository {
     if (this.projection.phase !== "awaiting_answer") {
       throw new Error("not awaiting input");
     }
-    const messageId = "88888888-8888-4888-8888-888888888888";
+    const messageId = randomUUID();
     const sequence = this.projection.eventCursor + 1;
     this.acceptedInputs.set(input.inputId, messageId);
     this.events.push({
@@ -377,6 +379,35 @@ class MemoryInterviewAgentRepository implements InterviewAgentRepository {
     };
   }
 
+  /** 模拟后续题 RPC 写入 question_ready 并把会话投影返回等待状态。 */
+  async commitNextQuestionForTest(input: {
+    questionIndex: number;
+    roleId: "general" | "technical" | "manager" | "hr";
+  }) {
+    if (!this.projection || this.projection.phase !== "reasoning") {
+      throw new Error("not reasoning before next question");
+    }
+    const questionId = randomUUID();
+    const sequence = this.projection.eventCursor + 1;
+    this.events.push({
+      sequence,
+      type: "agent.question_ready",
+      data: {
+        id: questionId,
+        question: `第 ${input.questionIndex + 1} 题`,
+        orderIndex: input.questionIndex,
+        roleId: input.roleId,
+        dimensionKey: `dimension-${input.questionIndex}`,
+        source: "model",
+      },
+      createdAt: CREATED_AT,
+    });
+    this.projection.phase = "awaiting_answer";
+    this.projection.currentRole = input.roleId;
+    this.projection.eventCursor = sequence;
+    return { questionId, roleId: input.roleId, dimensionKey: `dimension-${input.questionIndex}` };
+  }
+
   /** @inheritdoc */
   async listEventsAfter(
     _sessionId: string,
@@ -440,12 +471,21 @@ class MemoryInterviewAgentRepository implements InterviewAgentRepository {
 function createHarness(
   runtime: AgentRuntimeConfig = ENABLED_RUNTIME,
   persistInputs = false,
+  progressQuestions = false,
 ) {
   const checkpointer = new MemorySaver();
   const repository = new MemoryInterviewAgentRepository();
+  const questionRuntimeService: QuestionRuntimeService | undefined = progressQuestions
+    ? {
+        selectAndCommit(input) {
+          return repository.commitNextQuestionForTest(input);
+        },
+      }
+    : undefined;
   const graph = compileInterviewAgentGraph({
     checkpointer,
     inputRepository: persistInputs ? repository : undefined,
+    questionRuntimeService,
   });
   const service = new InterviewAgentService({
     repository,
@@ -692,6 +732,33 @@ test("Phase 3 asks at most three follow-ups before leaving the question", async 
         event.data.role === "assistant",
     ).length,
     3,
+  );
+});
+
+test("Phase 3 service completes all frozen questions instead of ending after the first", async () => {
+  const harness = createHarness(ENABLED_RUNTIME, true, true);
+  await harness.service.createSession(CREATE_INPUT);
+  const sufficient = "我先分析慢查询日志和执行计划，定位到联合索引缺失；随后增加索引并完成压测，最终 P95 延迟从 800 毫秒降低到 120 毫秒。";
+  for (let index = 1; index <= 2; index += 1) {
+    const result = await harness.service.submitInput(SESSION_ID, {
+      inputId: `complete-answer-${index}`,
+      type: "text",
+      content: sufficient,
+    });
+    assert.equal(result.snapshot.phase, "awaiting_answer");
+    assert.equal(result.snapshot.currentQuestionIndex, index);
+  }
+  const final = await harness.service.submitInput(SESSION_ID, {
+    inputId: "complete-answer-3",
+    type: "text",
+    content: sufficient,
+  });
+  assert.equal(final.snapshot.phase, "completed");
+  assert.equal(final.snapshot.currentQuestionIndex, 2);
+  assert.equal(final.snapshot.eventCursor, 15);
+  assert.equal(
+    harness.repository.events.filter((event) => event.type === "agent.question_ready").length,
+    2,
   );
 });
 

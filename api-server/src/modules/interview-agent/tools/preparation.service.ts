@@ -142,6 +142,8 @@ export class InterviewPreparationService {
               position: input.config.position,
               difficulty: input.config.difficulty,
               promptVersion: input.config.promptVersion,
+              modelProvider: input.config.modelProvider,
+              modelName: input.config.modelName,
               dimensionKey: firstDimension,
               trustedContext: {
                 jobDescription: input.config.jobDescription,

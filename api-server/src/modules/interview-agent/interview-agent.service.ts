@@ -43,12 +43,18 @@ import {
 } from "./tools/preparation.repository.js";
 import { InterviewPreparationService } from "./tools/preparation.service.js";
 import { createWebSearchProviderFromEnv } from "./providers/web-search.provider.js";
-import { createDeterministicMockAgentModelProvider } from "./providers/agent-model.provider.js";
+import type { AgentInterviewerModelProvider } from "./providers/agent-model.provider.js";
+import { createProductionAgentModelProvider } from "./providers/production-agent-model.provider.js";
 import {
   createAgentInputRepository,
   AgentInputRepositoryError,
   type AgentInputRepository,
 } from "./input/input.repository.js";
+import { createQuestionRuntimeRepository } from "./runtime/question-runtime.repository.js";
+import {
+  DefaultQuestionRuntimeService,
+  type QuestionRuntimeService,
+} from "./runtime/question-runtime.service.js";
 
 const logger = createModuleLogger("interview-agent");
 const PREPARE_OPERATION_KEY = "prepare:agent-v1";
@@ -140,11 +146,15 @@ let defaultCheckpointer: ReturnType<typeof createPostgresCheckpointer> | undefin
  */
 function getDefaultInterviewAgentGraph(
   inputRepository: AgentInputRepository,
+  questionRuntimeService: QuestionRuntimeService,
+  interviewerModelProvider: AgentInterviewerModelProvider,
 ): InterviewAgentGraph {
   defaultCheckpointer ??= createPostgresCheckpointer();
   return compileInterviewAgentGraph({
     checkpointer: defaultCheckpointer,
     inputRepository,
+    questionRuntimeService,
+    interviewerModelProvider,
   });
 }
 
@@ -437,10 +447,7 @@ export class InterviewAgentService {
         sessionId,
         this.dependencies.userId,
       );
-      if (
-        state.phase === "awaiting_answer" &&
-        state.pendingAction === "follow_up"
-      ) {
+      if (state.phase === "awaiting_answer") {
         const snapshot = createAgentSnapshot(state, before.eventCursor + 2);
         await this.dependencies.repository.commitOperation({
           sessionId,
@@ -451,7 +458,7 @@ export class InterviewAgentService {
           result: {
             phase: "awaiting_answer",
             latestInputId: state.latestInputId,
-            disposition: "interviewer_response",
+            disposition: state.pendingAction,
           },
           events: [
             { type: "agent.phase", data: { phase: "awaiting_answer" } },
@@ -897,18 +904,28 @@ export function createInterviewAgentService(
 ): InterviewAgentService {
   const preparationRepository = createInterviewPreparationRepository(supabase);
   const inputRepository = createAgentInputRepository(supabase);
+  const agentModelProvider = createProductionAgentModelProvider(supabase, userId);
+  const questionRuntimeService = new DefaultQuestionRuntimeService({
+    runtimeRepository: createQuestionRuntimeRepository(supabase),
+    preparationRepository,
+    modelProvider: agentModelProvider,
+  });
   return new InterviewAgentService({
     repository: createInterviewAgentRepository(supabase),
     userId,
-    getGraph: () => getDefaultInterviewAgentGraph(inputRepository),
+    getGraph: () => getDefaultInterviewAgentGraph(
+      inputRepository,
+      questionRuntimeService,
+      agentModelProvider,
+    ),
     runtimeConfig: getAgentRuntimeConfig(),
     preparationRepository,
     inputRepository,
     preparationService: new InterviewPreparationService({
       tools: createDefaultInterviewAgentTools(preparationRepository),
       webSearchProvider: createWebSearchProviderFromEnv(),
-      // Phase 3 会把具体 Provider 调用移入模型 Adapter；Phase 2 先验证动态兜底契约。
-      modelProvider: createDeterministicMockAgentModelProvider(),
+      // Adapter 在调用栈解析用户 BYOK；凭据不会进入 Graph State 或 checkpoint。
+      modelProvider: agentModelProvider,
       loadResearchSources(sessionId) {
         return preparationRepository.loadResearchSources(sessionId);
       },

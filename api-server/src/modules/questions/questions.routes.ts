@@ -22,7 +22,15 @@ questions.post("/:questionId/message", async (c) => {
     questionId: c.req.param("questionId"),
     content: body.content,
   });
-  if ("error" in result) return c.json({ error: result.error }, 404);
+  if ("error" in result) {
+    if ("statusCode" in result && result.statusCode === 409) {
+      return c.json({
+        error: result.error,
+        code: "code" in result ? result.code : "legacy_session_read_only",
+      }, 409);
+    }
+    return c.json({ error: result.error }, 404);
+  }
   return c.json(result);
 });
 
@@ -32,7 +40,15 @@ questions.post("/:questionId/evaluate", async (c) => {
     userId: c.var.userId,
     questionId: c.req.param("questionId"),
   });
-  if ("error" in result) return c.json({ error: result.error }, 404);
+  if ("error" in result) {
+    if ("statusCode" in result && result.statusCode === 409) {
+      return c.json({
+        error: result.error,
+        code: "code" in result ? result.code : "legacy_session_read_only",
+      }, 409);
+    }
+    return c.json({ error: result.error }, 404);
+  }
   return c.json(result);
 });
 

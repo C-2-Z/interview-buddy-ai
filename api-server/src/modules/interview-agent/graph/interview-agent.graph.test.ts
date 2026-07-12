@@ -8,6 +8,8 @@ import {
 } from "@langchain/langgraph";
 import { getRolePersona } from "../roles/personas.js";
 import { DeterministicMockAgentModelProvider } from "../providers/agent-model.provider.js";
+import type { AgentInputRepository } from "../input/input.repository.js";
+import type { QuestionRuntimeService } from "../runtime/question-runtime.service.js";
 import {
   AGENT_CHECKPOINT_NAMESPACE,
   createPostgresCheckpointer,
@@ -160,6 +162,79 @@ test("state and every MemorySaver checkpoint omit answer content and credentials
   assert.equal(stateText.includes('"content"'), false);
   assert.equal(checkpointText.includes('"apiKey"'), false);
   assert.equal(checkpointText.includes('"authorization"'), false);
+});
+
+test("panel graph advances through every frozen role and question", async () => {
+  const questionIds = [
+    "33333333-3333-4333-8333-333333333333",
+    "44444444-4444-4444-8444-444444444444",
+    "55555555-5555-4555-8555-555555555555",
+  ];
+  const inputIds = ["panel-input-1", "panel-input-2", "panel-input-3"];
+  const inputRepository: AgentInputRepository = {
+    async acceptInput() { throw new Error("service owns input receipts"); },
+    async commitInterviewerResponse() { throw new Error("sufficient answers need no follow-up"); },
+    async loadInput(_sessionId, inputId) {
+      const index = inputIds.indexOf(inputId);
+      if (index < 0) throw new Error("unknown input");
+      return {
+        inputId,
+        messageId: `${index + 6}6666666-6666-4666-8666-666666666666`.slice(-36),
+        questionId: questionIds[index],
+        question: "请说明一次具体的问题解决经历。",
+        content: "我先分析日志和业务指标，定位到数据库索引缺失，随后增加联合索引并完成压测，最终 P95 延迟从 800 毫秒降低到 120 毫秒。",
+        source: "text",
+        createdAt: "2026-07-12T00:00:00.000Z",
+      };
+    },
+  };
+  const selections: Array<{ questionIndex: number; roleId: string }> = [];
+  const questionRuntimeService: QuestionRuntimeService = {
+    async selectAndCommit(input) {
+      selections.push({ questionIndex: input.questionIndex, roleId: input.roleId });
+      return {
+        questionId: questionIds[input.questionIndex],
+        roleId: input.roleId,
+        dimensionKey: `dimension-${input.questionIndex}`,
+      };
+    },
+  };
+  const checkpointer = new MemorySaver();
+  const graph = compileInterviewAgentGraph({
+    checkpointer,
+    inputRepository,
+    questionRuntimeService,
+  });
+  const config = createAgentGraphConfig(SESSION_ID);
+  const initial = createInitialAgentState({
+    sessionId: SESSION_ID,
+    userId: USER_ID,
+    preparedQuestionId: questionIds[0],
+    input: {
+      mode: "panel",
+      interviewMode: "text",
+      position: "后端工程师",
+      difficulty: "中级",
+      questionCount: 3,
+      webResearch: false,
+    },
+  });
+
+  let state = await graph.invoke(initial, config);
+  assert.equal(state.currentRole, "technical");
+  state = await graph.invoke(createAgentResumeCommand(inputIds[0]), config);
+  assert.equal(state.phase, "awaiting_answer");
+  assert.equal(state.currentRole, "manager");
+  state = await graph.invoke(createAgentResumeCommand(inputIds[1]), config);
+  assert.equal(state.phase, "awaiting_answer");
+  assert.equal(state.currentRole, "hr");
+  state = await graph.invoke(createAgentResumeCommand(inputIds[2]), config);
+  assert.equal(state.phase, "completed");
+  assert.deepEqual(selections, [
+    { questionIndex: 1, roleId: "manager" },
+    { questionIndex: 2, roleId: "hr" },
+  ]);
+  assert.equal((await serializeThreadCheckpoints(checkpointer)).includes("P95 延迟"), false);
 });
 
 test("checkpoint schema validation is strict and runtime factory does not setup", async () => {
