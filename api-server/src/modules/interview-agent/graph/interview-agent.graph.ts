@@ -34,6 +34,8 @@ import {
   buildFocusedFollowUp,
 } from "./answer-sufficiency.js";
 import type { QuestionRuntimeService } from "../runtime/question-runtime.service.js";
+import type { QuestionEvaluationRunner } from "../evaluation/evaluation.service.js";
+import type { AgentReportFinalizer } from "../report/report.service.js";
 
 /** Graph 等待业务消息持久化后发出的安全 interrupt 数据。 */
 export type AgentInputRequiredInterrupt = Readonly<{
@@ -65,6 +67,10 @@ export type CompileInterviewAgentGraphOptions = Readonly<{
   questionRuntimeService?: QuestionRuntimeService;
   /** Persona 驱动的真实追问模型；控制流仍由确定性节点决定。 */
   interviewerModelProvider?: AgentInterviewerModelProvider;
+  /** Phase 4 证据提取、版本化评分和原子投影服务。 */
+  evaluationService?: QuestionEvaluationRunner;
+  /** Phase 4 只读取冻结评分的报告服务。 */
+  reportService?: AgentReportFinalizer;
 }>;
 
 /** 创建初始 Agent State 所需的业务参数。 */
@@ -496,11 +502,26 @@ export function compileInterviewAgentGraph(
       ? "interviewer_respond"
       : "score_question";
 
-  /** Phase 3 建立正式评分节点边界；Phase 4 会在此提交冻结量表评分。 */
-  const scoreQuestion = (): Partial<AgentGraphState> => ({
-    phase: "scoring",
-    pendingAction: "score",
-  });
+  /** 提取候选人证据并按冻结量表提交唯一的版本化题目评分。 */
+  const scoreQuestion = async (
+    state: AgentGraphState,
+  ): Promise<Partial<AgentGraphState>> => {
+    if (!options.evaluationService) {
+      return { phase: "scoring", pendingAction: "score" };
+    }
+    if (!state.currentQuestionId) {
+      throw new Error("Agent cannot score without a current question");
+    }
+    const receipt = await options.evaluationService.evaluateAndCommit(
+      state.sessionId,
+      state.currentQuestionId,
+    );
+    return {
+      phase: "scoring",
+      latestEvidenceIds: receipt.evidenceIds,
+      pendingAction: "score",
+    };
+  };
 
   /** 确定性推进题号和角色，模型不能改变总题数或角色顺序。 */
   const advanceStage = (state: AgentGraphState): Partial<AgentGraphState> => {
@@ -559,11 +580,13 @@ export function compileInterviewAgentGraph(
   const routeAdvancedStage = (state: AgentGraphState) =>
     state.pendingAction === "finish" ? "finalize_report" : "select_question";
 
-  /** 结束所有冻结题目；Phase 4 会在这里读取冻结评分生成报告。 */
-  const finalizeReport = (): Partial<AgentGraphState> => ({
-    phase: "completed",
-    pendingAction: "finish",
-  });
+  /** 只读取全部冻结题目评分，确定性聚合并原子完成最终报告。 */
+  const finalizeReport = async (
+    state: AgentGraphState,
+  ): Promise<Partial<AgentGraphState>> => {
+    if (options.reportService) await options.reportService.finalize(state.sessionId);
+    return { phase: "completed", pendingAction: "finish" };
+  };
 
   return new StateGraph(AgentStateAnnotation)
     .addNode("hydrate_context", hydrateContext)

@@ -1,6 +1,6 @@
-# Interview Agent Phase 1–3 基础设施、准备与文本主图
+# Interview Agent Phase 1–4 基础设施、文本主图、评分与报告
 
-本文记录 `docs/AGENT_APPLICATION_IMPLEMENTATION_PLAN.md` 的 Phase 1–3 已实现范围、运行方式和安全边界。
+本文记录 `docs/AGENT_APPLICATION_IMPLEMENTATION_PLAN.md` 的 Phase 1–4 已实现范围、运行方式和安全边界。
 
 ## 当前范围
 
@@ -36,7 +36,19 @@ Phase 3 已建立：
 - 单角色和技术 → 主管 → HR 面板均能完成全部冻结题目，角色交接与题目事件在数据库事务中提交。
 - 旧 `POST /api/sessions` 在 Agent 开关开启时委托 Canonical Agent，旧题目消息接口对 Agent 会话转发为 inputId。
 
-Phase 4 将把当前 `extract_evidence`、`score_question` 和 `finalize_report` 节点边界替换为正式证据、版本化评分和冻结报告实现。统一语音和前端 Agent 页面仍按后续 Phase 接入；`AGENT_INTERVIEW_ENABLED` 默认关闭，可灰度回滚到旧创建路径。
+Phase 4 已建立：
+
+- `extract_evidence` 只从当前题候选人消息提取逐字 quote，并校验消息所有权、冻结维度和原文子串。
+- `score_question` 只读取冻结题目、量表和合法证据；Zod 拒绝未知维度、越界分数和伪造 evidenceId。
+- 模型只输出逐维评分，代码按冻结权重计算总分；无证据维度必须明确标记“证据不足”。
+- 非法模型输出只允许一次修复；再次非法会写入 `evaluation_failed`，不会静默生成兜底分数。
+- `commit_agent_question_evaluation` 在一个事务提交证据、版本化评分、旧题目投影、事件和幂等操作；失败记录可被合法重试原位覆盖。
+- `finalize_report` 只聚合全部 `completed` 冻结评分，由代码生成总分、维度汇总和反馈，不重新调用模型评分。
+- 最终报告一次性投影到旧 `overall_score`、`overall_feedback`、`dimension_summary` 与 `report_status`，并发出完整 `agent.session_completed` 事件。
+- 出题、追问、证据提取和评分模型调用均记录脱敏 `agent_runs`：模型、Prompt 版本、Token、耗时、尝试序号和稳定错误码。
+- 数据库脱敏规则允许能力蓝图的合法 `dimensions[].key`，仍拒绝 `apiKey`、Token、Password、Authorization 等具体敏感键。
+
+统一语音和前端 Agent 页面仍按后续 Phase 接入；`AGENT_INTERVIEW_ENABLED` 默认关闭，可灰度回滚到旧创建路径。
 
 ## 后端依赖
 
@@ -60,6 +72,9 @@ supabase/migrations/20260711000002_add_interview_agent_foundation.sql
 supabase/migrations/20260712000001_add_agent_preparation.sql
 supabase/migrations/20260712000002_add_agent_text_input.sql
 supabase/migrations/20260712000003_add_agent_question_progression.sql
+supabase/migrations/20260712000004_add_agent_evaluation.sql
+supabase/migrations/20260712000005_add_agent_report.sql
+supabase/migrations/20260712000006_add_agent_run_audit.sql
 ```
 
 该迁移只应在隔离的本地或测试数据库演练。根据项目交接约束，禁止在没有用户再次授权时运行 `supabase db push`、`db reset` 或 `migration repair`。
@@ -108,7 +123,7 @@ POST /api/agent/sessions/:sessionId/retry
 GET  /api/agent/sessions/:sessionId/events
 ```
 
-文本输入必须携带稳定 `inputId`。API 在恢复 Graph 前原子 claim `input:<inputId>`；重复或并发请求不会第二次推进 Graph。当前不把回答正文传入 `Command.resume`，只传已持久化输入的 ID。正式正文落表将在 Phase 3 完成。
+文本输入必须携带稳定 `inputId`。API 在恢复 Graph 前原子 claim `input:<inputId>`；重复或并发请求不会第二次推进 Graph。回答正文先持久化到业务消息，`Command.resume` 只传输入 ID。
 
 ## 验证
 
@@ -137,3 +152,11 @@ AGENT_TEST_DATABASE_URL=postgresql://...
 - `commit_agent_preparation` 原子写入冻结计划、清洗来源、业务首题和三个有序事件。
 - 相同 preparation operation 重放不重复创建题目、研究或事件。
 - 其他用户无法读取研究来源，authenticated 客户端无法绕过 RPC 写 Agent 题目。
+
+本地 Phase 4 验收从完整历史结构启动临时真实 PostgreSQL，并验证：
+
+- `evaluation_failed` 可由唯一合法重试覆盖，评分重放仍只有一份证据、评分与 `agent.score_completed` 事件。
+- 伪造 quote、未知证据引用和不完整冻结评分由应用与数据库双层拒绝。
+- 报告仅在冻结评分数量等于冻结题量时完成，重放不产生第二份 `agent.session_completed`。
+- 旧题目、雷达维度和会话报告投影与冻结评分一致。
+- 同一模型操作的失败/成功尝试分别审计，Prompt 版本、Token、耗时可追踪，含 `apiKey` 的审计载荷被拒绝。

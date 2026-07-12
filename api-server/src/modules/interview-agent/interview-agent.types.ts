@@ -198,12 +198,39 @@ export type AgentQuestionView = {
   source: "bank" | "model";
 };
 
+/** 逐题冻结评分完成后的客户端视图。 */
+export type AgentScoreView = {
+  /** 被评分题目 UUID。 */
+  questionId: string;
+  /** 代码按冻结权重计算的总分。 */
+  overallScore: number;
+  /** 维度分、理由和真实证据引用。 */
+  dimensions: Record<
+    string,
+    { score: number; rationale: string; evidenceIds: string[] }
+  >;
+};
+
 /** 会话完成事件的最小数据。 */
 export type AgentSessionCompletedData = {
   /** 已完成的业务会话标识。 */
   sessionId: string;
   /** ISO 8601 完成时间。 */
   completedAt: string;
+} | {
+  /** 会话 UUID。 */ sessionId: string;
+  /** ISO 8601 完成时间。 */ completedAt: string;
+  /** 冻结综合分。 */ overallScore: number;
+  /** 确定性总评。 */ overallFeedback: string;
+  /** 雷达图兼容维度汇总。 */ dimensionSummary: {
+    /** 各维度平均分、样本数和权重。 */
+    dimensions: Record<string, { score: number; count: number; weight: number }>;
+    /** 冻结加权总分。 */ overallScore: number;
+    /** 优势。 */ strengths: string[];
+    /** 待改进项。 */ weaknesses: string[];
+  };
+  /** 已评分题数。 */ questionCount: number;
+  /** 研究附录来源数量。 */ researchSourceCount: number;
 };
 
 /** 可安全返回给客户端的 Agent 错误。 */
@@ -235,6 +262,7 @@ export type AgentEvent =
   | AgentEventEnvelope<"agent.role_changed", RoleStage>
   | AgentEventEnvelope<"agent.question_ready", AgentQuestionView>
   | AgentEventEnvelope<"agent.message_completed", AgentMessageView>
+  | AgentEventEnvelope<"agent.score_completed", AgentScoreView>
   | AgentEventEnvelope<"agent.session_completed", AgentSessionCompletedData>
   | AgentEventEnvelope<"agent.error", AgentError>;
 

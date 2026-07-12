@@ -24,6 +24,12 @@ export type AiCallOptions = {
   outputMode?: "text" | "json";
   signal?: AbortSignal;
   traceId?: string;
+  /** 结构化 Token 用量回调；调用方负责审计持久化。 */
+  onUsage?: (usage: {
+    promptTokens: number | null;
+    completionTokens: number | null;
+    totalTokens: number | null;
+  }) => void;
 };
 
 function taskTimeoutMs(profile?: AiTaskProfile): number {
@@ -141,6 +147,18 @@ export async function callAI(
   }
 
   const data = (await res.json()) as Record<string, unknown>;
+  const usage = data.usage as Record<string, unknown> | undefined;
+  if (options?.onUsage) {
+    const numberOrNull = (value: unknown) =>
+      typeof value === "number" && Number.isFinite(value) ? value : null;
+    options.onUsage({
+      promptTokens: numberOrNull(usage?.prompt_tokens ?? usage?.input_tokens),
+      completionTokens: numberOrNull(
+        usage?.completion_tokens ?? usage?.output_tokens,
+      ),
+      totalTokens: numberOrNull(usage?.total_tokens),
+    });
+  }
   const content = extractResponseText(resolved.name, data);
   if (!content) throw new Error("AI 未返回内容");
   endSpan?.("ok");

@@ -287,6 +287,7 @@ const AgentEventTypeSchema = z.enum([
   "agent.role_changed",
   "agent.question_ready",
   "agent.message_completed",
+  "agent.score_completed",
   "agent.session_completed",
   "agent.error",
 ]);
@@ -462,12 +463,39 @@ const MessageCompletedDataSchema = z
     interrupted: z.boolean(),
   })
   .strict();
-const SessionCompletedDataSchema = z
-  .object({
+const ScoreCompletedDataSchema = z.object({
+  questionId: SessionIdSchema,
+  overallScore: z.number().int().min(0).max(100),
+  dimensions: z.record(z.object({
+    score: z.number().int().min(0).max(100),
+    rationale: z.string().min(1).max(1_000),
+    evidenceIds: z.array(SessionIdSchema).max(50),
+  }).strict()),
+}).strict();
+const SessionCompletedDataSchema = z.union([
+  z.object({
     sessionId: SessionIdSchema,
     completedAt: IsoTimestampSchema,
-  })
-  .strict();
+  }).strict(),
+  z.object({
+    sessionId: SessionIdSchema,
+    completedAt: IsoTimestampSchema,
+    overallScore: z.number().int().min(0).max(100),
+    overallFeedback: z.string().min(1).max(2_000),
+    dimensionSummary: z.object({
+      dimensions: z.record(z.object({
+        score: z.number().int().min(0).max(100),
+        count: z.number().int().positive(),
+        weight: z.number().positive(),
+      }).strict()),
+      overallScore: z.number().int().min(0).max(100),
+      strengths: z.array(z.string().max(200)).max(10),
+      weaknesses: z.array(z.string().max(200)).max(10),
+    }).strict(),
+    questionCount: z.number().int().min(1).max(10),
+    researchSourceCount: z.number().int().min(0).max(15),
+  }).strict(),
+]);
 const AgentErrorDataSchema = z
   .object({
     code: z.string().trim().min(1).max(100),
@@ -780,6 +808,8 @@ function parseEventData(
         return QuestionReadyDataSchema;
       case "agent.message_completed":
         return MessageCompletedDataSchema;
+      case "agent.score_completed":
+        return ScoreCompletedDataSchema;
       case "agent.session_completed":
         return SessionCompletedDataSchema;
       case "agent.error":
@@ -837,6 +867,13 @@ function parseEventRow(value: unknown): AgentEvent {
         sequence: row.sequence,
         type: row.type,
         data: parseDatabaseOutput(MessageCompletedDataSchema, safePayload),
+        createdAt,
+      };
+    case "agent.score_completed":
+      return {
+        sequence: row.sequence,
+        type: row.type,
+        data: parseDatabaseOutput(ScoreCompletedDataSchema, safePayload),
         createdAt,
       };
     case "agent.session_completed":

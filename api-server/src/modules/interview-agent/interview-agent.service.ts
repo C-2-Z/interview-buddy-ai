@@ -55,6 +55,12 @@ import {
   DefaultQuestionRuntimeService,
   type QuestionRuntimeService,
 } from "./runtime/question-runtime.service.js";
+import { createAgentEvaluationRepository } from "./evaluation/evaluation.repository.js";
+import { createAgentEvaluationModelProvider } from "./evaluation/evaluation-model.provider.js";
+import { createAgentRunAuditor } from "./audit/agent-run.repository.js";
+import { QuestionEvaluationService } from "./evaluation/evaluation.service.js";
+import { createAgentReportRepository } from "./report/report.repository.js";
+import { DefaultAgentReportService } from "./report/report.service.js";
 
 const logger = createModuleLogger("interview-agent");
 const PREPARE_OPERATION_KEY = "prepare:agent-v1";
@@ -94,6 +100,8 @@ export type InterviewAgentServiceDependencies = {
   preparationRepository?: PreparationCommitRepository;
   /** Phase 3 在恢复 Graph 前原子保存回答正文；测试最小图可省略。 */
   inputRepository?: AgentInputRepository;
+  /** true 表示 Graph finalize_report 已提交完整 session_completed 报告事件。 */
+  reportFinalizedInGraph?: boolean;
 };
 
 /** Service 对 HTTP adapter 暴露的稳定错误码。 */
@@ -148,6 +156,8 @@ function getDefaultInterviewAgentGraph(
   inputRepository: AgentInputRepository,
   questionRuntimeService: QuestionRuntimeService,
   interviewerModelProvider: AgentInterviewerModelProvider,
+  evaluationService: QuestionEvaluationService,
+  reportService: DefaultAgentReportService,
 ): InterviewAgentGraph {
   defaultCheckpointer ??= createPostgresCheckpointer();
   return compileInterviewAgentGraph({
@@ -155,6 +165,8 @@ function getDefaultInterviewAgentGraph(
     inputRepository,
     questionRuntimeService,
     interviewerModelProvider,
+    evaluationService,
+    reportService,
   });
 }
 
@@ -484,13 +496,17 @@ export class InterviewAgentService {
       }
 
       const completedAt = new Date().toISOString();
-      const snapshot = createAgentSnapshot(state, before.eventCursor + 3);
+      const reportFinalized = this.dependencies.reportFinalizedInGraph === true;
+      const snapshot = createAgentSnapshot(
+        state,
+        before.eventCursor + (reportFinalized ? 2 : 3),
+      );
       const events: AgentEventDraft[] = [
         { type: "agent.phase", data: { phase: "completed" } },
-        {
+        ...(!reportFinalized ? [{
           type: "agent.session_completed",
           data: { sessionId, completedAt },
-        },
+        } as const] : []),
         { type: "agent.snapshot", data: snapshot },
       ];
       await this.dependencies.repository.commitOperation({
@@ -904,12 +920,24 @@ export function createInterviewAgentService(
 ): InterviewAgentService {
   const preparationRepository = createInterviewPreparationRepository(supabase);
   const inputRepository = createAgentInputRepository(supabase);
-  const agentModelProvider = createProductionAgentModelProvider(supabase, userId);
+  const agentRunAuditor = createAgentRunAuditor(supabase);
+  const agentModelProvider = createProductionAgentModelProvider(
+    supabase,
+    userId,
+    agentRunAuditor,
+  );
   const questionRuntimeService = new DefaultQuestionRuntimeService({
     runtimeRepository: createQuestionRuntimeRepository(supabase),
     preparationRepository,
     modelProvider: agentModelProvider,
   });
+  const evaluationService = new QuestionEvaluationService(
+    createAgentEvaluationRepository(supabase),
+    createAgentEvaluationModelProvider(supabase, userId, agentRunAuditor),
+  );
+  const reportService = new DefaultAgentReportService(
+    createAgentReportRepository(supabase),
+  );
   return new InterviewAgentService({
     repository: createInterviewAgentRepository(supabase),
     userId,
@@ -917,10 +945,13 @@ export function createInterviewAgentService(
       inputRepository,
       questionRuntimeService,
       agentModelProvider,
+      evaluationService,
+      reportService,
     ),
     runtimeConfig: getAgentRuntimeConfig(),
     preparationRepository,
     inputRepository,
+    reportFinalizedInGraph: true,
     preparationService: new InterviewPreparationService({
       tools: createDefaultInterviewAgentTools(preparationRepository),
       webSearchProvider: createWebSearchProviderFromEnv(),

@@ -11,6 +11,8 @@ import type {
   AgentQuestionModelInput,
   AgentQuestionModelOutput,
 } from "./agent-model.provider.js";
+import type { AgentRunAuditor } from "../audit/agent-run.repository.js";
+import { executeAuditedModelCall } from "../audit/agent-run.service.js";
 
 const QuestionOutputSchema = z.object({ question: z.string().trim().min(5).max(1_000) }).strict();
 const FollowUpOutputSchema = z.object({ question: z.string().trim().min(5).max(500) }).strict();
@@ -31,6 +33,8 @@ export type ProductionAgentModelDependencies = {
   resolveProvider?: typeof resolveProviderForCreation;
   /** 可替换模型调用。 */
   complete?: typeof callAI;
+  /** 可选运行审计器。 */
+  auditor?: AgentRunAuditor;
 };
 
 /** 复用项目多模型/BYOK 配置的题目和追问 Adapter。 */
@@ -85,10 +89,18 @@ export class ProductionAgentModelProvider
         ].filter(Boolean).join("\n"),
       },
     ];
-    const text = await this.complete(messages, provider, {
+    const text = await executeAuditedModelCall({
+      auditor: this.dependencies.auditor,
+      sessionId: input.sessionId,
+      operationKey: `model:question:${input.questionIndex}`,
+      nodeName: "select_question",
+      modelProvider: provider.name,
+      modelName: provider.model,
+      promptVersion: input.promptVersion,
+    }, (onUsage) => this.complete(messages, provider, {
       taskProfile: "generation", outputMode: "json", maxTokens: 800,
-      thinkingMode: "disabled", signal, traceId: `${input.sessionId}:question:${input.questionIndex}`,
-    });
+      thinkingMode: "disabled", signal, traceId: `${input.sessionId}:question:${input.questionIndex}`, onUsage,
+    }));
     const output = parseStructuredOutput(QuestionOutputSchema, text);
     const hash = createHash("sha256")
       .update(`${input.sessionId}\0${input.questionIndex}\0${output.question}`)
@@ -106,7 +118,7 @@ export class ProductionAgentModelProvider
   /** @inheritdoc */
   async generateFollowUp(input: AgentFollowUpModelInput, signal?: AbortSignal): Promise<{ content: string }> {
     const provider = await this.resolve(input);
-    const text = await this.complete([
+    const messages: ChatMessage[] = [
       {
         role: "system",
         content: [
@@ -120,10 +132,19 @@ export class ProductionAgentModelProvider
         role: "user",
         content: `原题：${input.question}\n候选人回答：${input.answer}\n证据缺口：${input.evidenceGap}\n追问轮次：${input.followUpNumber}/3`,
       },
-    ], provider, {
+    ];
+    const text = await executeAuditedModelCall({
+      auditor: this.dependencies.auditor,
+      sessionId: input.sessionId,
+      operationKey: `model:follow-up:${input.followUpNumber}`,
+      nodeName: "interviewer_respond",
+      modelProvider: provider.name,
+      modelName: provider.model,
+      promptVersion: input.promptVersion,
+    }, (onUsage) => this.complete(messages, provider, {
       taskProfile: "interactive", outputMode: "json", maxTokens: 300,
-      thinkingMode: "disabled", signal, traceId: `${input.sessionId}:follow-up:${input.followUpNumber}`,
-    });
+      thinkingMode: "disabled", signal, traceId: `${input.sessionId}:follow-up:${input.followUpNumber}`, onUsage,
+    }));
     const output = parseStructuredOutput(FollowUpOutputSchema, text);
     return { content: output.question };
   }
@@ -133,6 +154,7 @@ export class ProductionAgentModelProvider
 export function createProductionAgentModelProvider(
   supabase: UserSupabaseClient,
   userId: string,
+  auditor?: AgentRunAuditor,
 ): ProductionAgentModelProvider {
-  return new ProductionAgentModelProvider({ supabase, userId });
+  return new ProductionAgentModelProvider({ supabase, userId, auditor });
 }

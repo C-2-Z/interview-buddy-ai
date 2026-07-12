@@ -10,6 +10,8 @@ import { getRolePersona } from "../roles/personas.js";
 import { DeterministicMockAgentModelProvider } from "../providers/agent-model.provider.js";
 import type { AgentInputRepository } from "../input/input.repository.js";
 import type { QuestionRuntimeService } from "../runtime/question-runtime.service.js";
+import type { QuestionEvaluationRunner } from "../evaluation/evaluation.service.js";
+import type { AgentReportFinalizer } from "../report/report.service.js";
 import {
   AGENT_CHECKPOINT_NAMESPACE,
   createPostgresCheckpointer,
@@ -199,11 +201,35 @@ test("panel graph advances through every frozen role and question", async () => 
       };
     },
   };
+  const evaluated: string[] = [];
+  const evaluationService: QuestionEvaluationRunner = {
+    async evaluateAndCommit(_sessionId, questionId) {
+      evaluated.push(questionId);
+      return {
+        committed: true,
+        duplicate: false,
+        operationKey: `evaluate:${questionId}`,
+        questionId,
+        overallScore: 80,
+        eventSequence: evaluated.length,
+        evidenceIds: ["77777777-7777-4777-8777-777777777777"],
+      };
+    },
+  };
+  let reports = 0;
+  const reportService: AgentReportFinalizer = {
+    async finalize(sessionId) {
+      reports += 1;
+      return { committed: true, duplicate: false, operationKey: "finalize:report", sessionId, overallScore: 80, eventSequence: 10 };
+    },
+  };
   const checkpointer = new MemorySaver();
   const graph = compileInterviewAgentGraph({
     checkpointer,
     inputRepository,
     questionRuntimeService,
+    evaluationService,
+    reportService,
   });
   const config = createAgentGraphConfig(SESSION_ID);
   const initial = createInitialAgentState({
@@ -234,6 +260,8 @@ test("panel graph advances through every frozen role and question", async () => 
     { questionIndex: 1, roleId: "manager" },
     { questionIndex: 2, roleId: "hr" },
   ]);
+  assert.deepEqual(evaluated, questionIds);
+  assert.equal(reports, 1);
   assert.equal((await serializeThreadCheckpoints(checkpointer)).includes("P95 延迟"), false);
 });
 
