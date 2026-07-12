@@ -44,6 +44,11 @@ import {
 import { InterviewPreparationService } from "./tools/preparation.service.js";
 import { createWebSearchProviderFromEnv } from "./providers/web-search.provider.js";
 import { createDeterministicMockAgentModelProvider } from "./providers/agent-model.provider.js";
+import {
+  createAgentInputRepository,
+  AgentInputRepositoryError,
+  type AgentInputRepository,
+} from "./input/input.repository.js";
 
 const logger = createModuleLogger("interview-agent");
 const PREPARE_OPERATION_KEY = "prepare:agent-v1";
@@ -81,11 +86,14 @@ export type InterviewAgentServiceDependencies = {
   preparationService?: InterviewPreparationService;
   /** Phase 2 原子准备持久化；必须与 preparationService 同时提供。 */
   preparationRepository?: PreparationCommitRepository;
+  /** Phase 3 在恢复 Graph 前原子保存回答正文；测试最小图可省略。 */
+  inputRepository?: AgentInputRepository;
 };
 
 /** Service 对 HTTP adapter 暴露的稳定错误码。 */
 export type InterviewAgentServiceErrorCode =
   | "agent_interview_disabled"
+  | "agent_session_not_found"
   | "agent_operation_in_progress"
   | "agent_invalid_phase"
   | "agent_graph_unavailable"
@@ -122,19 +130,22 @@ export class InterviewAgentServiceError extends Error {
   }
 }
 
-/** 进程内复用一个 Postgres pool 和 compiled graph，thread_id 仍隔离每场会话。 */
-let defaultGraph: InterviewAgentGraph | undefined;
+/** 进程内只复用 PostgresSaver 连接池；Graph 按用户 Repository 轻量编译。 */
+let defaultCheckpointer: ReturnType<typeof createPostgresCheckpointer> | undefined;
 
 /**
  * 延迟创建生产 Graph；该路径不会调用 checkpointer.setup() 或执行 DDL。
  *
  * @returns 使用 PostgresSaver 和 Phase 1 Mock 节点的 compiled graph。
  */
-function getDefaultInterviewAgentGraph(): InterviewAgentGraph {
-  defaultGraph ??= compileInterviewAgentGraph({
-    checkpointer: createPostgresCheckpointer(),
+function getDefaultInterviewAgentGraph(
+  inputRepository: AgentInputRepository,
+): InterviewAgentGraph {
+  defaultCheckpointer ??= createPostgresCheckpointer();
+  return compileInterviewAgentGraph({
+    checkpointer: defaultCheckpointer,
+    inputRepository,
   });
-  return defaultGraph;
 }
 
 /**
@@ -340,6 +351,40 @@ export class InterviewAgentService {
     input: AgentInput,
   ): Promise<AgentInputResponse> {
     const operationKey = `input:${input.inputId}`;
+    if (this.dependencies.inputRepository) {
+      try {
+        await this.dependencies.inputRepository.acceptInput({
+          sessionId,
+          inputId: input.inputId,
+          content: input.content,
+          source: "text",
+        });
+      } catch (error) {
+        if (error instanceof AgentInputRepositoryError) {
+          const code = error.code === "not_found"
+            ? "agent_session_not_found"
+            : error.code === "invalid_phase"
+              ? "agent_invalid_phase"
+              : "agent_graph_unavailable";
+          throw new InterviewAgentServiceError(
+            code,
+            error.code === "not_found"
+              ? "The Agent session was not found."
+              : error.code === "invalid_phase"
+                ? "The Agent is not waiting for an answer."
+                : "The Agent input could not be persisted.",
+            error.statusCode,
+            error.retryable,
+          );
+        }
+        throw new InterviewAgentServiceError(
+          "agent_graph_unavailable",
+          "The Agent input could not be persisted.",
+          503,
+          true,
+        );
+      }
+    }
     const claim = await this.dependencies.repository.claimOperation({
       sessionId,
       operationKey,
@@ -370,7 +415,10 @@ export class InterviewAgentService {
         await this.dependencies.repository.getOwnedSessionProjection(
           sessionId,
         );
-      if (before.phase !== "awaiting_answer") {
+      const expectedPhase = this.dependencies.inputRepository
+        ? "reasoning"
+        : "awaiting_answer";
+      if (before.phase !== expectedPhase) {
         throw new InterviewAgentServiceError(
           "agent_invalid_phase",
           "The Agent is not waiting for an answer.",
@@ -389,6 +437,36 @@ export class InterviewAgentService {
         sessionId,
         this.dependencies.userId,
       );
+      if (
+        state.phase === "awaiting_answer" &&
+        state.pendingAction === "follow_up"
+      ) {
+        const snapshot = createAgentSnapshot(state, before.eventCursor + 2);
+        await this.dependencies.repository.commitOperation({
+          sessionId,
+          operationKey,
+          nodeName: INPUT_NODE_NAME,
+          phase: "awaiting_answer",
+          currentRole: state.currentRole,
+          result: {
+            phase: "awaiting_answer",
+            latestInputId: state.latestInputId,
+            disposition: "interviewer_response",
+          },
+          events: [
+            { type: "agent.phase", data: { phase: "awaiting_answer" } },
+            { type: "agent.snapshot", data: snapshot },
+          ],
+        });
+        return {
+          duplicate: false,
+          operationKey,
+          snapshot: await loadCommittedSnapshot(
+            this.dependencies.repository,
+            sessionId,
+          ),
+        };
+      }
       if (state.phase !== "completed") {
         throw new InterviewAgentServiceError(
           "agent_graph_unavailable",
@@ -818,12 +896,14 @@ export function createInterviewAgentService(
   userId: string,
 ): InterviewAgentService {
   const preparationRepository = createInterviewPreparationRepository(supabase);
+  const inputRepository = createAgentInputRepository(supabase);
   return new InterviewAgentService({
     repository: createInterviewAgentRepository(supabase),
     userId,
-    getGraph: getDefaultInterviewAgentGraph,
+    getGraph: () => getDefaultInterviewAgentGraph(inputRepository),
     runtimeConfig: getAgentRuntimeConfig(),
     preparationRepository,
+    inputRepository,
     preparationService: new InterviewPreparationService({
       tools: createDefaultInterviewAgentTools(preparationRepository),
       webSearchProvider: createWebSearchProviderFromEnv(),

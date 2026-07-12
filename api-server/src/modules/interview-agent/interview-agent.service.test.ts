@@ -35,6 +35,7 @@ import type {
   PreparationCommitRepository,
 } from "./tools/preparation.repository.js";
 import { InterviewPreparationService } from "./tools/preparation.service.js";
+import type { AgentInputRepository } from "./input/input.repository.js";
 
 const SESSION_ID = "11111111-1111-4111-8111-111111111111";
 const USER_ID = "22222222-2222-4222-8222-222222222222";
@@ -74,6 +75,10 @@ class MemoryInterviewAgentRepository implements InterviewAgentRepository {
   readonly operations = new Map<string, MemoryOperation>();
   /** Graph resume 成功提交次数。 */
   inputCommitCount = 0;
+  /** 已 receipt 的 inputId 与消息 UUID。 */
+  readonly acceptedInputs = new Map<string, string>();
+  /** 当前题目追问次数。 */
+  private followUpCount = 0;
   /** 当前会话投影。 */
   private projection: AgentSessionProjection | null = null;
 
@@ -259,6 +264,119 @@ class MemoryInterviewAgentRepository implements InterviewAgentRepository {
     };
   }
 
+  /**
+   * 模拟 `accept_agent_input` 在一个事务保存用户消息事件并把投影推进到 reasoning。
+   *
+   * @param input - Phase 3 输入 receipt。
+   * @returns 首次或重复 receipt。
+   */
+  async acceptInput(
+    input: Parameters<AgentInputRepository["acceptInput"]>[0],
+  ): ReturnType<AgentInputRepository["acceptInput"]> {
+    if (!this.projection) throw new Error("missing session");
+    const existing = this.acceptedInputs.get(input.inputId);
+    const questionId = this.getCurrentQuestionId();
+    if (existing) {
+      return {
+        accepted: false,
+        duplicate: true,
+        operationKey: `receive:${input.inputId}`,
+        messageId: existing,
+        questionId,
+        eventSequence: this.projection.eventCursor,
+      };
+    }
+    if (this.projection.phase !== "awaiting_answer") {
+      throw new Error("not awaiting input");
+    }
+    const messageId = "88888888-8888-4888-8888-888888888888";
+    const sequence = this.projection.eventCursor + 1;
+    this.acceptedInputs.set(input.inputId, messageId);
+    this.events.push({
+      sequence,
+      type: "agent.message_completed",
+      data: {
+        id: messageId,
+        role: "user",
+        content: input.content,
+        roleId: this.projection.currentRole,
+        createdAt: CREATED_AT,
+        interrupted: false,
+      },
+      createdAt: CREATED_AT,
+    });
+    this.projection.phase = "reasoning";
+    this.projection.eventCursor = sequence;
+    return {
+      accepted: true,
+      duplicate: false,
+      operationKey: `receive:${input.inputId}`,
+      messageId,
+      questionId,
+      eventSequence: sequence,
+    };
+  }
+
+  /** @inheritdoc */
+  async loadInput(sessionId: string, inputId: string) {
+    if (sessionId !== SESSION_ID) throw new Error("session mismatch");
+    const messageId = this.acceptedInputs.get(inputId);
+    const event = this.events.find(
+      (candidate) =>
+        candidate.type === "agent.message_completed" &&
+        candidate.data.id === messageId,
+    );
+    if (!messageId || event?.type !== "agent.message_completed") {
+      throw new Error("missing input");
+    }
+    return {
+      inputId,
+      messageId,
+      questionId: this.getCurrentQuestionId(),
+      question: "测试题目",
+      content: event.data.content,
+      source: "text" as const,
+      createdAt: event.data.createdAt,
+    };
+  }
+
+  /** @inheritdoc */
+  async commitInterviewerResponse(
+    input: Parameters<AgentInputRepository["commitInterviewerResponse"]>[0],
+  ): ReturnType<AgentInputRepository["commitInterviewerResponse"]> {
+    if (!this.projection || this.projection.phase !== "reasoning") {
+      throw new Error("not reasoning");
+    }
+    const messageId = "99999999-9999-4999-8999-999999999999";
+    const sequence = this.projection.eventCursor + 1;
+    this.events.push({
+      sequence,
+      type: "agent.message_completed",
+      data: {
+        id: messageId,
+        role: "assistant",
+        content: input.content,
+        roleId: this.projection.currentRole,
+        createdAt: CREATED_AT,
+        interrupted: false,
+      },
+      createdAt: CREATED_AT,
+    });
+    this.projection.phase = "awaiting_answer";
+    this.projection.eventCursor = sequence;
+    if (input.responseType === "follow_up") this.followUpCount += 1;
+    return {
+      committed: true,
+      duplicate: false,
+      operationKey: `respond:${input.inputId}:${input.responseType}`,
+      messageId,
+      questionId: this.getCurrentQuestionId(),
+      responseType: input.responseType,
+      followUpCount: this.followUpCount,
+      eventSequence: sequence,
+    };
+  }
+
   /** @inheritdoc */
   async listEventsAfter(
     _sessionId: string,
@@ -305,18 +423,36 @@ class MemoryInterviewAgentRepository implements InterviewAgentRepository {
       createdAt: CREATED_AT,
     } as AgentEvent;
   }
+
+  /** 返回最新 Snapshot 引用的非空题目 UUID。 */
+  private getCurrentQuestionId(): string {
+    const snapshot = [...this.events]
+      .reverse()
+      .find((event) => event.type === "agent.snapshot");
+    if (snapshot?.type !== "agent.snapshot" || !snapshot.data.currentQuestionId) {
+      throw new Error("missing current question");
+    }
+    return snapshot.data.currentQuestionId;
+  }
 }
 
 /** 创建使用真实 Graph/MemorySaver 和内存业务 Repository 的 Service。 */
-function createHarness(runtime: AgentRuntimeConfig = ENABLED_RUNTIME) {
+function createHarness(
+  runtime: AgentRuntimeConfig = ENABLED_RUNTIME,
+  persistInputs = false,
+) {
   const checkpointer = new MemorySaver();
-  const graph = compileInterviewAgentGraph({ checkpointer });
   const repository = new MemoryInterviewAgentRepository();
+  const graph = compileInterviewAgentGraph({
+    checkpointer,
+    inputRepository: persistInputs ? repository : undefined,
+  });
   const service = new InterviewAgentService({
     repository,
     userId: USER_ID,
     getGraph: () => graph,
     runtimeConfig: runtime,
+    inputRepository: persistInputs ? repository : undefined,
     async resolveModel() {
       return { name: "deepseek", model: "deepseek-v4-flash" };
     },
@@ -473,6 +609,90 @@ test("answer content never enters state or any MemorySaver checkpoint", async ()
   const checkpointText = serialized.join("\n");
   assert.equal(checkpointText.includes(forbiddenContent), false);
   assert.equal(checkpointText.includes("answer-secure"), true);
+});
+
+test("Phase 3 persists the candidate message before resuming by inputId", async () => {
+  const answerContent = "这段正文只能存在于业务消息和事件中";
+  const harness = createHarness(ENABLED_RUNTIME, true);
+  await harness.service.createSession(CREATE_INPUT);
+  const result = await harness.service.submitInput(SESSION_ID, {
+    inputId: "durable-answer-1",
+    type: "text",
+    content: answerContent,
+  });
+
+  assert.equal(harness.repository.acceptedInputs.has("durable-answer-1"), true);
+  assert.equal(
+    harness.repository.events.some(
+      (event) => event.type === "agent.message_completed" && event.data.content === answerContent,
+    ),
+    true,
+  );
+  assert.equal(result.snapshot.eventCursor, 7);
+  const checkpoints: string[] = [];
+  for await (const tuple of harness.checkpointer.list(createAgentGraphConfig(SESSION_ID))) {
+    checkpoints.push(JSON.stringify(tuple));
+  }
+  assert.equal(checkpoints.join("\n").includes(answerContent), false);
+  assert.equal(checkpoints.join("\n").includes("durable-answer-1"), true);
+});
+
+test("Phase 3 guard redirects copied input and interrupts on the same question", async () => {
+  const harness = createHarness(ENABLED_RUNTIME, true);
+  await harness.service.createSession(CREATE_INPUT);
+  const result = await harness.service.submitInput(SESSION_ID, {
+    inputId: "copied-answer-1",
+    type: "text",
+    content: "测试题目",
+  });
+
+  assert.equal(result.snapshot.phase, "awaiting_answer");
+  assert.equal(result.snapshot.pendingAction, "follow_up");
+  assert.equal(result.snapshot.followUpCount, 0);
+  assert.equal(result.snapshot.eventCursor, 7);
+  assert.equal(
+    harness.repository.events.some(
+      (event) =>
+        event.type === "agent.message_completed" &&
+        event.data.role === "assistant" &&
+        event.data.content.includes("不要复述题目"),
+    ),
+    true,
+  );
+  const graphState = await harness.graph.getState(
+    createAgentGraphConfig(SESSION_ID),
+  );
+  assert.deepEqual(graphState.next, ["wait_for_input"]);
+  assert.equal(JSON.stringify(graphState).includes("测试题目"), false);
+});
+
+test("Phase 3 asks at most three follow-ups before leaving the question", async () => {
+  const harness = createHarness(ENABLED_RUNTIME, true);
+  await harness.service.createSession(CREATE_INPUT);
+  for (let index = 1; index <= 3; index += 1) {
+    const result = await harness.service.submitInput(SESSION_ID, {
+      inputId: `brief-answer-${index}`,
+      type: "text",
+      content: "我做了优化，但暂时没有更多细节。",
+    });
+    assert.equal(result.snapshot.phase, "awaiting_answer");
+    assert.equal(result.snapshot.followUpCount, index);
+  }
+  const final = await harness.service.submitInput(SESSION_ID, {
+    inputId: "brief-answer-4",
+    type: "text",
+    content: "我仍然只能补充这些内容。",
+  });
+  assert.equal(final.snapshot.phase, "completed");
+  assert.equal(final.snapshot.followUpCount, 3);
+  assert.equal(
+    harness.repository.events.filter(
+      (event) =>
+        event.type === "agent.message_completed" &&
+        event.data.role === "assistant",
+    ).length,
+    3,
+  );
 });
 
 test("a second concurrent claim cannot invoke the same input operation", async () => {

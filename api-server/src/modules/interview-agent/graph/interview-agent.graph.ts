@@ -26,6 +26,12 @@ import {
   AGENT_CHECKPOINT_NAMESPACE,
   withAgentCheckpointNamespace,
 } from "./checkpointer.js";
+import type { AgentInputRepository } from "../input/input.repository.js";
+import { buildInputRedirect, guardAgentInput } from "./input-guard.js";
+import {
+  assessAnswerSufficiency,
+  buildFocusedFollowUp,
+} from "./answer-sufficiency.js";
 
 /** Graph 等待业务消息持久化后发出的安全 interrupt 数据。 */
 export type AgentInputRequiredInterrupt = Readonly<{
@@ -51,6 +57,8 @@ export type CompileInterviewAgentGraphOptions = Readonly<{
   checkpointer: BaseCheckpointSaver;
   /** 可选模型适配器；缺省时使用确定性 Mock，绝不访问网络。 */
   modelProvider?: AgentModelProvider;
+  /** Phase 3 按 inputId 加载回答并原子保存 redirect/follow-up 的业务 Repository。 */
+  inputRepository?: AgentInputRepository;
 }>;
 
 /** 创建初始 Agent State 所需的业务参数。 */
@@ -105,6 +113,10 @@ export type AgentGraphNodeName =
   | "prepare"
   | "ask"
   | "wait_for_input"
+  | "guard_input"
+  | "extract_evidence"
+  | "decide_followup"
+  | "interviewer_respond"
   | "complete";
 
 /** 与 Phase 1 compiled graph invoke 输入严格兼容的恢复 Command。 */
@@ -342,6 +354,115 @@ export function compileInterviewAgentGraph(
     };
   };
 
+  /**
+   * 只按 inputId 临时加载回答并执行确定性 Guard；正文不会成为 Annotation channel。
+   */
+  const guardInput = async (
+    state: AgentGraphState,
+  ): Promise<Partial<AgentGraphState>> => {
+    if (!options.inputRepository) {
+      return { phase: "reasoning", pendingAction: "score" };
+    }
+    if (!state.latestInputId || !state.currentQuestionId) {
+      throw new Error("Agent cannot guard input without message and question references");
+    }
+    const persisted = await options.inputRepository.loadInput(
+      state.sessionId,
+      state.latestInputId,
+    );
+    if (persisted.questionId !== state.currentQuestionId) {
+      throw new Error("Persisted Agent input does not belong to the current question");
+    }
+    const guarded = guardAgentInput({
+      content: persisted.content,
+      question: persisted.question,
+    });
+    return {
+      phase: "reasoning",
+      pendingAction:
+        guarded.disposition === "redirect" ? "follow_up" : "score",
+    };
+  };
+
+  /**
+   * 对 Guard 拒绝的输入提交一句安全引导；重放由业务 operationKey 返回首次消息。
+   */
+  const interviewerRespond = async (
+    state: AgentGraphState,
+  ): Promise<Partial<AgentGraphState>> => {
+    if (!options.inputRepository || !state.latestInputId) {
+      throw new Error("Agent interviewer response repository is unavailable");
+    }
+    const persisted = await options.inputRepository.loadInput(
+      state.sessionId,
+      state.latestInputId,
+    );
+    const guarded = guardAgentInput({
+      content: persisted.content,
+      question: persisted.question,
+    });
+    const responseType = guarded.disposition === "redirect"
+      ? "redirect"
+      : "follow_up";
+    const content = guarded.disposition === "redirect"
+      ? buildInputRedirect(guarded.reason)
+      : (() => {
+          const sufficiency = assessAnswerSufficiency(persisted.content);
+          if (sufficiency.sufficient) {
+            throw new Error("Interviewer follow-up requires an evidence gap");
+          }
+          return buildFocusedFollowUp(state.currentRole, sufficiency.gap);
+        })();
+    const receipt = await options.inputRepository.commitInterviewerResponse({
+      sessionId: state.sessionId,
+      inputId: state.latestInputId,
+      responseType,
+      content,
+    });
+    return {
+      phase: "awaiting_answer",
+      followUpCount: receipt.followUpCount,
+      pendingAction: "follow_up",
+    };
+  };
+
+  /** Guard 分支完全由代码判定，模型不能改变 redirect 或继续处理。 */
+  const routeGuardedInput = (state: AgentGraphState) =>
+    state.pendingAction === "follow_up"
+      ? "interviewer_respond"
+      : "extract_evidence";
+
+  /** Phase 3 先建立节点边界；Phase 4 会在此写入带原文引用的 answer_evidence。 */
+  const extractEvidence = (): Partial<AgentGraphState> => ({
+    phase: "reasoning",
+    latestEvidenceIds: [],
+    pendingAction: "score",
+  });
+
+  /**
+   * 代码规则判断最低信息量，并在三次追问上限处强制进入评分分支。
+   */
+  const decideFollowUp = async (
+    state: AgentGraphState,
+  ): Promise<Partial<AgentGraphState>> => {
+    if (!options.inputRepository || !state.latestInputId) {
+      return { pendingAction: "score" };
+    }
+    if (state.followUpCount >= 3) return { pendingAction: "score" };
+    const persisted = await options.inputRepository.loadInput(
+      state.sessionId,
+      state.latestInputId,
+    );
+    const sufficiency = assessAnswerSufficiency(persisted.content);
+    return {
+      pendingAction: sufficiency.sufficient ? "score" : "follow_up",
+    };
+  };
+
+  /** 追问或评分分支只读取确定性 pendingAction。 */
+  const routeFollowUp = (state: AgentGraphState) =>
+    state.pendingAction === "follow_up" ? "interviewer_respond" : "complete";
+
   /** 结束 Phase 1 骨架运行，供恢复与最终快照测试验证。 */
   const complete = (): Partial<AgentGraphState> => ({
     phase: "completed",
@@ -352,11 +473,25 @@ export function compileInterviewAgentGraph(
     .addNode("prepare", prepare)
     .addNode("ask", ask)
     .addNode("wait_for_input", waitForInput)
+    .addNode("guard_input", guardInput)
+    .addNode("extract_evidence", extractEvidence)
+    .addNode("decide_followup", decideFollowUp)
+    .addNode("interviewer_respond", interviewerRespond)
     .addNode("complete", complete)
     .addEdge(START, "prepare")
     .addEdge("prepare", "ask")
     .addEdge("ask", "wait_for_input")
-    .addEdge("wait_for_input", "complete")
+    .addEdge("wait_for_input", "guard_input")
+    .addConditionalEdges("guard_input", routeGuardedInput, [
+      "interviewer_respond",
+      "extract_evidence",
+    ])
+    .addEdge("extract_evidence", "decide_followup")
+    .addConditionalEdges("decide_followup", routeFollowUp, [
+      "interviewer_respond",
+      "complete",
+    ])
+    .addEdge("interviewer_respond", "wait_for_input")
     .addEdge("complete", END)
     .compile({
       checkpointer: withAgentCheckpointNamespace(options.checkpointer),
