@@ -290,5 +290,5 @@ test("checkpoint schema validation is strict and runtime factory does not setup"
     false,
     "runtime factory must not execute setup() or DDL",
   );
-  await saver.end();
+  await (saver as any).end();
 });

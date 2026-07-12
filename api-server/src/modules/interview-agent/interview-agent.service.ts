@@ -35,6 +35,7 @@ import {
   createInitialAgentState,
 } from "./graph/interview-agent.graph.js";
 import { createPostgresCheckpointer } from "./graph/checkpointer.js";
+import type { BaseCheckpointSaver } from "@langchain/langgraph-checkpoint";
 import { buildRolePlan } from "./roles/personas.js";
 import { createDefaultInterviewAgentTools } from "./tools/default-interview-agent.tools.js";
 import {
@@ -145,7 +146,7 @@ export class InterviewAgentServiceError extends Error {
 }
 
 /** 进程内只复用 PostgresSaver 连接池；Graph 按用户 Repository 轻量编译。 */
-let defaultCheckpointer: ReturnType<typeof createPostgresCheckpointer> | undefined;
+let defaultCheckpointer: BaseCheckpointSaver | undefined;
 
 /**
  * 延迟创建生产 Graph；该路径不会调用 checkpointer.setup() 或执行 DDL。

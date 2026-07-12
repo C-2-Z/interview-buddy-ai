@@ -25,7 +25,13 @@ const logger = createModuleLogger("agent-checkpoint-setup");
  * @returns setup 完成时解析；连接失败、schema 非法或 DDL 失败时拒绝。
  */
 export async function setupAgentCheckpoint(): Promise<void> {
-  const checkpointer = createPostgresCheckpointer();
+  if (!process.env.DATABASE_URL?.trim()) {
+    logger.warn("agent_checkpoint_setup_skipped", {
+      reason: "DATABASE_URL not set - MemorySaver fallback active",
+    });
+    return;
+  }
+  const checkpointer = createPostgresCheckpointer() as import("@langchain/langgraph-checkpoint-postgres").PostgresSaver;
   try {
     await checkpointer.setup();
     logger.success("agent_checkpoint_setup_completed", {

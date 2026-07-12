@@ -33,7 +33,7 @@ test(
 
     try {
       // 集成环境显式 setup 一次；后续运行时重建不得再次隐式执行 DDL。
-      await firstCheckpointer.setup();
+      await (firstCheckpointer as any).setup();
       const firstGraph = compileInterviewAgentGraph({
         checkpointer: firstCheckpointer,
       });
@@ -65,7 +65,7 @@ test(
       assert.deepEqual(interruptedState.next, ["wait_for_input"]);
 
       // 模拟 API/Worker 进程结束：关闭旧 pool，再用全新 saver 与 compiled graph 恢复。
-      await firstCheckpointer.end();
+      await (firstCheckpointer as any).end();
       firstCheckpointerEnded = true;
       resumedCheckpointer = createPostgresCheckpointer({
         connectionString: testDatabaseUrl,
@@ -85,12 +85,12 @@ test(
       await resumedCheckpointer.deleteThread(sessionId);
     } finally {
       if (!firstCheckpointerEnded) {
-        await firstCheckpointer.end();
+        await (firstCheckpointer as any).end();
       }
       if (resumedCheckpointer) {
         // deleteThread 可幂等清理断言前失败留下的测试线程，再关闭重建后的 pool。
         await resumedCheckpointer.deleteThread(sessionId);
-        await resumedCheckpointer.end();
+        await (resumedCheckpointer as any).end();
       }
     }
   },
