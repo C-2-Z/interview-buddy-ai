@@ -1,4 +1,5 @@
 /** Interview Agent Phase 1 会话创建、Graph 恢复与幂等业务流程。 */
+import { randomUUID } from "node:crypto";
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import { resolveProviderForCreation } from "../model-providers/model-provider.service.js";
 import { createModuleLogger } from "../voice/voice-logger.js";
@@ -35,6 +36,14 @@ import {
 } from "./graph/interview-agent.graph.js";
 import { createPostgresCheckpointer } from "./graph/checkpointer.js";
 import { buildRolePlan } from "./roles/personas.js";
+import { createDefaultInterviewAgentTools } from "./tools/default-interview-agent.tools.js";
+import {
+  createInterviewPreparationRepository,
+  type PreparationCommitRepository,
+} from "./tools/preparation.repository.js";
+import { InterviewPreparationService } from "./tools/preparation.service.js";
+import { createWebSearchProviderFromEnv } from "./providers/web-search.provider.js";
+import { createDeterministicMockAgentModelProvider } from "./providers/agent-model.provider.js";
 
 const logger = createModuleLogger("interview-agent");
 const PREPARE_OPERATION_KEY = "prepare:agent-v1";
@@ -68,6 +77,10 @@ export type InterviewAgentServiceDependencies = {
   resolveModel: (
     input: CreateAgentSessionInput,
   ) => Promise<ResolvedAgentModel>;
+  /** Phase 2 Skill/简历/研究/能力蓝图编排；测试可省略以保留最小图验证。 */
+  preparationService?: InterviewPreparationService;
+  /** Phase 2 原子准备持久化；必须与 preparationService 同时提供。 */
+  preparationRepository?: PreparationCommitRepository;
 };
 
 /** Service 对 HTTP adapter 暴露的稳定错误码。 */
@@ -526,6 +539,20 @@ export class InterviewAgentService {
     }
 
     try {
+      const initialState = createInitialAgentState({
+        sessionId: created.sessionId,
+        userId: this.dependencies.userId,
+        input,
+        promptVersion: input.promptVersion,
+        webResearchEnabled:
+          this.dependencies.runtimeConfig.webResearchEnabled,
+      });
+      const preparation = await this.preparePlanIfConfigured(
+        created.sessionId,
+        input.mode,
+        initialState.config,
+      );
+      const preparedQuestionId = preparation ? randomUUID() : undefined;
       const invoked = await graph.invoke(
         createInitialAgentState({
           sessionId: created.sessionId,
@@ -534,6 +561,7 @@ export class InterviewAgentService {
           promptVersion: input.promptVersion,
           webResearchEnabled:
             this.dependencies.runtimeConfig.webResearchEnabled,
+          preparedQuestionId,
         }),
         createAgentGraphConfig(created.sessionId),
       );
@@ -542,7 +570,16 @@ export class InterviewAgentService {
         created.sessionId,
         this.dependencies.userId,
       );
-      await this.commitPreparedState(state, created.eventCursor);
+      if (preparation && preparedQuestionId) {
+        await this.commitPreparedPlan(
+          state,
+          created.eventCursor,
+          preparation,
+          preparedQuestionId,
+        );
+      } else {
+        await this.commitPreparedState(state, created.eventCursor);
+      }
     } catch (error) {
       await markOperationFailed(
         this.dependencies.repository,
@@ -552,6 +589,98 @@ export class InterviewAgentService {
       );
       throw error;
     }
+  }
+
+  /**
+   * 仅当生产依赖完整配置时执行 Phase 2 准备，避免测试 fake 意外形成半配置状态。
+   *
+   * @param sessionId - Agent 会话 UUID。
+   * @param mode - 单角色或固定面板模式。
+   * @param config - 创建时冻结的无凭据配置。
+   * @returns 冻结准备计划；Phase 1 测试路径返回 null。
+   */
+  private async preparePlanIfConfigured(
+    sessionId: string,
+    mode: AgentSessionProjection["mode"],
+    config: FrozenAgentConfig,
+  ) {
+    const service = this.dependencies.preparationService;
+    const repository = this.dependencies.preparationRepository;
+    if (!service && !repository) return null;
+    if (!service || !repository) {
+      throw new InterviewAgentServiceError(
+        "agent_graph_unavailable",
+        "The Agent preparation service is not configured correctly.",
+        503,
+        true,
+      );
+    }
+    return service.prepare({ sessionId, mode, config });
+  }
+
+  /**
+   * 将 Phase 2 冻结计划、研究、首题、事件和投影交给单个数据库事务提交。
+   *
+   * @param state - 已到达输入 interrupt 的 Graph State。
+   * @param previousCursor - 准备前事件水位。
+   * @param plan - Skill、简历、研究和能力蓝图生成的冻结计划。
+   * @param questionId - 新建业务题目 UUID。
+   */
+  private async commitPreparedPlan(
+    state: InterviewAgentState,
+    previousCursor: number,
+    plan: Awaited<ReturnType<InterviewPreparationService["prepare"]>>,
+    questionId: string,
+  ): Promise<void> {
+    const repository = this.dependencies.preparationRepository;
+    if (!repository || state.phase !== "awaiting_answer" || state.currentQuestionId !== questionId) {
+      throw new InterviewAgentServiceError(
+        "agent_graph_unavailable",
+        "The Agent graph did not reach the prepared input interrupt.",
+        503,
+        true,
+      );
+    }
+    const roleId = plan.questionRoles[0];
+    const dimensionKey = plan.questionDimensions[0];
+    const snapshot = createAgentSnapshot(state, previousCursor + 3);
+    await repository.commitPreparation({
+      sessionId: state.sessionId,
+      operationKey: PREPARE_OPERATION_KEY,
+      nodeName: PREPARE_NODE_NAME,
+      currentRole: roleId,
+      plan,
+      question: {
+        id: questionId,
+        question: plan.firstQuestion.question,
+        roleId,
+        dimensionKey,
+        source: plan.firstQuestion.source,
+        bankQuestionId:
+          plan.firstQuestion.source === "bank" ? plan.firstQuestion.id : null,
+      },
+      result: {
+        phase: "awaiting_answer",
+        questionId,
+        planVersion: plan.version,
+        researchStatus: plan.researchStatus,
+      },
+      events: [
+        { type: "agent.phase", data: { phase: "awaiting_answer" } },
+        {
+          type: "agent.question_ready",
+          data: {
+            id: questionId,
+            question: plan.firstQuestion.question,
+            orderIndex: 0,
+            roleId,
+            dimensionKey,
+            source: plan.firstQuestion.source,
+          },
+        },
+        { type: "agent.snapshot", data: snapshot },
+      ],
+    });
   }
 
   /**
@@ -581,6 +710,13 @@ export class InterviewAgentService {
     }
 
     try {
+      const restoredConfig = FrozenAgentConfigSchema.parse(projection.agentConfig);
+      const preparation = await this.preparePlanIfConfigured(
+        projection.sessionId,
+        projection.mode,
+        restoredConfig,
+      );
+      const fallbackQuestionId = preparation ? randomUUID() : null;
       const config = createAgentGraphConfig(projection.sessionId);
       const saved = await graph.getState(config);
       const parsedSaved = InterviewAgentStateSchema.safeParse(saved.values);
@@ -596,13 +732,28 @@ export class InterviewAgentService {
         );
       } else {
         state = parseOwnedGraphState(
-          await graph.invoke(stateFromProjection(projection), config),
+          await graph.invoke(
+            {
+              ...stateFromProjection(projection),
+              currentQuestionId: fallbackQuestionId,
+            },
+            config,
+          ),
           projection.sessionId,
           projection.userId,
         );
       }
 
-      await this.commitPreparedState(state, projection.eventCursor);
+      if (preparation && state.currentQuestionId) {
+        await this.commitPreparedPlan(
+          state,
+          projection.eventCursor,
+          preparation,
+          state.currentQuestionId,
+        );
+      } else {
+        await this.commitPreparedState(state, projection.eventCursor);
+      }
       return false;
     } catch (error) {
       await markOperationFailed(
@@ -666,11 +817,22 @@ export function createInterviewAgentService(
   supabase: UserSupabaseClient,
   userId: string,
 ): InterviewAgentService {
+  const preparationRepository = createInterviewPreparationRepository(supabase);
   return new InterviewAgentService({
     repository: createInterviewAgentRepository(supabase),
     userId,
     getGraph: getDefaultInterviewAgentGraph,
     runtimeConfig: getAgentRuntimeConfig(),
+    preparationRepository,
+    preparationService: new InterviewPreparationService({
+      tools: createDefaultInterviewAgentTools(preparationRepository),
+      webSearchProvider: createWebSearchProviderFromEnv(),
+      // Phase 3 会把具体 Provider 调用移入模型 Adapter；Phase 2 先验证动态兜底契约。
+      modelProvider: createDeterministicMockAgentModelProvider(),
+      loadResearchSources(sessionId) {
+        return preparationRepository.loadResearchSources(sessionId);
+      },
+    }),
     async resolveModel(input) {
       const provider = await resolveProviderForCreation(
         supabase,

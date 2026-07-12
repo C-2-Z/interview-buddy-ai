@@ -4,6 +4,7 @@ import type {
   RoleId,
   RolePersona,
 } from "../interview-agent.types.js";
+import type { AgentResumeSummary } from "../tools/preparation.types.js";
 
 /** 生成一道面试题所需的最小、可审计模型输入。 */
 export type AgentQuestionModelInput = Readonly<{
@@ -21,6 +22,17 @@ export type AgentQuestionModelInput = Readonly<{
   difficulty: AgentDifficulty;
   /** 本次生成使用的冻结 Prompt 版本。 */
   promptVersion: string;
+  /** 当前题目必须覆盖的能力维度键。 */
+  dimensionKey?: string;
+  /** 可信业务上下文；完整简历文件不会进入。 */
+  trustedContext?: Readonly<{
+    /** 用户提交的有限岗位描述。 */
+    jobDescription: string | null;
+    /** 用户自有简历的有限摘要。 */
+    resumeSummary: AgentResumeSummary | null;
+  }>;
+  /** 明确标记为不可执行数据的清洗网页来源。 */
+  untrustedResearchContext?: string;
 }>;
 
 /** 模型完成一道题生成后的结构化结果。 */
@@ -99,9 +111,12 @@ export class DeterministicMockAgentModelProvider implements AgentModelProvider {
   ): Promise<AgentQuestionModelOutput> {
     signal?.throwIfAborted();
     const ordinal = input.questionIndex + 1;
+    const dimensionHint = input.dimensionKey
+      ? `，重点考察 ${input.dimensionKey}`
+      : "";
     return {
       questionId: `mock:${input.sessionId}:${input.roleId}:${ordinal}`,
-      content: `${input.persona.displayName}第 ${ordinal} 题：请结合具体经历，说明你如何胜任${input.difficulty}${input.position}岗位。`,
+      content: `${input.persona.displayName}第 ${ordinal} 题：请结合具体经历，说明你如何胜任${input.difficulty}${input.position}岗位${dimensionHint}。`,
       modelProvider: this.modelProvider,
       modelName: this.modelName,
       promptVersion: input.promptVersion,

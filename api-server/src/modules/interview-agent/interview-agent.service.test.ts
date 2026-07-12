@@ -28,6 +28,13 @@ import {
   compileInterviewAgentGraph,
   createAgentGraphConfig,
 } from "./graph/interview-agent.graph.js";
+import { DisabledWebSearchProvider } from "./providers/web-search.provider.js";
+import type { InterviewAgentTools } from "./tools/interview-agent.tools.js";
+import type {
+  CommitPreparationInput,
+  PreparationCommitRepository,
+} from "./tools/preparation.repository.js";
+import { InterviewPreparationService } from "./tools/preparation.service.js";
 
 const SESSION_ID = "11111111-1111-4111-8111-111111111111";
 const USER_ID = "22222222-2222-4222-8222-222222222222";
@@ -354,6 +361,75 @@ test("create reaches durable awaiting_answer snapshot at the interrupt", async (
     (await harness.graph.getState(createAgentGraphConfig(SESSION_ID))).next,
     ["wait_for_input"],
   );
+});
+
+test("Phase 2 preparation commits the bank-first question and snapshot atomically", async () => {
+  const checkpointer = new MemorySaver();
+  const graph = compileInterviewAgentGraph({ checkpointer });
+  const repository = new MemoryInterviewAgentRepository();
+  const bankQuestionId = "33333333-3333-4333-8333-333333333333";
+  const tools: InterviewAgentTools = {
+    async loadSkill() { return null; },
+    async loadResumeSummary() { return null; },
+    async searchQuestionBank() {
+      return [{
+        id: bankQuestionId,
+        question: "请说明一次数据库索引优化的完整过程。",
+        position: "后端工程师",
+        difficulty: "中级",
+        type: "技术题",
+        tags: ["technical_depth"],
+        source: "bank" as const,
+      }];
+    },
+    async loadSessionMessages() { return []; },
+    async loadRubric() { return []; },
+  };
+  let committed: CommitPreparationInput | undefined;
+  const preparationRepository: PreparationCommitRepository = {
+    async commitPreparation(input) {
+      committed = input;
+      return repository.commitOperation({
+        sessionId: input.sessionId,
+        operationKey: input.operationKey,
+        nodeName: input.nodeName,
+        phase: "awaiting_answer",
+        currentRole: input.currentRole,
+        result: input.result,
+        events: input.events,
+      });
+    },
+  };
+  const service = new InterviewAgentService({
+    repository,
+    preparationRepository,
+    preparationService: new InterviewPreparationService({
+      tools,
+      webSearchProvider: new DisabledWebSearchProvider(),
+      modelProvider: { async generateQuestion() { throw new Error("bank question must win"); } },
+      async loadResearchSources() { return []; },
+    }),
+    userId: USER_ID,
+    getGraph: () => graph,
+    runtimeConfig: ENABLED_RUNTIME,
+    async resolveModel() {
+      return { name: "deepseek", model: "deepseek-v4-flash" };
+    },
+  });
+
+  await service.createSession(CREATE_INPUT);
+  const questionEvent = repository.events.find(
+    (event) => event.type === "agent.question_ready",
+  );
+  assert.ok(committed);
+  assert.equal(committed.question.bankQuestionId, bankQuestionId);
+  assert.match(committed.question.id, /^[0-9a-f-]{36}$/);
+  assert.equal(questionEvent?.type, "agent.question_ready");
+  assert.equal(
+    questionEvent?.type === "agent.question_ready" ? questionEvent.data.id : null,
+    committed.question.id,
+  );
+  assert.equal((await service.getSession(SESSION_ID)).snapshot.currentQuestionId, committed.question.id);
 });
 
 test("duplicate input returns the first result without resuming twice", async () => {

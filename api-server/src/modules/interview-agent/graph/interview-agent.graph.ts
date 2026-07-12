@@ -65,6 +65,8 @@ export type CreateInitialAgentStateParams = Readonly<{
   promptVersion?: string;
   /** 全局联网研究开关；请求开关与该值同时为 true 才会冻结为启用。 */
   webResearchEnabled?: boolean;
+  /** Phase 2 已原子规划的业务首题 UUID；存在时 ask 节点不再次生成。 */
+  preparedQuestionId?: string;
 }>;
 
 /**
@@ -172,7 +174,7 @@ export function createInitialAgentState(
     config,
     rolePlan,
     currentRole: rolePlan[0].roleId,
-    currentQuestionId: null,
+    currentQuestionId: params.preparedQuestionId ?? null,
     currentQuestionIndex: 0,
     followUpCount: 0,
     coveredDimensions: [],
@@ -293,6 +295,14 @@ export function compileInterviewAgentGraph(
   const ask = async (
     state: AgentGraphState,
   ): Promise<Partial<AgentGraphState>> => {
+    // Phase 2 已经完成题库优先选择时，Graph 只引用业务题目，避免重复调用模型。
+    if (state.currentQuestionId) {
+      return {
+        phase: "awaiting_answer",
+        currentQuestionId: state.currentQuestionId,
+        pendingAction: "ask",
+      };
+    }
     const persona = getRolePersona(state.currentRole);
     const generated = await modelProvider.generateQuestion({
       sessionId: state.sessionId,

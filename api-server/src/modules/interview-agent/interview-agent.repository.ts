@@ -285,6 +285,7 @@ const AgentEventTypeSchema = z.enum([
   "agent.snapshot",
   "agent.phase",
   "agent.role_changed",
+  "agent.question_ready",
   "agent.message_completed",
   "agent.session_completed",
   "agent.error",
@@ -441,6 +442,16 @@ const RoleStageDataSchema = z
   })
   .strict()
   .refine((stage) => stage.startQuestionIndex <= stage.endQuestionIndex);
+const QuestionReadyDataSchema = z
+  .object({
+    id: SessionIdSchema,
+    question: z.string().trim().min(1).max(5_000),
+    orderIndex: SafeIntegerSchema,
+    roleId: RoleIdSchema,
+    dimensionKey: z.string().trim().min(1).max(100),
+    source: z.enum(["bank", "model"]),
+  })
+  .strict();
 const MessageCompletedDataSchema = z
   .object({
     id: z.string().trim().min(1).max(200),
@@ -765,6 +776,8 @@ function parseEventData(
         return AgentPhaseDataSchema;
       case "agent.role_changed":
         return RoleStageDataSchema;
+      case "agent.question_ready":
+        return QuestionReadyDataSchema;
       case "agent.message_completed":
         return MessageCompletedDataSchema;
       case "agent.session_completed":
@@ -810,6 +823,13 @@ function parseEventRow(value: unknown): AgentEvent {
         sequence: row.sequence,
         type: row.type,
         data: parseDatabaseOutput(RoleStageDataSchema, safePayload),
+        createdAt,
+      };
+    case "agent.question_ready":
+      return {
+        sequence: row.sequence,
+        type: row.type,
+        data: parseDatabaseOutput(QuestionReadyDataSchema, safePayload),
         createdAt,
       };
     case "agent.message_completed":

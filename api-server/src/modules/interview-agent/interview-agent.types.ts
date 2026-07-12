@@ -182,6 +182,22 @@ export type AgentMessageView = {
   interrupted: boolean;
 };
 
+/** SSE 中首题或后续题目准备完成后的只读视图。 */
+export type AgentQuestionView = {
+  /** 业务题目 UUID，与 Snapshot 的 currentQuestionId 一致。 */
+  id: string;
+  /** 面试题正文。 */
+  question: string;
+  /** 全场零基题号。 */
+  orderIndex: number;
+  /** 负责该题的冻结角色。 */
+  roleId: RoleId;
+  /** 能力蓝图中的主维度键。 */
+  dimensionKey: string;
+  /** 题目来自公共题库或模型兜底。 */
+  source: "bank" | "model";
+};
+
 /** 会话完成事件的最小数据。 */
 export type AgentSessionCompletedData = {
   /** 已完成的业务会话标识。 */
@@ -217,6 +233,7 @@ export type AgentEvent =
   | AgentEventEnvelope<"agent.snapshot", AgentSnapshot>
   | AgentEventEnvelope<"agent.phase", { phase: AgentPhase }>
   | AgentEventEnvelope<"agent.role_changed", RoleStage>
+  | AgentEventEnvelope<"agent.question_ready", AgentQuestionView>
   | AgentEventEnvelope<"agent.message_completed", AgentMessageView>
   | AgentEventEnvelope<"agent.session_completed", AgentSessionCompletedData>
   | AgentEventEnvelope<"agent.error", AgentError>;

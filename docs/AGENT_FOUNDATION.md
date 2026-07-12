@@ -1,6 +1,6 @@
-# Interview Agent Phase 1 基础设施
+# Interview Agent Phase 1–2 基础设施与准备流程
 
-本文记录 `docs/AGENT_APPLICATION_IMPLEMENTATION_PLAN.md` 的 Phase 1 已实现范围、运行方式和安全边界。
+本文记录 `docs/AGENT_APPLICATION_IMPLEMENTATION_PLAN.md` 的 Phase 1–2 已实现范围、运行方式和安全边界。
 
 ## 当前范围
 
@@ -15,7 +15,18 @@ Phase 1 已建立：
 - Agent 会话、事件、操作和运行审计表的 RLS；Agent 会话不能由浏览器绕过 RPC 直接写入或删除。
 - 冻结配置、事件、操作结果和 checkpoint 的敏感字段拒绝。
 
-Phase 1 仍使用确定性 Mock 模型节点。联网研究、正式文本主图、证据评分、报告、统一语音和前端 Agent 页面必须按后续 Phase 顺序接入；`AGENT_INTERVIEW_ENABLED` 默认关闭，不会回退到旧可写流程。
+Phase 2 已建立：
+
+- 固定 allowlist 的 Skill、简历摘要、公共题库、消息引用、量表和 Web Search 只读工具边界。
+- Tavily 项目 Adapter，以及无 Key、超时、空结果和外部错误的继续面试降级。
+- company / role / industry 三类固定研究查询，HTML/隐藏块/控制字符清洗、2,000 字限长、SHA-256 去重和会话缓存。
+- 网页内容以不可执行数据传给模型；题量、角色、能力维度和结束条件全部由确定性代码控制。
+- 单角色和技术 → 主管 → HR 固定面板能力蓝图，3–10 题完整覆盖。
+- 公共题库优先、模型兜底的动态选题，以及 ID、规范文本和主题标签去重。
+- `agent_plan`、`agent_research_sources` 和题目来源元数据；准备 RPC 在一个事务提交计划、研究、首题、事件和会话投影。
+- Agent 题目浏览器直写锁定为 legacy-only，研究来源通过会话所有权 RLS 隔离。
+
+Phase 2 的模型兜底仍使用确定性 Adapter。正式文本主图、真实模型提问/追问、证据评分、报告、统一语音和前端 Agent 页面必须按后续 Phase 顺序接入；`AGENT_INTERVIEW_ENABLED` 默认关闭，不会回退到旧可写流程。
 
 ## 后端依赖
 
@@ -36,6 +47,7 @@ zod                                     3.25.76
 
 ```text
 supabase/migrations/20260711000002_add_interview_agent_foundation.sql
+supabase/migrations/20260712000001_add_agent_preparation.sql
 ```
 
 该迁移只应在隔离的本地或测试数据库演练。根据项目交接约束，禁止在没有用户再次授权时运行 `supabase db push`、`db reset` 或 `migration repair`。
@@ -72,7 +84,7 @@ LANGSMITH_API_KEY=
 
 只有 `AGENT_INTERVIEW_ENABLED=1` 才允许创建新 Agent 会话。关闭开关不会阻止读取或恢复已有 Agent 会话。
 
-## Phase 1 API
+## Canonical Agent API
 
 ```text
 POST /api/agent/sessions
@@ -84,7 +96,7 @@ POST /api/agent/sessions/:sessionId/retry
 GET  /api/agent/sessions/:sessionId/events
 ```
 
-文本输入必须携带稳定 `inputId`。API 在恢复 Graph 前原子 claim `input:<inputId>`；重复或并发请求不会第二次推进 Graph。Phase 1 不把回答正文传入 `Command.resume`，只传已持久化输入的 ID。正式正文落表将在 Phase 3 完成。
+文本输入必须携带稳定 `inputId`。API 在恢复 Graph 前原子 claim `input:<inputId>`；重复或并发请求不会第二次推进 Graph。当前不把回答正文传入 `Command.resume`，只传已持久化输入的 ID。正式正文落表将在 Phase 3 完成。
 
 ## 验证
 
@@ -107,3 +119,9 @@ AGENT_TEST_DATABASE_URL=postgresql://...
 
 - `PostgresSaver setup → interrupt → 关闭连接池 → 重建 → resume → END → deleteThread`。
 - 从旧表桩执行完整业务迁移，验证 create/claim/commit、严格事件序列、重复操作、Snapshot 游标、简历所有权、敏感键拒绝和 legacy-only 写 RLS。
+
+本地 Phase 2 验收再次从旧表桩启动临时 PostgreSQL，连续执行两次准备迁移，并验证：
+
+- `commit_agent_preparation` 原子写入冻结计划、清洗来源、业务首题和三个有序事件。
+- 相同 preparation operation 重放不重复创建题目、研究或事件。
+- 其他用户无法读取研究来源，authenticated 客户端无法绕过 RPC 写 Agent 题目。
