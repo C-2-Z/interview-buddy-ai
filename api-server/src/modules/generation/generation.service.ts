@@ -244,6 +244,15 @@ export function generationSnapshot(supabase: UserSupabaseClient, sessionId: stri
 }
 
 export async function retryGeneration(supabase: UserSupabaseClient, sessionId: string) {
+  // Phase 7: Agent 会话的生成由 Graph 自动管理。
+  const { data: genRow } = await supabase
+    .from("interview_sessions")
+    .select("agent_version")
+    .eq("id", sessionId)
+    .maybeSingle() as unknown as { data: { agent_version: string | null } | null };
+  if (genRow?.agent_version === "agent-v1") {
+    return { status: "ready", total: 0, completed: 0, error: null };
+  }
   await resetGenerationForRetry(supabase, sessionId);
   await enqueueGeneration(sessionId);
   return getGenerationSnapshot(supabase, sessionId);

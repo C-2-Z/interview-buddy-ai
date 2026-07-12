@@ -199,6 +199,15 @@ export async function finishSession(params: {
   userId: string;
   sessionId: string;
 }): Promise<{ overallScore: number; overallFeedback: string }> {
+  // Phase 7: Agent 会话由 Graph finalize_report 节点自动完成。
+  const { data: finishSessionRow } = await params.supabase
+    .from("interview_sessions")
+    .select("agent_version")
+    .eq("id", params.sessionId)
+    .maybeSingle() as unknown as { data: { agent_version: string | null } | null };
+  if (finishSessionRow?.agent_version === "agent-v1") {
+    return { overallScore: 0, overallFeedback: "Agent interview completed." };
+  }
   const questions = await getScoredQuestions(params.supabase, params.sessionId);
   const scored = questions.filter((question) => question.score != null);
   const overallScore = scored.length
