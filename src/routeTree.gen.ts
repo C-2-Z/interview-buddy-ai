@@ -25,6 +25,8 @@ import { Route as AuthenticatedSessionIdRouteImport } from './routes/_authentica
 import { Route as AuthenticatedResumesIdRouteImport } from './routes/_authenticated/resumes/$id'
 import { Route as AuthenticatedInterviewsIdRouteImport } from './routes/_authenticated/interviews/$id'
 import { Route as AuthenticatedBankIdRouteImport } from './routes/_authenticated/bank/$id'
+import { Route as AuthenticatedAgentNewRouteImport } from './routes/_authenticated/agent/new'
+import { Route as AuthenticatedAgentSessionIdRouteImport } from './routes/_authenticated/agent/$sessionId'
 import { Route as AuthenticatedVoiceSessionIdRouteImport } from './routes/_authenticated/voice/session.$id'
 
 const AuthRoute = AuthRouteImport.update({
@@ -110,6 +112,17 @@ const AuthenticatedBankIdRoute = AuthenticatedBankIdRouteImport.update({
   path: '/bank/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAgentNewRoute = AuthenticatedAgentNewRouteImport.update({
+  id: '/agent/new',
+  path: '/agent/new',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAgentSessionIdRoute =
+  AuthenticatedAgentSessionIdRouteImport.update({
+    id: '/agent/$sessionId',
+    path: '/agent/$sessionId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedVoiceSessionIdRoute =
   AuthenticatedVoiceSessionIdRouteImport.update({
     id: '/voice/session/$id',
@@ -125,6 +138,8 @@ export interface FileRoutesByFullPath {
   '/interview-hub': typeof AuthenticatedInterviewHubRoute
   '/new': typeof AuthenticatedNewRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/agent/$sessionId': typeof AuthenticatedAgentSessionIdRoute
+  '/agent/new': typeof AuthenticatedAgentNewRoute
   '/bank/$id': typeof AuthenticatedBankIdRoute
   '/interviews/$id': typeof AuthenticatedInterviewsIdRoute
   '/resumes/$id': typeof AuthenticatedResumesIdRoute
@@ -143,6 +158,8 @@ export interface FileRoutesByTo {
   '/interview-hub': typeof AuthenticatedInterviewHubRoute
   '/new': typeof AuthenticatedNewRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/agent/$sessionId': typeof AuthenticatedAgentSessionIdRoute
+  '/agent/new': typeof AuthenticatedAgentNewRoute
   '/bank/$id': typeof AuthenticatedBankIdRoute
   '/interviews/$id': typeof AuthenticatedInterviewsIdRoute
   '/resumes/$id': typeof AuthenticatedResumesIdRoute
@@ -163,6 +180,8 @@ export interface FileRoutesById {
   '/_authenticated/interview-hub': typeof AuthenticatedInterviewHubRoute
   '/_authenticated/new': typeof AuthenticatedNewRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/agent/$sessionId': typeof AuthenticatedAgentSessionIdRoute
+  '/_authenticated/agent/new': typeof AuthenticatedAgentNewRoute
   '/_authenticated/bank/$id': typeof AuthenticatedBankIdRoute
   '/_authenticated/interviews/$id': typeof AuthenticatedInterviewsIdRoute
   '/_authenticated/resumes/$id': typeof AuthenticatedResumesIdRoute
@@ -183,6 +202,8 @@ export interface FileRouteTypes {
     | '/interview-hub'
     | '/new'
     | '/settings'
+    | '/agent/$sessionId'
+    | '/agent/new'
     | '/bank/$id'
     | '/interviews/$id'
     | '/resumes/$id'
@@ -201,6 +222,8 @@ export interface FileRouteTypes {
     | '/interview-hub'
     | '/new'
     | '/settings'
+    | '/agent/$sessionId'
+    | '/agent/new'
     | '/bank/$id'
     | '/interviews/$id'
     | '/resumes/$id'
@@ -220,6 +243,8 @@ export interface FileRouteTypes {
     | '/_authenticated/interview-hub'
     | '/_authenticated/new'
     | '/_authenticated/settings'
+    | '/_authenticated/agent/$sessionId'
+    | '/_authenticated/agent/new'
     | '/_authenticated/bank/$id'
     | '/_authenticated/interviews/$id'
     | '/_authenticated/resumes/$id'
@@ -351,6 +376,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBankIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/agent/new': {
+      id: '/_authenticated/agent/new'
+      path: '/agent/new'
+      fullPath: '/agent/new'
+      preLoaderRoute: typeof AuthenticatedAgentNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/agent/$sessionId': {
+      id: '/_authenticated/agent/$sessionId'
+      path: '/agent/$sessionId'
+      fullPath: '/agent/$sessionId'
+      preLoaderRoute: typeof AuthenticatedAgentSessionIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/voice/session/$id': {
       id: '/_authenticated/voice/session/$id'
       path: '/voice/session/$id'
@@ -367,6 +406,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInterviewHubRoute: typeof AuthenticatedInterviewHubRoute
   AuthenticatedNewRoute: typeof AuthenticatedNewRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedAgentSessionIdRoute: typeof AuthenticatedAgentSessionIdRoute
+  AuthenticatedAgentNewRoute: typeof AuthenticatedAgentNewRoute
   AuthenticatedBankIdRoute: typeof AuthenticatedBankIdRoute
   AuthenticatedInterviewsIdRoute: typeof AuthenticatedInterviewsIdRoute
   AuthenticatedResumesIdRoute: typeof AuthenticatedResumesIdRoute
@@ -384,6 +425,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInterviewHubRoute: AuthenticatedInterviewHubRoute,
   AuthenticatedNewRoute: AuthenticatedNewRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedAgentSessionIdRoute: AuthenticatedAgentSessionIdRoute,
+  AuthenticatedAgentNewRoute: AuthenticatedAgentNewRoute,
   AuthenticatedBankIdRoute: AuthenticatedBankIdRoute,
   AuthenticatedInterviewsIdRoute: AuthenticatedInterviewsIdRoute,
   AuthenticatedResumesIdRoute: AuthenticatedResumesIdRoute,
