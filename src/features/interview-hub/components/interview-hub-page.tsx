@@ -2,6 +2,7 @@
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
+  Bot,
   BriefcaseBusiness,
   CheckCircle2,
   FileStack,
@@ -17,6 +18,15 @@ import { useInterviewHub } from "../hooks/use-interview-hub";
 import { isVoiceInterview, type RecentInterview } from "../types";
 
 const ENTRY_CARDS = [
+  {
+    title: "Agent ??",
+    description: "LangGraph ????????????????????????????",
+    to: "/agent/new" as const,
+    action: "?? Agent ??",
+    icon: Bot,
+    className: "bg-indigo-600 text-white",
+  },
+
   {
     title: "文本面试",
     description: "逐题文字作答，适合梳理思路、打磨表达和复盘答案。",
