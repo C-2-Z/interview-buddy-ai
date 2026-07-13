@@ -1,4 +1,4 @@
-import { BookOpen, FileStack, History, Settings, Sparkles } from "lucide-react";
+import { BookOpen, FileStack, History, Settings, Sparkles, BrainCircuit } from "lucide-react";
 import type { AppNavigationGroup } from "./types";
 
 export const APP_NAVIGATION: AppNavigationGroup[] = [
@@ -19,6 +19,7 @@ export const APP_NAVIGATION: AppNavigationGroup[] = [
     label: "资源",
     items: [
       { label: "公共题库", description: "按岗位和题型专项练习", to: "/bank", icon: BookOpen },
+      { label: "知识库", description: "RAG 知识库与知识图谱", to: "/knowledge", icon: BrainCircuit },
     ],
   },
   {
