@@ -1,6 +1,7 @@
 import { getAccessToken } from "./auth-token";
 
 const baseUrl = import.meta.env.VITE_API_URL || "";
+export const apiBaseUrl = baseUrl;
 
 export async function apiRequest<T>(
   method: string,
