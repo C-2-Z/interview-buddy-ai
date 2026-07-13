@@ -60,9 +60,24 @@
 9. 报告只有总分和简短汇总，没有逐题改法、行动计划和弱项复练闭环。
 10. 设置页把 API Key 和模型选择作为普通用户必备知识，没有服务连通性测试。
 
-## 6. 下一项任务：必须先做 PX-A01
+## 6. PX-A01 已完成：Agent readiness
 
-### 目标
+PX-A01 已在本地完成并通过类型检查、单元测试及前后端生产构建：
+
+- 后端新增独立 `agent-readiness` 五文件模块与鉴权只读接口 `GET /api/agent/readiness`。
+- 检查 Agent 开关、持久/临时 checkpoint、显式 checkpoint 初始化、Agent 迁移版本、用户模型 Key、语音能力和 Tavily 降级。
+- 新增无副作用 `check_agent_readiness()` 迁移版本 RPC；迁移文件仅提交到仓库，未在本地或生产数据库执行。
+- production 缺少 `DATABASE_URL` 始终 blocked；仅非 production 且显式开启时允许 MemorySaver，并返回 degraded。
+- 前端新增独立 `agent-readiness` feature；创建页在检查完成且非 blocked 前不会发送创建请求。
+- 缺 Key、语音不可用、Tavily 缺失、临时 checkpoint 和检查失败均提供设置、文本降级、关闭研究、重试或联系管理员动作。
+- 创建失败继续保留受控表单 state；动态状态使用 `aria-live`，错误使用 `role="alert"`。
+- readiness 响应和日志只包含稳定状态码及脱敏文案，不返回数据库错误、堆栈、Key、token、简历或回答正文。
+
+部署前必须先在目标数据库应用 `20260713000001_add_agent_readiness_rpc.sql`，否则 readiness 会按设计返回 `agent_database_unavailable`，不会绕过检查创建面试。
+
+## 6.1 下一项任务：PX-A03
+
+### PX-A01 原始目标（已完成）
 
 实现 Agent readiness 模块，让用户在填写和提交创建表单之前知道系统能否开始，以及如何恢复。
 
@@ -239,4 +254,3 @@ readiness 模块至少需要：service 单元测试、repository 契约测试、
 - [ ] TypeScript、相关测试和生产构建通过。
 - [ ] 未触碰用户周报或无关改动。
 - [ ] 未推送、部署或修改生产数据库。
-
