@@ -24,7 +24,7 @@
 - 分支：`codex/agent-langgraph-foundation`
 - Agent 主重构提交：`c35b88a`
 - 本地 checkpoint 兼容修复：`6f90ae7`
-- 不要推送、部署或执行生产数据库迁移，除非用户再次明确授权。
+- 用户已于 2026-07-13 明确授权后端数据库和远端改动，以完成真实项目验收；仍未授权或执行 Git push 与生产部署。
 - 用户原有未跟踪文件 `项目周报_choice-whu_2026-07-07至2026-07-13.md` 不属于本任务，禁止删除或纳入提交。
 
 ## 3. 已完成的能力
@@ -73,14 +73,16 @@ PX-A01 已在本地完成并通过类型检查、单元测试及前后端生产�
 - 创建失败继续保留受控表单 state；动态状态使用 `aria-live`，错误使用 `role="alert"`。
 - readiness 响应和日志只包含稳定状态码及脱敏文案，不返回数据库错误、堆栈、Key、token、简历或回答正文。
 - 真实启动前端与 API 后发现未登录保护路由在客户端重定向时产生 hydration mismatch；认证布局现改为先渲染稳定检查壳，再于 hydration 后读取浏览器会话并跳转，未登录 `/new → /auth` 已无新增 hydration 错误。
+- 本地 Vite 默认端口 `5173` 已加入 API CORS 白名单；SSE 恢复需要的 `Last-Event-ID` 也已加入允许请求头，服务端会在连接后立即发送空心跳，浏览器已从“轮询恢复”稳定切换为“事件流在线”。
+- 模型解析保持用户 BYOK 优先；用户未配置 Key 时可使用服务端对应供应商 Key，Key 只停留在服务端内存，不进入响应、日志或会话持久化。
 
-建议部署时应用 `20260713000001_add_agent_readiness_rpc.sql` 以使用轻量版本探测；应用前仍可通过只读 RPC 元数据兼容检查，不执行数据库写入或 DDL。
+建议部署时应用 `20260713000001_add_agent_readiness_rpc.sql` 以使用轻量版本探测。当前 Supabase CLI 账号执行远端迁移列表时返回 403 `LegacyDbConfigLoginRoleStatusError`，因此本轮没有强行修改远端 schema；远端 PostgREST OpenAPI 已确认 14 个 Canonical Agent RPC 完整，readiness 会通过只读元数据兼容探测，不影响当前创建主链路。
 
-真实登录态的创建页、设置跳转和实际创建仍需在测试账号登录后完成浏览器验收；不要把未登录跳转与静态构建通过误写为完整 E2E 通过。
+真实登录态浏览器验收已完成：测试账号进入 `/new` 后先看到 MemorySaver 与 Tavily 的 degraded 提示，关闭联网研究后创建按钮可用；随后成功创建语音会话 `9420954a-7d3b-42ae-b961-b88c1ebcee0c` 和文本会话 `1d082ca3-8235-455b-8e8b-1b1dbc6f7a71`。文本会话提交首题真实回答后获得 14 分并推进到第 2 题，刷新页面后题目、回答、评分和进度均恢复，SSE 显示在线。
 
 ## 6.1 下一项任务：PX-A03
 
-PX-A03 的创建错误恢复协议已开始实施：共享 HTTP 客户端保留后端稳定 `code`、`retryable` 和状态码，创建页使用独立 `agent-create-recovery` feature 将其映射为原地重试、重新检查、设置或管理员动作。失败时不清空受控表单，并通过 `role="alert"` 明确说明草稿已保留。真实登录态 E2E 仍是完成门禁。
+PX-A03 的创建错误恢复协议已完成首轮实现：共享 HTTP 客户端保留后端稳定 `code`、`retryable` 和状态码，创建页使用独立 `agent-create-recovery` feature 将其映射为原地重试、重新检查、设置或管理员动作。失败时不清空受控表单，并通过 `role="alert"` 明确说明草稿已保留；错误映射与草稿保留已有 3 项前端单元测试，真实成功创建链路也已通过浏览器验收。
 
 ### PX-A01 原始目标（已完成）
 
@@ -232,7 +234,12 @@ npm test
 npm run build
 ```
 
-当前最近一次后端验证：89 项测试中 88 通过、0 失败、1 项因未配置 `AGENT_TEST_DATABASE_URL` 跳过。
+当前最近一次完整验证（2026-07-13）：
+
+- 前端：3 项恢复协议测试全部通过，`npx tsc --noEmit` 通过，Vite 客户端与 SSR 生产构建通过。
+- 后端：107 项测试中 106 通过、0 失败、1 项因未配置 `AGENT_TEST_DATABASE_URL` 跳过；`npx tsc --noEmit` 与 API 生产构建通过。
+- 浏览器：readiness 降级动作、真实文本/语音创建、文本首题提交评分、刷新恢复和鉴权 SSE 在线均通过。
+- 唯一构建提示仍是前端入口 chunk 约 608 kB，属于已记录的拆包债务。
 
 readiness 模块至少需要：service 单元测试、repository 契约测试、路由鉴权/脱敏测试和前端状态映射测试。
 

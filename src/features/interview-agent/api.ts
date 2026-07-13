@@ -27,16 +27,28 @@ function parseSseBlock(block:string):AgentSSEEvent|null{
   try{return JSON.parse(data) as AgentSSEEvent;}catch{return null;}
 }
 
-/** 使用带 Bearer Header 的 fetch 流读取 SSE；原生 EventSource 无法携带 Supabase token。 */
+/**
+ * 使用带 Bearer Header 的 fetch 流读取 SSE；原生 EventSource 无法携带 Supabase token。
+ *
+ * @param sessionId - 需要订阅的面试会话 UUID。
+ * @param lastEventId - 客户端已经应用的最后事件序号。
+ * @param signal - 页面卸载或主动重连时中止长连接的信号。
+ * @param onOpen - 服务端响应头和可读流就绪后的回调。
+ * @param onEvent - 每个完整业务事件的消费回调。
+ * @returns 事件流关闭或被中止时解决。
+ */
 export async function streamAgentEvents(
   sessionId:string,
   lastEventId:number,
   signal:AbortSignal,
+  onOpen:()=>void,
   onEvent:(event:AgentSSEEvent)=>void,
 ):Promise<void>{
   const token=await getAccessToken();
   const response=await fetch(`${API_BASE}/api/agent/sessions/${sessionId}/events`,{headers:{Accept:"text/event-stream",...(token?{Authorization:`Bearer ${token}`}:{ }),...(lastEventId>0?{"Last-Event-ID":String(lastEventId)}:{})},signal});
   if(!response.ok||!response.body)throw new Error(`事件流连接失败 (${response.status})`);
+  // 无新业务事件时服务端只发送心跳，因此响应流就绪即代表连接成功。
+  onOpen();
   const reader=response.body.getReader();const decoder=new TextDecoder();let buffer="";
   while(!signal.aborted){const {done,value}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});const blocks=buffer.split(/\r?\n\r?\n/);buffer=blocks.pop()??"";for(const block of blocks){const event=parseSseBlock(block);if(event)onEvent(event);}}
 }

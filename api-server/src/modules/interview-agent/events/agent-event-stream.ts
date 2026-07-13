@@ -199,6 +199,10 @@ export function streamCommittedAgentEvents(
       await writeAgentEvent(stream, event);
     }
 
+    // 游标已经最新时也立即发送空心跳，确保代理和浏览器尽快收到响应头。
+    await stream.writeSSE({ event: "ping", data: "{}" });
+    lastPingAt = Date.now();
+
     while (!context.req.raw.signal.aborted) {
       const events = await reader.listEventsAfter(
         sessionId,
