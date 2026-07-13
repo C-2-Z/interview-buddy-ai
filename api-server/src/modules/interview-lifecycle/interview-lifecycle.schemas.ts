@@ -2,9 +2,7 @@
 import { z } from "zod";
 
 /** 路径中的 Agent 会话参数。 */
-export const InterviewLifecycleParamsSchema = z
-  .object({ sessionId: z.string().uuid() })
-  .strict();
+export const InterviewLifecycleParamsSchema = z.object({ sessionId: z.string().uuid() }).strict();
 
 /** 生命周期动作请求体。 */
 export const InterviewLifecycleActionSchema = z

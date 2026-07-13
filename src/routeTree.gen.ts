@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedNewRouteImport } from './routes/_authenticated/new'
+import { Route as AuthenticatedKnowledgeRouteImport } from './routes/_authenticated/knowledge'
 import { Route as AuthenticatedInterviewHubRouteImport } from './routes/_authenticated/interview-hub'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -54,6 +55,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedNewRoute = AuthenticatedNewRouteImport.update({
   id: '/new',
   path: '/new',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedKnowledgeRoute = AuthenticatedKnowledgeRouteImport.update({
+  id: '/knowledge',
+  path: '/knowledge',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedInterviewHubRoute =
@@ -125,6 +131,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/interview-hub': typeof AuthenticatedInterviewHubRoute
+  '/knowledge': typeof AuthenticatedKnowledgeRoute
   '/new': typeof AuthenticatedNewRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/bank/$id': typeof AuthenticatedBankIdRoute
@@ -143,6 +150,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/interview-hub': typeof AuthenticatedInterviewHubRoute
+  '/knowledge': typeof AuthenticatedKnowledgeRoute
   '/new': typeof AuthenticatedNewRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/bank/$id': typeof AuthenticatedBankIdRoute
@@ -164,6 +172,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/interview-hub': typeof AuthenticatedInterviewHubRoute
+  '/_authenticated/knowledge': typeof AuthenticatedKnowledgeRoute
   '/_authenticated/new': typeof AuthenticatedNewRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/bank/$id': typeof AuthenticatedBankIdRoute
@@ -184,6 +193,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/history'
     | '/interview-hub'
+    | '/knowledge'
     | '/new'
     | '/settings'
     | '/bank/$id'
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/history'
     | '/interview-hub'
+    | '/knowledge'
     | '/new'
     | '/settings'
     | '/bank/$id'
@@ -222,6 +233,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/history'
     | '/_authenticated/interview-hub'
+    | '/_authenticated/knowledge'
     | '/_authenticated/new'
     | '/_authenticated/settings'
     | '/_authenticated/bank/$id'
@@ -284,6 +296,13 @@ declare module '@tanstack/react-router' {
       path: '/new'
       fullPath: '/new'
       preLoaderRoute: typeof AuthenticatedNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/knowledge': {
+      id: '/_authenticated/knowledge'
+      path: '/knowledge'
+      fullPath: '/knowledge'
+      preLoaderRoute: typeof AuthenticatedKnowledgeRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/interview-hub': {
@@ -377,6 +396,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedInterviewHubRoute: typeof AuthenticatedInterviewHubRoute
+  AuthenticatedKnowledgeRoute: typeof AuthenticatedKnowledgeRoute
   AuthenticatedNewRoute: typeof AuthenticatedNewRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedBankIdRoute: typeof AuthenticatedBankIdRoute
@@ -392,6 +412,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedInterviewHubRoute: AuthenticatedInterviewHubRoute,
+  AuthenticatedKnowledgeRoute: AuthenticatedKnowledgeRoute,
   AuthenticatedNewRoute: AuthenticatedNewRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedBankIdRoute: AuthenticatedBankIdRoute,

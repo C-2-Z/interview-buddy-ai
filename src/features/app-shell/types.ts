@@ -2,7 +2,7 @@
 import type { LucideIcon } from "lucide-react";
 
 export type AppNavigationPath =
-  "/interview-hub" | "/resumes" | "/history" | "/bank" | "/settings";
+  "/interview-hub" | "/resumes" | "/history" | "/bank" | "/knowledge" | "/settings";
 
 export type AppNavigationItem = {
   label: string;

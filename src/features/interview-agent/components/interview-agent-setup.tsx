@@ -24,7 +24,7 @@ import type { ReadinessRecoveryAction } from "@/features/agent-readiness/types";
 import { useAgentSession } from "../hooks/use-agent-session";
 import type { AgentMode, CreateAgentSessionBody } from "../types";
 
-const TEXT_SETUP_DRAFT_KEY = "ezmock:text-interview-setup-draft:v1";
+const TEXT_SETUP_DRAFT_KEY = "ezmock:text-interview-setup-draft:v2";
 
 /** 文字练习表单草稿。 */
 type SetupDraft = {
@@ -46,7 +46,7 @@ const INITIAL_DRAFT: SetupDraft = {
   targetCompany: "",
   jobDescription: "",
   modelProvider: "deepseek",
-  webResearch: false,
+  webResearch: true,
 };
 
 /** 从浏览器恢复文字配置；无效旧值静默回退为安全默认值。 */

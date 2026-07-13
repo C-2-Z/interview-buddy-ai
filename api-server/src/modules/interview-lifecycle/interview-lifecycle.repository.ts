@@ -12,7 +12,10 @@ import type {
 /** lifecycle Repository 的受限 RPC 端口，便于单元测试替换。 */
 export interface InterviewLifecycleDatabase {
   /** 调用数据库函数且不暴露原始数据库异常。 */
-  rpc(name: string, params: Record<string, unknown>): PromiseLike<{
+  rpc(
+    name: string,
+    params: Record<string, unknown>,
+  ): PromiseLike<{
     /** RPC 安全 JSON 结果。 */
     data: unknown;
     /** 任意数据库错误只转换为稳定模块错误。 */
@@ -61,7 +64,9 @@ export class InterviewLifecycleRepository {
    * @param sessionId - 当前用户拥有的 Agent 会话 UUID。
    * @returns 用于继续清理 checkpoint 的 thread ID。
    */
-  async deleteSession(sessionId: string): Promise<{ sessionId: string; threadId: string; deleted: true }> {
+  async deleteSession(
+    sessionId: string,
+  ): Promise<{ sessionId: string; threadId: string; deleted: true }> {
     const response = await this.database.rpc("delete_agent_session", {
       p_session_id: sessionId,
     });
@@ -81,7 +86,5 @@ export class InterviewLifecycleRepository {
 export function createInterviewLifecycleRepository(
   supabase: UserSupabaseClient,
 ): InterviewLifecycleRepository {
-  return new InterviewLifecycleRepository(
-    supabase as unknown as InterviewLifecycleDatabase,
-  );
+  return new InterviewLifecycleRepository(supabase as unknown as InterviewLifecycleDatabase);
 }

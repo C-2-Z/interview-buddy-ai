@@ -1,19 +1,11 @@
 /** Interview lifecycle 模块类型：定义暂停、恢复、提前结束、放弃与删除的安全契约。 */
 
 /** 用户可执行的会话生命周期动作。 */
-export type InterviewLifecycleAction =
-  | "pause"
-  | "resume"
-  | "finish"
-  | "abandon";
+export type InterviewLifecycleAction = "pause" | "resume" | "finish" | "abandon";
 
 /** 面向产品展示的会话状态，不复用 LangGraph 技术阶段。 */
 export type InterviewProductStatus =
-  | "in_progress"
-  | "paused"
-  | "completed"
-  | "abandoned"
-  | "failed";
+  "in_progress" | "paused" | "completed" | "abandoned" | "failed";
 
 /** 数据库 RPC 返回的生命周期投影。 */
 export type InterviewLifecycleResult = Readonly<{

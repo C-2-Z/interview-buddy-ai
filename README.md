@@ -172,7 +172,7 @@ Hono API 服务 (api-server/)
 | ------------------ | --------------------------------------- | ----------------------------------------------- | ---- | ------------------------ |
 | /                  | routes/index.tsx                        | —                                               | 否   | 着陆页                   |
 | /auth              | routes/auth.tsx                         | —                                               | 否   | 登录 / 注册              |
-| /interview-hub     | routes/\_focus/interview-hub.tsx        | modules/agent-readiness/                        | 是   | 文本 / 语音双入口首页    |
+| /interview-hub     | routes/\_authenticated/interview-hub.tsx | modules/agent-readiness/                        | 是   | 保留侧栏的文本 / 语音双入口首页 |
 | /voice/new         | routes/\_focus/voice.new.tsx            | modules/interview-agent/                        | 是   | 语音面试准备与设备校准   |
 | /voice/session/$id | routes/\_focus/voice.session.\$id.tsx   | modules/voice/ +<br>modules/interview-agent/    | 是   | 沉浸式语音面试           |
 | /dashboard         | routes/\_authenticated/dashboard.tsx    | —                                               | 是   | 仪表盘                   |

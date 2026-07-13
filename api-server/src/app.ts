@@ -12,6 +12,9 @@ import { agentReadinessRoutes } from "./modules/agent-readiness/agent-readiness.
 import { interviewLifecycleRoutes } from "./modules/interview-lifecycle/interview-lifecycle.routes.js";
 import { sessions } from "./modules/sessions/sessions.routes.js";
 import { createModuleLogger } from "./shared/logger/voice-logger.js";
+import { knowledge } from "./modules/knowledge/knowledge.routes.js";
+import { swaggerUI } from "@hono/swagger-ui";
+import { CURRENT_OPENAPI_DOC } from "./config/openapi-current.js";
 
 const app = new Hono();
 const appLogger = createModuleLogger("api-server");
@@ -34,8 +37,13 @@ app.route("/api/sessions", sessions);
 app.route("/api/agent/readiness", agentReadinessRoutes);
 app.route("/api/agent", interviewLifecycleRoutes);
 app.route("/api/agent", interviewAgentRoutes);
+app.route("/api/knowledge", knowledge);
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));
+
+/** OpenAPI 文档端点 */
+app.get("/api/openapi.json", (c) => c.json(CURRENT_OPENAPI_DOC));
+app.get("/api/docs", swaggerUI({ url: "/api/openapi.json" }));
 
 export const port = Number(process.env.PORT) || 3001;
 export default app;

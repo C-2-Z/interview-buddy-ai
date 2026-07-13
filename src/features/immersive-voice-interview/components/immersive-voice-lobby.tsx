@@ -74,7 +74,7 @@ export function ImmersiveVoiceLobby() {
   const readiness = useAgentReadiness({
     interviewMode: "voice",
     modelProvider: draft.modelProvider,
-    webResearch: false,
+    webResearch: true,
   });
 
   useEffect(() => {
@@ -124,7 +124,7 @@ export function ImmersiveVoiceLobby() {
         questionCount: draft.questionCount,
         targetCompany: draft.targetCompany.trim() || undefined,
         modelProvider: draft.modelProvider,
-        webResearch: false,
+        webResearch: true,
       });
       localStorage.removeItem(VOICE_LOBBY_DRAFT_KEY);
       await navigate({ to: "/voice/session/$id", params: { id: sessionId } });

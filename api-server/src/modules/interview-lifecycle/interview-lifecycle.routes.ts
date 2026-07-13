@@ -21,25 +21,35 @@ interviewLifecycleRoutes.use("*", requireAuth);
 /** 将生命周期错误映射为稳定响应，绝不回传原始数据库错误或堆栈。 */
 interviewLifecycleRoutes.onError((error, context) => {
   if (error instanceof z.ZodError || error instanceof SyntaxError) {
-    return context.json({ error: "请求参数无效。", code: "lifecycle_invalid_request", retryable: false }, 400);
+    return context.json(
+      { error: "请求参数无效。", code: "lifecycle_invalid_request", retryable: false },
+      400,
+    );
   }
   if (error instanceof InterviewLifecycleServiceError) {
     const body = { error: error.message, code: error.code, retryable: error.retryable };
-    return error.statusCode === 409
-      ? context.json(body, 409)
-      : context.json(body, 503);
+    return error.statusCode === 409 ? context.json(body, 409) : context.json(body, 503);
   }
   logger.error(new Error("Unhandled interview lifecycle route error"), {
     method: context.req.method,
     path: context.req.path,
   });
-  return context.json({ error: "面试生命周期服务暂时不可用，请重试。", code: "lifecycle_internal_error", retryable: true }, 500);
+  return context.json(
+    {
+      error: "面试生命周期服务暂时不可用，请重试。",
+      code: "lifecycle_internal_error",
+      retryable: true,
+    },
+    500,
+  );
 });
 
 /** 暂停、恢复、提前结束或放弃当前 Agent 会话。 */
 interviewLifecycleRoutes.post("/sessions/:sessionId/lifecycle", async (context) => {
   const { sessionId } = InterviewLifecycleParamsSchema.parse(context.req.param());
-  const { action } = InterviewLifecycleActionSchema.parse(await context.req.json().catch(() => ({})));
+  const { action } = InterviewLifecycleActionSchema.parse(
+    await context.req.json().catch(() => ({})),
+  );
   const service = new InterviewLifecycleService({
     repository: createInterviewLifecycleRepository(context.var.supabase),
   });
