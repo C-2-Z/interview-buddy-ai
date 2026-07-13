@@ -14,6 +14,9 @@ import type {AgentMode,CreateAgentSessionBody} from "../types";
 import {AgentReadinessStatus} from "@/features/agent-readiness/components/agent-readiness-status";
 import {useAgentReadiness} from "@/features/agent-readiness/hooks/use-agent-readiness";
 import type {ReadinessRecoveryAction} from "@/features/agent-readiness/types";
+import {AgentCreateError} from "@/features/agent-create-recovery/components/agent-create-error";
+import {useAgentCreateRecovery} from "@/features/agent-create-recovery/hooks/use-agent-create-recovery";
+import type {AgentCreateRecoveryAction} from "@/features/agent-create-recovery/types";
 
 /** 表单草稿。 */
 type SetupDraft={mode:AgentMode;interviewMode:"text"|"voice";position:string;difficulty:"初级"|"中级"|"高级";questionCount:number;targetCompany:string;jobDescription:string;modelProvider:"deepseek"|"openai"|"anthropic";webResearch:boolean};
@@ -23,14 +26,19 @@ const INITIAL_DRAFT:SetupDraft={mode:"single",interviewMode:"text",position:"",d
 export function InterviewAgentSetupPage({initialResumeId}:{/** 从简历详情进入时冻结的简历 UUID。 */initialResumeId?:string}){
   const navigate=useNavigate();const session=useAgentSession();const [draft,setDraft]=useState(INITIAL_DRAFT);
   const readiness=useAgentReadiness({interviewMode:draft.interviewMode,modelProvider:draft.modelProvider,webResearch:draft.webResearch});
+  const createRecovery=useAgentCreateRecovery();
   const patch=(value:Partial<SetupDraft>)=>setDraft((current)=>({...current,...value}));
   /** 将后端固定恢复动作映射为页面内安全操作。 */
-  function recover(action:ReadinessRecoveryAction){if(action==="open_settings")void navigate({to:"/settings"});else if(action==="use_text")patch({interviewMode:"text"});else if(action==="disable_research")patch({webResearch:false});else if(action==="retry")void readiness.refetch();else window.location.href="mailto:admin@ezmock.local?subject=模拟面试服务支持";}
-  /** 校验并创建唯一 Agent 会话。 */
-  async function submit(event:React.FormEvent){event.preventDefault();if(!readiness.data||readiness.data.status==="blocked"||readiness.isFetching)return;const body:CreateAgentSessionBody={mode:draft.mode,interviewMode:draft.interviewMode,position:draft.position.trim(),difficulty:draft.difficulty,questionCount:draft.questionCount,targetCompany:draft.targetCompany.trim()||undefined,jobDescription:draft.jobDescription.trim()||undefined,resumeId:initialResumeId,modelProvider:draft.modelProvider,webResearch:draft.webResearch};try{const sessionId=await session.create(body);await navigate({to:"/session/$id",params:{id:sessionId}});}catch{/* 受控草稿保留在当前组件，错误由就近 alert 展示。 */}}
+  function recover(action:ReadinessRecoveryAction){if(action==="open_settings")void navigate({to:"/settings"});else if(action==="use_text")patch({interviewMode:"text"});else if(action==="disable_research")patch({webResearch:false});else if(action==="retry")void readiness.refetch();else window.location.href="mailto:support@ezmock.site?subject=模拟面试服务支持";}
+  /** 使用当前受控草稿创建唯一 Agent 会话，失败时不清空任何字段。 */
+  async function createFromDraft(){if(!readiness.data||readiness.data.status==="blocked"||readiness.isFetching)return;createRecovery.clear();const body:CreateAgentSessionBody={mode:draft.mode,interviewMode:draft.interviewMode,position:draft.position.trim(),difficulty:draft.difficulty,questionCount:draft.questionCount,targetCompany:draft.targetCompany.trim()||undefined,jobDescription:draft.jobDescription.trim()||undefined,resumeId:initialResumeId,modelProvider:draft.modelProvider,webResearch:draft.webResearch};try{const sessionId=await session.create(body);await navigate({to:"/session/$id",params:{id:sessionId}});}catch(error){createRecovery.capture(error);}}
+  /** 阻止浏览器默认提交，并复用可原地重试的创建流程。 */
+  async function submit(event:React.FormEvent){event.preventDefault();await createFromDraft();}
+  /** 执行创建失败协议中的页面动作。 */
+  function recoverCreate(action:AgentCreateRecoveryAction){if(action==="retry_create")void createFromDraft();else if(action==="open_settings")void navigate({to:"/settings"});else if(action==="recheck")void readiness.refetch();else window.location.href="mailto:support@ezmock.site?subject=模拟面试创建失败";}
   return <div className="mx-auto max-w-3xl space-y-6"><header><h1 className="text-3xl font-bold tracking-tight">创建模拟面试</h1><p className="mt-2 text-sm text-muted-foreground">填写训练目标，系统会在开始前检查模型、恢复和交互能力。</p></header>
     <AgentReadinessStatus readiness={readiness.data} checking={readiness.isFetching} error={readiness.isError} onAction={recover}/>
-    {session.error&&<div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive" role="alert">{session.error}<div className="mt-2"><Button type="button" variant="outline" className="min-h-11" onClick={()=>void readiness.refetch()}>重新检查并重试</Button></div></div>}
+    {createRecovery.failure&&<AgentCreateError failure={createRecovery.failure} retrying={session.loading} onAction={recoverCreate}/>}
     <form onSubmit={submit}><Card><CardHeader><CardTitle>面试配置</CardTitle><CardDescription>文本和语音使用同一套面试计划与进度记录。{initialResumeId?" 已绑定当前简历。":""}</CardDescription></CardHeader><CardContent className="space-y-6">
       <div className="space-y-2"><Label htmlFor="position">目标岗位</Label><Input id="position" value={draft.position} onChange={(event)=>patch({position:event.target.value})} placeholder="例如：Java 后端工程师" maxLength={100} required/></div>
       <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>角色模式</Label><div className="grid grid-cols-2 gap-2"><Button type="button" variant={draft.mode==="single"?"default":"outline"} onClick={()=>patch({mode:"single"})}><Users/>单面试官</Button><Button type="button" variant={draft.mode==="panel"?"default":"outline"} onClick={()=>patch({mode:"panel"})}><Users/>技术·主管·HR</Button></div></div><div className="space-y-2"><Label>交互通道</Label><div className="grid grid-cols-2 gap-2"><Button type="button" variant={draft.interviewMode==="text"?"default":"outline"} onClick={()=>patch({interviewMode:"text"})}><Keyboard/>文本</Button><Button type="button" variant={draft.interviewMode==="voice"?"default":"outline"} onClick={()=>patch({interviewMode:"voice"})}><Mic2/>语音</Button></div></div></div>

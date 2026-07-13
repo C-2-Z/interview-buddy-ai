@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
+    "test": "npm run test:recovery",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "test:recovery": "api-server\\node_modules\\.bin\\tsx.cmd --test src/features/agent-create-recovery/api.test.ts",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
