@@ -34,7 +34,7 @@ import {
   createAgentSnapshot,
   createInitialAgentState,
 } from "./graph/interview-agent.graph.js";
-import { createPostgresCheckpointer } from "./graph/checkpointer.js";
+import { createAgentRuntimeCheckpointer } from "./graph/checkpointer.js";
 import type { BaseCheckpointSaver } from "@langchain/langgraph-checkpoint";
 import { buildRolePlan } from "./roles/personas.js";
 import { createDefaultInterviewAgentTools } from "./tools/default-interview-agent.tools.js";
@@ -145,13 +145,13 @@ export class InterviewAgentServiceError extends Error {
   }
 }
 
-/** 进程内只复用 PostgresSaver 连接池；Graph 按用户 Repository 轻量编译。 */
+/** 进程内复用运行时 saver；Graph 按用户 Repository 轻量编译。 */
 let defaultCheckpointer: BaseCheckpointSaver | undefined;
 
 /**
  * 延迟创建生产 Graph；该路径不会调用 checkpointer.setup() 或执行 DDL。
  *
- * @returns 使用 PostgresSaver 和 Phase 1 Mock 节点的 compiled graph。
+ * @returns 使用运行时 saver 和正式 Agent 节点的 compiled graph。
  */
 function getDefaultInterviewAgentGraph(
   inputRepository: AgentInputRepository,
@@ -160,7 +160,7 @@ function getDefaultInterviewAgentGraph(
   evaluationService: QuestionEvaluationService,
   reportService: DefaultAgentReportService,
 ): InterviewAgentGraph {
-  defaultCheckpointer ??= createPostgresCheckpointer();
+  defaultCheckpointer ??= createAgentRuntimeCheckpointer();
   return compileInterviewAgentGraph({
     checkpointer: defaultCheckpointer,
     inputRepository,

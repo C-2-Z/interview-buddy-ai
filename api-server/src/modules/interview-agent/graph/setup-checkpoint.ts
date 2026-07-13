@@ -27,7 +27,7 @@ const logger = createModuleLogger("agent-checkpoint-setup");
 export async function setupAgentCheckpoint(): Promise<void> {
   if (!process.env.DATABASE_URL?.trim()) {
     logger.warn("agent_checkpoint_setup_skipped", {
-      reason: "DATABASE_URL not set - MemorySaver fallback active",
+      reason: "DATABASE_URL not set - PostgreSQL checkpoint setup unavailable",
     });
     return;
   }

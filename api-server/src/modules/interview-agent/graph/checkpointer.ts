@@ -1,5 +1,6 @@
 /** Interview Agent PostgreSQL checkpointer 的运行时工厂与安全配置校验。 */
 import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
+import { MemorySaver } from "@langchain/langgraph";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import {
   BaseCheckpointSaver,
@@ -245,4 +246,25 @@ export function createPostgresCheckpointer(
   return PostgresSaver.fromConnString(connectionString, {
     schema: resolveAgentCheckpointSchema(options.schema),
   });
+}
+
+/**
+ * 创建 API 运行时 checkpointer；生产环境始终要求 PostgreSQL，开发环境可显式选择内存模式。
+ *
+ * 内存模式只用于没有本地 PostgreSQL 的开发机，并且必须同时满足非 production 环境与
+ * `AGENT_ALLOW_MEMORY_CHECKPOINTER=1`，避免部署环境因漏配连接串而静默失去恢复能力。
+ *
+ * @returns 已应用固定 Agent namespace 的 PostgreSQL 或内存 checkpointer。
+ */
+export function createAgentRuntimeCheckpointer(): BaseCheckpointSaver {
+  if (process.env.DATABASE_URL?.trim()) {
+    return createPostgresCheckpointer();
+  }
+
+  const allowMemory = process.env.AGENT_ALLOW_MEMORY_CHECKPOINTER === "1";
+  if (process.env.NODE_ENV !== "production" && allowMemory) {
+    return withAgentCheckpointNamespace(new MemorySaver());
+  }
+
+  throw new Error("DATABASE_URL is required for durable Agent checkpoints");
 }

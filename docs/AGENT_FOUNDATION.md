@@ -104,6 +104,7 @@ supabase/migrations/20260712000006_add_agent_run_audit.sql
 
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ezmock
+AGENT_ALLOW_MEMORY_CHECKPOINTER=0
 AGENT_CHECKPOINT_SCHEMA=langgraph
 ```
 
@@ -131,6 +132,10 @@ LANGSMITH_API_KEY=
 ```
 
 只有 `AGENT_INTERVIEW_ENABLED=1` 才允许创建新 Agent 会话。关闭开关不会阻止读取或恢复已有 Agent 会话。
+
+没有本地 PostgreSQL 的开发机可显式设置 `AGENT_ALLOW_MEMORY_CHECKPOINTER=1`。该模式仅在非
+`production` 环境生效，API 重启后 checkpoint 不可恢复；生产环境无论该开关为何值都必须提供
+`DATABASE_URL`。
 
 ## Canonical Agent API
 

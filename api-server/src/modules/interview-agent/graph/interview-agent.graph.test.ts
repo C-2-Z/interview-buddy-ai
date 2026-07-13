@@ -14,6 +14,7 @@ import type { QuestionEvaluationRunner } from "../evaluation/evaluation.service.
 import type { AgentReportFinalizer } from "../report/report.service.js";
 import {
   AGENT_CHECKPOINT_NAMESPACE,
+  createAgentRuntimeCheckpointer,
   createPostgresCheckpointer,
   resolveAgentCheckpointSchema,
 } from "./checkpointer.js";
@@ -291,4 +292,32 @@ test("checkpoint schema validation is strict and runtime factory does not setup"
     "runtime factory must not execute setup() or DDL",
   );
   await (saver as any).end();
+});
+
+test("runtime checkpointer allows explicit memory mode only outside production", () => {
+  const originalDatabaseUrl = process.env.DATABASE_URL;
+  const originalAllowMemory = process.env.AGENT_ALLOW_MEMORY_CHECKPOINTER;
+  const originalNodeEnv = process.env.NODE_ENV;
+  try {
+    delete process.env.DATABASE_URL;
+    process.env.AGENT_ALLOW_MEMORY_CHECKPOINTER = "1";
+    process.env.NODE_ENV = "development";
+    assert.ok(createAgentRuntimeCheckpointer());
+
+    process.env.NODE_ENV = "production";
+    assert.throws(
+      () => createAgentRuntimeCheckpointer(),
+      /DATABASE_URL is required/,
+    );
+  } finally {
+    if (originalDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = originalDatabaseUrl;
+    if (originalAllowMemory === undefined) {
+      delete process.env.AGENT_ALLOW_MEMORY_CHECKPOINTER;
+    } else {
+      process.env.AGENT_ALLOW_MEMORY_CHECKPOINTER = originalAllowMemory;
+    }
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+  }
 });
