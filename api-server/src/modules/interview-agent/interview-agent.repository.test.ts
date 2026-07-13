@@ -395,6 +395,7 @@ test("getOwnedSessionProjection returns the safe restore projection", async () =
     agent_mode: "panel",
     interview_mode: "voice",
     agent_phase: "preparing",
+    status: "in_progress",
     current_role: "technical",
     agent_config: {
       position: "Backend Engineer",
@@ -410,6 +411,7 @@ test("getOwnedSessionProjection returns the safe restore projection", async () =
 
   assert.equal(projection.userId, USER_ID);
   assert.equal(projection.mode, "panel");
+  assert.equal(projection.productStatus, "in_progress");
   assert.deepEqual(projection.agentConfig, {
     position: "Backend Engineer",
     modelProvider: "deepseek",

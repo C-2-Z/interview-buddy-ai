@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { InterviewLifecycleActions } from "@/features/interview-lifecycle/components/interview-lifecycle-actions";
+import { useInterviewLifecycle } from "@/features/interview-lifecycle/hooks/use-interview-lifecycle";
+import type { InterviewLifecycleAction } from "@/features/interview-lifecycle/types";
 import { useAnswerDraft } from "../hooks/use-answer-draft";
 import { useAgentSession } from "../hooks/use-agent-session";
 import {
@@ -87,6 +90,7 @@ export function InterviewAgentPage({
 }: InterviewAgentPageProps) {
   const navigate = useNavigate();
   const session = useAgentSession(sessionId);
+  const lifecycle = useInterviewLifecycle(sessionId);
   const answer = useAnswerDraft(sessionId);
   const workspace = session.workspace;
   const snapshot = session.snapshot;
@@ -114,6 +118,35 @@ export function InterviewAgentPage({
       // useAnswerDraft 已持久化正文，失败时无需复制或清空。
     }
   }, [answer, session]);
+
+  /** 执行暂停、恢复、提前结束或放弃，并用服务端投影刷新当前工作台。 */
+  const transitionLifecycle = useCallback(
+    async (action: InterviewLifecycleAction) => {
+      try {
+        const result = await lifecycle.transition(action);
+        await session.refresh();
+        if (action === "finish" && result.reportAvailable) {
+          await navigate({ to: "/report/$id", params: { id: sessionId } });
+        } else if (action === "abandon") {
+          await navigate({ to: "/history" });
+        }
+      } catch {
+        // Hook 已保留稳定错误；回答草稿和当前页面不发生破坏性变化。
+      }
+    },
+    [lifecycle, navigate, session, sessionId],
+  );
+
+  /** 二次确认后删除整场记录，成功时返回历史列表。 */
+  const deleteSession = useCallback(async () => {
+    if (!window.confirm("删除后将无法恢复这场面试，确定继续吗？")) return;
+    try {
+      await lifecycle.remove();
+      await navigate({ to: "/history" });
+    } catch {
+      // Hook 已展示可重试错误，保留当前报告与页面上下文。
+    }
+  }, [lifecycle, navigate]);
 
   if (session.loading && !workspace)
     return (
@@ -143,8 +176,10 @@ export function InterviewAgentPage({
       </div>
     );
 
-  const canAnswer = snapshot.phase === "awaiting_answer";
+  const canAnswer =
+    snapshot.phase === "awaiting_answer" && workspace.productStatus === "in_progress";
   const completed = snapshot.phase === "completed";
+  const interviewFinished = completed || ["abandoned", "failed"].includes(workspace.productStatus);
 
   return (
     <div className="mx-auto grid max-w-7xl gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -194,6 +229,15 @@ export function InterviewAgentPage({
             </span>
           )}
         </div>
+        <div className="border-b px-4 py-3">
+          <InterviewLifecycleActions
+            status={workspace.productStatus}
+            pending={lifecycle.pending}
+            error={lifecycle.error}
+            onAction={(action) => void transitionLifecycle(action)}
+            onDelete={() => void deleteSession()}
+          />
+        </div>
 
         <ScrollArea className="flex-1 p-4">
           <div className="space-y-4">
@@ -230,7 +274,7 @@ export function InterviewAgentPage({
           </div>
         </ScrollArea>
 
-        {!completed && (
+        {!interviewFinished && (
           <footer className="border-t p-4">
             <div className="space-y-2">
               <label htmlFor="agent-answer" className="text-sm font-medium">

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DisabledWebSearchProvider,
+  PublicKnowledgeWebSearchProvider,
   TavilyWebSearchProvider,
   WebSearchProviderError,
   formatUntrustedResearchForPrompt,
@@ -87,6 +88,70 @@ test("Tavily adapter cleans, hashes, deduplicates and bounds results", async () 
     searchDepth: "basic",
     includeImages: false,
   });
+});
+
+test("public knowledge fallback searches fixed Wikimedia API without a key", async () => {
+  let requestedUrl = "";
+  const provider = new PublicKnowledgeWebSearchProvider({
+    timeoutMs: 5_000,
+    now: () => new Date("2026-07-13T00:00:00.000Z"),
+    fetcher: async (input) => {
+      requestedUrl = String(input);
+      return new Response(
+        JSON.stringify({
+          pages: [
+            {
+              id: 42,
+              key: "分布式系统",
+              title: "分布式系统",
+              excerpt: "<p>分布式系统由多个计算节点协同工作。</p>",
+              description: "计算机系统",
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    },
+  });
+
+  const results = await provider.search({
+    query: "后端工程师 分布式系统",
+    maxResults: 3,
+  });
+
+  assert.match(requestedUrl, /^https:\/\/api\.wikimedia\.org\/core\/v1\/wikipedia\/zh\/search\/page\?/);
+  assert.match(requestedUrl, /q=/);
+  assert.deepEqual(results, [
+    {
+      title: "分布式系统",
+      url: "https://zh.wikipedia.org/wiki/%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F",
+      snippet: "计算机系统。 分布式系统由多个计算节点协同工作。",
+      fetchedAt: "2026-07-13T00:00:00.000Z",
+      contentHash: results[0]?.contentHash,
+    },
+  ]);
+  assert.match(results[0]?.contentHash ?? "", /^[a-f0-9]{64}$/);
+});
+
+test("public fallback respects domain boundaries and sanitizes failures", async () => {
+  const provider = new PublicKnowledgeWebSearchProvider({
+    timeoutMs: 5_000,
+    fetcher: async () => new Response("upstream private error", { status: 503 }),
+  });
+  assert.deepEqual(
+    await provider.search({
+      query: "backend engineering",
+      maxResults: 2,
+      includeDomains: ["example.com"],
+    }),
+    [],
+  );
+  await assert.rejects(
+    provider.search({ query: "backend engineering", maxResults: 2 }),
+    (error: unknown) =>
+      error instanceof WebSearchProviderError &&
+      !error.message.includes("private"),
+  );
 });
 
 test("missing provider returns an empty result without throwing", async () => {

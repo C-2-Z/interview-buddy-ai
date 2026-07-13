@@ -14,7 +14,7 @@ function query(data:unknown):WorkspaceQuery{
 
 test("workspace restores grounded evidence, evaluation, research, and report",async()=>{
   const database:WorkspaceDatabaseClient={from(table){
-    if(table==="interview_sessions")return query({position:"后端工程师",difficulty:"高级",research_status:"completed",agent_config:{questionCount:1,targetCompany:"示例公司"},overall_score:91,overall_feedback:"证据充分",dimension_summary:{overallScore:91},report_status:"ready"});
+    if(table==="interview_sessions")return query({position:"后端工程师",difficulty:"高级",status:"completed",research_status:"completed",agent_config:{questionCount:1,targetCompany:"示例公司"},overall_score:91,overall_feedback:"证据充分",dimension_summary:{overallScore:91},report_status:"ready"});
     if(table==="interview_questions")return query([{id:QUESTION_ID,question:"说明一次优化",order_index:0,role_id:"technical",dimension_key:"technical_depth",selection_source:"model",score:91,feedback:"清晰"}]);
     if(table==="interview_messages")return query([{id:"33333333-3333-4333-8333-333333333333",question_id:QUESTION_ID,role:"user",content:"P95 降到 120ms",source:"voice",interrupted:false,created_at:new Date(0).toISOString()}]);
     if(table==="agent_research_sources")return query([{id:"44444444-4444-4444-8444-444444444444",category:"company",title:"公司工程博客",url:"https://example.test"}]);

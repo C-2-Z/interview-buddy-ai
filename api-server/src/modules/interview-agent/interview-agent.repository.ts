@@ -45,6 +45,8 @@ export type AgentSessionProjection = {
   interviewMode: "text" | "voice";
   /** 当前已提交业务阶段。 */
   phase: AgentPhase;
+  /** 面向产品生命周期的状态；暂停与 Graph 技术阶段相互独立。 */
+  productStatus: "in_progress" | "paused" | "completed" | "abandoned" | "failed";
   /** 当前负责面试的角色。 */
   currentRole: RoleId;
   /** 创建会话时冻结且已确认不含凭据的 Agent 配置。 */
@@ -333,6 +335,7 @@ const SessionProjectionRowSchema = z
     agent_mode: z.enum(["single", "panel"]),
     interview_mode: z.enum(["text", "voice"]),
     agent_phase: AgentPhaseSchema,
+    status: z.enum(["in_progress", "paused", "completed", "abandoned", "failed"]),
     current_role: RoleIdSchema,
     agent_config: z.unknown(),
     research_status: z.enum([
@@ -1068,7 +1071,7 @@ export class SupabaseInterviewAgentRepository
       this.database
         .from("interview_sessions")
         .select(
-          "id, user_id, thread_id, agent_version, agent_mode, interview_mode, agent_phase, current_role, agent_config, research_status, last_event_seq",
+          "id, user_id, thread_id, agent_version, agent_mode, interview_mode, agent_phase, status, current_role, agent_config, research_status, last_event_seq",
         )
         .eq("id", parsedSessionId)
         .eq("agent_version", "agent-v1")
@@ -1083,6 +1086,7 @@ export class SupabaseInterviewAgentRepository
       mode: row.agent_mode,
       interviewMode: row.interview_mode,
       phase: row.agent_phase,
+      productStatus: row.status,
       currentRole: row.current_role,
       agentConfig: cloneSafeJsonObject(row.agent_config, "database"),
       researchStatus: row.research_status,

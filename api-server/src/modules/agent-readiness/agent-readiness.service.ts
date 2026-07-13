@@ -2,6 +2,7 @@
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import { resolveProviderForCreation } from "../model-providers/model-provider.service.js";
 import { getAgentRuntimeConfig } from "../interview-agent/interview-agent.config.js";
+import { resolveWebSearchProviderModeFromEnv } from "../interview-agent/providers/web-search.provider.js";
 import type { AgentReadinessQuery } from "./agent-readiness.schemas.js";
 import type { AgentReadinessRepository } from "./agent-readiness.repository.js";
 import type { AgentReadinessResponse, ReadinessIssue } from "./agent-readiness.types.js";
@@ -11,7 +12,7 @@ export type AgentReadinessServiceDependencies = {
   /** 当前 Node 环境。 */ nodeEnv: string | undefined;
   /** 是否配置 PostgreSQL checkpoint 连接。 */ hasDatabaseUrl: boolean;
   /** 是否显式允许本地 MemorySaver。 */ allowMemoryCheckpointer: boolean;
-  /** 是否存在 Tavily 凭据。 */ hasTavilyKey: boolean;
+  /** 是否存在可调用的增强或公开知识联网研究通道。 */ webResearchProviderAvailable: boolean;
   /** voice mock 是否显式启用。 */ voiceMockEnabled: boolean;
   /** 是否配置百炼语音 API Key。 */ hasVoiceApiKey: boolean;
   /** 是否配置可用 ASR WebSocket 地址。 */ hasAsrEndpoint: boolean;
@@ -117,7 +118,8 @@ export class AgentReadinessService {
     if (input.interviewMode === "voice") blockers.push(...voiceIssues);
 
     const researchAvailable =
-      this.dependencies.runtimeConfig.webResearchEnabled && this.dependencies.hasTavilyKey;
+      this.dependencies.runtimeConfig.webResearchEnabled &&
+      this.dependencies.webResearchProviderAvailable;
     if (input.webResearch && !researchAvailable)
       warnings.push({
         code: "web_research_unavailable",
@@ -176,7 +178,7 @@ export function createAgentReadinessService(
     nodeEnv: process.env.NODE_ENV,
     hasDatabaseUrl: Boolean(process.env.DATABASE_URL?.trim()),
     allowMemoryCheckpointer: process.env.AGENT_ALLOW_MEMORY_CHECKPOINTER === "1",
-    hasTavilyKey: Boolean(process.env.TAVILY_API_KEY?.trim()),
+    webResearchProviderAvailable: resolveWebSearchProviderModeFromEnv() !== "disabled",
     voiceMockEnabled: process.env.VOICE_MOCK_QWEN === "1",
     hasVoiceApiKey: Boolean(process.env.AI_BAILIAN_API_KEY?.trim()),
     hasAsrEndpoint: Boolean(

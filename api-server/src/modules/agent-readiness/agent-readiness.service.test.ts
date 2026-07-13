@@ -16,7 +16,7 @@ function dependencies(
     nodeEnv: "production",
     hasDatabaseUrl: true,
     allowMemoryCheckpointer: false,
-    hasTavilyKey: true,
+    webResearchProviderAvailable: true,
     voiceMockEnabled: false,
     hasVoiceApiKey: true,
     hasAsrEndpoint: true,
@@ -78,8 +78,8 @@ test("模型 Key 缺失时 blocked 并引导设置", async () => {
   assert.equal(result.blockers.at(-1)?.code, "model_key_missing");
   assert.equal(result.blockers.at(-1)?.recoveryAction, "open_settings");
 });
-test("缺少 Tavily 仅在启用研究时 degraded", async () => {
-  const result = await service({ dependencies: { hasTavilyKey: false } }).check({
+test("缺少任何联网研究通道时仅在启用研究时 degraded", async () => {
+  const result = await service({ dependencies: { webResearchProviderAvailable: false } }).check({
     interviewMode: "text",
     modelProvider: "deepseek",
     webResearch: true,

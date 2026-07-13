@@ -13,9 +13,9 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as FocusRouteRouteImport } from './routes/_focus/route'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as FocusInterviewHubRouteImport } from './routes/_focus/interview-hub'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedNewRouteImport } from './routes/_authenticated/new'
+import { Route as AuthenticatedInterviewHubRouteImport } from './routes/_authenticated/interview-hub'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedResumesIndexRouteImport } from './routes/_authenticated/resumes/index'
@@ -23,6 +23,7 @@ import { Route as AuthenticatedBankIndexRouteImport } from './routes/_authentica
 import { Route as FocusVoiceNewRouteImport } from './routes/_focus/voice.new'
 import { Route as AuthenticatedSessionIdRouteImport } from './routes/_authenticated/session.$id'
 import { Route as AuthenticatedResumesIdRouteImport } from './routes/_authenticated/resumes/$id'
+import { Route as AuthenticatedReportIdRouteImport } from './routes/_authenticated/report.$id'
 import { Route as AuthenticatedLegacyIdRouteImport } from './routes/_authenticated/legacy.$id'
 import { Route as AuthenticatedBankIdRouteImport } from './routes/_authenticated/bank/$id'
 import { Route as FocusVoiceSessionIdRouteImport } from './routes/_focus/voice.session.$id'
@@ -45,11 +46,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const FocusInterviewHubRoute = FocusInterviewHubRouteImport.update({
-  id: '/interview-hub',
-  path: '/interview-hub',
-  getParentRoute: () => FocusRouteRoute,
-} as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -60,6 +56,12 @@ const AuthenticatedNewRoute = AuthenticatedNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedInterviewHubRoute =
+  AuthenticatedInterviewHubRouteImport.update({
+    id: '/interview-hub',
+    path: '/interview-hub',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -96,6 +98,11 @@ const AuthenticatedResumesIdRoute = AuthenticatedResumesIdRouteImport.update({
   path: '/resumes/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedReportIdRoute = AuthenticatedReportIdRouteImport.update({
+  id: '/report/$id',
+  path: '/report/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedLegacyIdRoute = AuthenticatedLegacyIdRouteImport.update({
   id: '/legacy/$id',
   path: '/legacy/$id',
@@ -117,11 +124,12 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/interview-hub': typeof AuthenticatedInterviewHubRoute
   '/new': typeof AuthenticatedNewRoute
   '/settings': typeof AuthenticatedSettingsRoute
-  '/interview-hub': typeof FocusInterviewHubRoute
   '/bank/$id': typeof AuthenticatedBankIdRoute
   '/legacy/$id': typeof AuthenticatedLegacyIdRoute
+  '/report/$id': typeof AuthenticatedReportIdRoute
   '/resumes/$id': typeof AuthenticatedResumesIdRoute
   '/session/$id': typeof AuthenticatedSessionIdRoute
   '/voice/new': typeof FocusVoiceNewRoute
@@ -134,11 +142,12 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/interview-hub': typeof AuthenticatedInterviewHubRoute
   '/new': typeof AuthenticatedNewRoute
   '/settings': typeof AuthenticatedSettingsRoute
-  '/interview-hub': typeof FocusInterviewHubRoute
   '/bank/$id': typeof AuthenticatedBankIdRoute
   '/legacy/$id': typeof AuthenticatedLegacyIdRoute
+  '/report/$id': typeof AuthenticatedReportIdRoute
   '/resumes/$id': typeof AuthenticatedResumesIdRoute
   '/session/$id': typeof AuthenticatedSessionIdRoute
   '/voice/new': typeof FocusVoiceNewRoute
@@ -154,11 +163,12 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
+  '/_authenticated/interview-hub': typeof AuthenticatedInterviewHubRoute
   '/_authenticated/new': typeof AuthenticatedNewRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
-  '/_focus/interview-hub': typeof FocusInterviewHubRoute
   '/_authenticated/bank/$id': typeof AuthenticatedBankIdRoute
   '/_authenticated/legacy/$id': typeof AuthenticatedLegacyIdRoute
+  '/_authenticated/report/$id': typeof AuthenticatedReportIdRoute
   '/_authenticated/resumes/$id': typeof AuthenticatedResumesIdRoute
   '/_authenticated/session/$id': typeof AuthenticatedSessionIdRoute
   '/_focus/voice/new': typeof FocusVoiceNewRoute
@@ -173,11 +183,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/history'
+    | '/interview-hub'
     | '/new'
     | '/settings'
-    | '/interview-hub'
     | '/bank/$id'
     | '/legacy/$id'
+    | '/report/$id'
     | '/resumes/$id'
     | '/session/$id'
     | '/voice/new'
@@ -190,11 +201,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/history'
+    | '/interview-hub'
     | '/new'
     | '/settings'
-    | '/interview-hub'
     | '/bank/$id'
     | '/legacy/$id'
+    | '/report/$id'
     | '/resumes/$id'
     | '/session/$id'
     | '/voice/new'
@@ -209,11 +221,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/dashboard'
     | '/_authenticated/history'
+    | '/_authenticated/interview-hub'
     | '/_authenticated/new'
     | '/_authenticated/settings'
-    | '/_focus/interview-hub'
     | '/_authenticated/bank/$id'
     | '/_authenticated/legacy/$id'
+    | '/_authenticated/report/$id'
     | '/_authenticated/resumes/$id'
     | '/_authenticated/session/$id'
     | '/_focus/voice/new'
@@ -259,13 +272,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_focus/interview-hub': {
-      id: '/_focus/interview-hub'
-      path: '/interview-hub'
-      fullPath: '/interview-hub'
-      preLoaderRoute: typeof FocusInterviewHubRouteImport
-      parentRoute: typeof FocusRouteRoute
-    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -278,6 +284,13 @@ declare module '@tanstack/react-router' {
       path: '/new'
       fullPath: '/new'
       preLoaderRoute: typeof AuthenticatedNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/interview-hub': {
+      id: '/_authenticated/interview-hub'
+      path: '/interview-hub'
+      fullPath: '/interview-hub'
+      preLoaderRoute: typeof AuthenticatedInterviewHubRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/history': {
@@ -329,6 +342,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedResumesIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/report/$id': {
+      id: '/_authenticated/report/$id'
+      path: '/report/$id'
+      fullPath: '/report/$id'
+      preLoaderRoute: typeof AuthenticatedReportIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/legacy/$id': {
       id: '/_authenticated/legacy/$id'
       path: '/legacy/$id'
@@ -356,10 +376,12 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
+  AuthenticatedInterviewHubRoute: typeof AuthenticatedInterviewHubRoute
   AuthenticatedNewRoute: typeof AuthenticatedNewRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedBankIdRoute: typeof AuthenticatedBankIdRoute
   AuthenticatedLegacyIdRoute: typeof AuthenticatedLegacyIdRoute
+  AuthenticatedReportIdRoute: typeof AuthenticatedReportIdRoute
   AuthenticatedResumesIdRoute: typeof AuthenticatedResumesIdRoute
   AuthenticatedSessionIdRoute: typeof AuthenticatedSessionIdRoute
   AuthenticatedBankIndexRoute: typeof AuthenticatedBankIndexRoute
@@ -369,10 +391,12 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
+  AuthenticatedInterviewHubRoute: AuthenticatedInterviewHubRoute,
   AuthenticatedNewRoute: AuthenticatedNewRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedBankIdRoute: AuthenticatedBankIdRoute,
   AuthenticatedLegacyIdRoute: AuthenticatedLegacyIdRoute,
+  AuthenticatedReportIdRoute: AuthenticatedReportIdRoute,
   AuthenticatedResumesIdRoute: AuthenticatedResumesIdRoute,
   AuthenticatedSessionIdRoute: AuthenticatedSessionIdRoute,
   AuthenticatedBankIndexRoute: AuthenticatedBankIndexRoute,
@@ -383,13 +407,11 @@ const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 interface FocusRouteRouteChildren {
-  FocusInterviewHubRoute: typeof FocusInterviewHubRoute
   FocusVoiceNewRoute: typeof FocusVoiceNewRoute
   FocusVoiceSessionIdRoute: typeof FocusVoiceSessionIdRoute
 }
 
 const FocusRouteRouteChildren: FocusRouteRouteChildren = {
-  FocusInterviewHubRoute: FocusInterviewHubRoute,
   FocusVoiceNewRoute: FocusVoiceNewRoute,
   FocusVoiceSessionIdRoute: FocusVoiceSessionIdRoute,
 }

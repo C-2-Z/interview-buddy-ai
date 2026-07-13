@@ -41,6 +41,8 @@ export type AgentWorkspaceQuestion = {
 
 /** 页面恢复所需的一次性只读工作台。 */
 export type AgentWorkspace = {
+  /** 面向用户的会话状态；暂停不改变 Graph 技术阶段。 */
+  productStatus: "in_progress" | "paused" | "completed" | "abandoned" | "failed";
   /** 与事件流一致的最新快照。 */ snapshot: AgentSnapshot;
   /** 冻结创建配置摘要。 */ config: {
     /** 目标岗位。 */ position: string;
