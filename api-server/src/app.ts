@@ -9,6 +9,7 @@ import { settings } from "./modules/settings/settings.routes.js";
 import { skills } from "./modules/skills/skills.routes.js";
 import { resumes } from "./modules/resumes/resumes.routes.js";
 import { voice } from "./modules/voice/voice.routes.js";
+import { knowledge } from "./modules/knowledge/knowledge.routes.js";
 import { swaggerUI } from "@hono/swagger-ui";
 import { OPENAPI_DOC } from "./config/openapi.js";
 
@@ -30,6 +31,7 @@ app.route("/api/settings", settings);
 app.route("/api/skills", skills);
 app.route("/api/resumes", resumes);
 app.route("/api/voice", voice);
+app.route("/api/knowledge", knowledge);
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));
 
