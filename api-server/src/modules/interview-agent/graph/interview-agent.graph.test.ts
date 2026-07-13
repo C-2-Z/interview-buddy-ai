@@ -7,6 +7,7 @@ import {
   isInterrupted,
 } from "@langchain/langgraph";
 import { getRolePersona } from "../roles/personas.js";
+import { CreateAgentSessionSchema } from "../interview-agent.schemas.js";
 import { DeterministicMockAgentModelProvider } from "../providers/agent-model.provider.js";
 import type { AgentInputRepository } from "../input/input.repository.js";
 import type { QuestionRuntimeService } from "../runtime/question-runtime.service.js";
@@ -48,6 +49,21 @@ function buildTestState() {
     },
   });
 }
+
+test("web research is opt-in when creation omits the optional field", () => {
+  const state = createInitialAgentState({
+    sessionId: SESSION_ID,
+    userId: USER_ID,
+    input: CreateAgentSessionSchema.parse({
+      mode: "single",
+      interviewMode: "text",
+      position: "后端工程师",
+      difficulty: "中级",
+      questionCount: 3,
+    }),
+  });
+  assert.equal(state.config.webResearch, false);
+});
 
 /**
  * 将某线程的全部 MemorySaver checkpoint 展开为可检索文本。

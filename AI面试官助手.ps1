@@ -88,7 +88,20 @@ if (-not (Test-Path $apiModules)) {
 }
 
 # ============================================================
-# 3. 启动 API 服务
+# 3. 准备可持久恢复的本地 PostgreSQL
+# ============================================================
+Write-Host ""
+Write-Host "正在准备持久化面试恢复服务..." -ForegroundColor Cyan
+
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$projectDir\scripts\ensure-local-postgres.ps1"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "本地 PostgreSQL 初始化失败，无法安全启动 Agent 面试" -ForegroundColor Red
+    Read-Host "按 Enter 退出"
+    exit 1
+}
+
+# ============================================================
+# 4. 启动 API 服务
 # ============================================================
 Write-Host ""
 Write-Host "启动 API 服务..." -ForegroundColor Cyan
@@ -102,7 +115,7 @@ $script:processes += $apiProcess
 Write-Host "API 服务 PID: $($apiProcess.Id)" -ForegroundColor White
 
 # ============================================================
-# 4. 启动前端
+# 5. 启动前端
 # ============================================================
 Write-Host "启动前端开发服务器..." -ForegroundColor Cyan
 
@@ -115,7 +128,7 @@ $script:processes += $frontendProcess
 Write-Host "前端开发服务器 PID: $($frontendProcess.Id)" -ForegroundColor White
 
 # ============================================================
-# 5. 等待服务就绪
+# 6. 等待服务就绪
 # ============================================================
 Write-Host ""
 Write-Host "等待服务启动..." -ForegroundColor Yellow
@@ -142,7 +155,7 @@ while ((-not $apiReady -or -not $frontendReady) -and ((Get-Date) - $startTime).T
 }
 
 # ============================================================
-# 6. 打开浏览器
+# 7. 打开浏览器
 # ============================================================
 if ($frontendReady) {
     Write-Host "正在打开浏览器..." -ForegroundColor Green
@@ -153,7 +166,7 @@ if ($frontendReady) {
 }
 
 # ============================================================
-# 7. 保持运行
+# 8. 保持运行
 # ============================================================
 Write-Host ""
 Write-Host "==============================================" -ForegroundColor Cyan
@@ -169,7 +182,7 @@ Write-Host ""
 Read-Host "按 Enter 停止服务"
 
 # ============================================================
-# 8. 清理子进程
+# 9. 清理子进程
 # ============================================================
 Write-Host "正在停止服务..." -ForegroundColor Yellow
 

@@ -36,3 +36,6 @@ dist-ssr
 
 # Backup environment variables
 .env.backup
+
+# Portable local infrastructure downloaded by setup scripts
+.runtime/

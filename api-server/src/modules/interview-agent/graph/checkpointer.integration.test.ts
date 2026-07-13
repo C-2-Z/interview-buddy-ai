@@ -1,8 +1,10 @@
 /** PostgreSQL checkpointer 跨实例 interrupt/resume 恢复集成测试。 */
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { resolve } from "node:path";
 import test from "node:test";
 import { INTERRUPT, isInterrupted } from "@langchain/langgraph";
+import { config as loadEnv } from "dotenv";
 import { createPostgresCheckpointer } from "./checkpointer.js";
 import {
   compileInterviewAgentGraph,
@@ -11,14 +13,24 @@ import {
   createInitialAgentState,
 } from "./interview-agent.graph.js";
 
-const testDatabaseUrl = process.env.AGENT_TEST_DATABASE_URL?.trim();
+// 本地一键基础设施可直接承担隔离线程测试；CI 仍必须显式授权测试数据库。
+if (!process.env.AGENT_TEST_DATABASE_URL && !process.env.CI) {
+  loadEnv({
+    path: resolve(import.meta.dirname, "../../../../../.env"),
+    quiet: true,
+  });
+}
+const testDatabaseUrl = (
+  process.env.AGENT_TEST_DATABASE_URL ??
+  (process.env.CI ? undefined : process.env.DATABASE_URL)
+)?.trim();
 
 test(
   "PostgresSaver resumes an interrupted Agent after saver reconstruction",
   {
     skip: testDatabaseUrl
       ? false
-      : "AGENT_TEST_DATABASE_URL is not configured",
+      : "AGENT_TEST_DATABASE_URL is not configured and local DATABASE_URL is unavailable",
   },
   async () => {
     const sessionId = randomUUID();

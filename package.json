@@ -15,7 +15,8 @@
     "start": "node dist/server/server.js",
     "api:dev": "cd api-server && npm run dev",
     "api:install": "cd api-server && npm install",
-    "dev:all": "concurrently \"npm run dev\" \"npm run api:dev\""
+    "infra:local": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/ensure-local-postgres.ps1",
+    "dev:all": "npm run infra:local && concurrently \"npm run dev\" \"npm run api:dev\""
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

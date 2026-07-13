@@ -40,11 +40,11 @@
 ## 4. 当前运行环境的重要事实
 
 - 根目录 `.env` 已在本机设置 `AGENT_INTERVIEW_ENABLED=1`。
-- 本机没有 PostgreSQL，也没有可用于构造 Supabase 直连串的数据库密码。
-- 根目录 `.env` 已显式设置 `AGENT_ALLOW_MEMORY_CHECKPOINTER=1`，只用于本地开发。
-- `createAgentRuntimeCheckpointer()` 在非 production 且显式开关为 1 时使用 MemorySaver。
+- 本机已由 `scripts/ensure-local-postgres.ps1` 安装项目内便携 PostgreSQL 17.10，运行时和数据位于被忽略的 `.runtime/`。
+- 根目录 `.env` 已写入仅监听 `127.0.0.1:55432` 的 `DATABASE_URL`，并设置 `AGENT_ALLOW_MEMORY_CHECKPOINTER=0`。
+- `npm run infra:local` 会幂等启动数据库、创建 `ezmock_agent` 数据库并执行 LangGraph checkpoint setup；`npm run dev:all` 和 `AI面试官助手.ps1` 均会先执行该步骤。
 - production 环境仍必须提供 `DATABASE_URL`，不能因为开发便利放宽。
-- MemorySaver 下 API 重启后进行中 checkpoint 不可恢复；业务投影可能仍存在。
+- 本地真实 PostgresSaver 重启恢复已通过集成测试和浏览器 E2E；MemorySaver 仅保留为显式应急开发选项。
 - API 最近在 3001 端口以 `npm run api:dev` 启动，接手时先重新检查，不要假定进程仍在。
 
 ## 5. 当前最关键的产品问题
@@ -78,7 +78,7 @@ PX-A01 已在本地完成并通过类型检查、单元测试及前后端生产�
 
 建议部署时应用 `20260713000001_add_agent_readiness_rpc.sql` 以使用轻量版本探测。当前 Supabase CLI 账号执行远端迁移列表时返回 403 `LegacyDbConfigLoginRoleStatusError`，因此本轮没有强行修改远端 schema；远端 PostgREST OpenAPI 已确认 14 个 Canonical Agent RPC 完整，readiness 会通过只读元数据兼容探测，不影响当前创建主链路。
 
-真实登录态浏览器验收已完成：测试账号进入 `/new` 后先看到 MemorySaver 与 Tavily 的 degraded 提示，关闭联网研究后创建按钮可用；随后成功创建语音会话 `9420954a-7d3b-42ae-b961-b88c1ebcee0c` 和文本会话 `1d082ca3-8235-455b-8e8b-1b1dbc6f7a71`。文本会话提交首题真实回答后获得 14 分并推进到第 2 题，刷新页面后题目、回答、评分和进度均恢复，SSE 显示在线。
+真实登录态浏览器验收已完成：首次验收曾观察到 MemorySaver 与 Tavily 的 degraded 提示，并验证关闭研究后仍可创建；安装本地 PostgresSaver 且将研究改为显式 opt-in 后，`/new` 现直接显示“可以开始面试 / 本场面试支持服务重启后恢复”。已成功创建语音会话 `9420954a-7d3b-42ae-b961-b88c1ebcee0c` 和多个文本会话，回答提交、评分、推进、刷新恢复与 SSE 均正常。
 
 ## 6.1 下一项任务：PX-A03
 
@@ -237,8 +237,9 @@ npm run build
 当前最近一次完整验证（2026-07-13）：
 
 - 前端：3 项恢复协议测试全部通过，`npx tsc --noEmit` 通过，Vite 客户端与 SSR 生产构建通过。
-- 后端：107 项测试中 106 通过、0 失败、1 项因未配置 `AGENT_TEST_DATABASE_URL` 跳过；`npx tsc --noEmit` 与 API 生产构建通过。
+- 后端：108 项测试全部通过、0 失败、0 跳过，其中包括真实 PostgresSaver 跨实例恢复；`npx tsc --noEmit` 与 API 生产构建通过。
 - 浏览器：readiness 降级动作、真实文本/语音创建、文本首题提交评分、刷新恢复和鉴权 SSE 在线均通过。
+- 持久恢复：新建会话 `f9342c7e-5f01-4ef8-ad4c-09928343c281` 后提交首轮回答，完整停止并重启 API，再提交追问成功，事件游标从 8 推进到 12；PostgresSaver 集成测试不再跳过。
 - 唯一构建提示仍是前端入口 chunk 约 608 kB，属于已记录的拆包债务。
 
 readiness 模块至少需要：service 单元测试、repository 契约测试、路由鉴权/脱敏测试和前端状态映射测试。

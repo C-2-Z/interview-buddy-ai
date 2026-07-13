@@ -23,7 +23,7 @@ export const CreateAgentSessionSchema = z
     resumeId: z.string().uuid().optional(),
     modelProvider: z.enum(["deepseek", "openai", "anthropic"]).optional(),
     modelName: z.string().trim().min(1).max(100).optional(),
-    webResearch: z.boolean().optional().default(true),
+    webResearch: z.boolean().optional().default(false),
   })
   .strict();
 

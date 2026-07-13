@@ -186,7 +186,7 @@ export function createInitialAgentState(
     modelProvider,
     modelName:
       params.input.modelName ?? PROVIDER_CONFIGS[modelProvider].defaultModel,
-    webResearch: (params.input.webResearch ?? true) && globalWebResearchEnabled,
+    webResearch: (params.input.webResearch ?? false) && globalWebResearchEnabled,
     promptVersion:
       params.promptVersion?.trim() ||
       process.env.AGENT_PROMPT_VERSION?.trim() ||

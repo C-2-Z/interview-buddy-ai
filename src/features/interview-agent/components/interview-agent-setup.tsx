@@ -20,7 +20,7 @@ import type {AgentCreateRecoveryAction} from "@/features/agent-create-recovery/t
 
 /** 表单草稿。 */
 type SetupDraft={mode:AgentMode;interviewMode:"text"|"voice";position:string;difficulty:"初级"|"中级"|"高级";questionCount:number;targetCompany:string;jobDescription:string;modelProvider:"deepseek"|"openai"|"anthropic";webResearch:boolean};
-const INITIAL_DRAFT:SetupDraft={mode:"single",interviewMode:"text",position:"",difficulty:"中级",questionCount:5,targetCompany:"",jobDescription:"",modelProvider:"deepseek",webResearch:true};
+const INITIAL_DRAFT:SetupDraft={mode:"single",interviewMode:"text",position:"",difficulty:"中级",questionCount:5,targetCompany:"",jobDescription:"",modelProvider:"deepseek",webResearch:false};
 
 /** Agent 面试配置页面。 */
 export function InterviewAgentSetupPage({initialResumeId}:{/** 从简历详情进入时冻结的简历 UUID。 */initialResumeId?:string}){
