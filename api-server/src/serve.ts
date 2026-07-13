@@ -8,6 +8,7 @@ import { installVoiceWebSocket } from "./modules/voice/voice.websocket.js";
 const server = serve({
   fetch: app.fetch,
   port,
+  hostname: "0.0.0.0",
 });
 
 // Register cleanup timer: check every 30 seconds
@@ -17,3 +18,4 @@ setInterval(runCleanup, 30_000);
 installVoiceWebSocket(server);
 
 console.log(`🚀 API server running on http://localhost:${port}`);
+
