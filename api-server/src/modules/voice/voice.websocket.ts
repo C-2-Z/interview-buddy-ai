@@ -7,7 +7,10 @@ import { createInterviewAgentRepository } from "../interview-agent/interview-age
 import { createInterviewAgentService } from "../interview-agent/interview-agent.service.js";
 import type { AgentEvent, RoleId } from "../interview-agent/interview-agent.types.js";
 import { createQwenVoiceProvider } from "../interview-agent/providers/qwen-voice.provider.js";
-import type { StreamingAsrSession, VoiceProvider } from "../interview-agent/providers/voice.provider.js";
+import type {
+  StreamingAsrSession,
+  VoiceProvider,
+} from "../interview-agent/providers/voice.provider.js";
 import { createAgentVoiceBridgeService } from "../interview-agent/voice-bridge/voice-bridge.service.js";
 import {
   assertVoiceSessionAccess,
@@ -155,7 +158,7 @@ async function attachAgentVoiceSession(
   async function promptQuestion(questionId?: string, opening = false): Promise<void> {
     const questions = await listSessionQuestions(supabase, sessionId);
     const question = questionId
-      ? questions.find((item) => item.id === questionId) ?? null
+      ? (questions.find((item) => item.id === questionId) ?? null)
       : currentQuestion(questions);
     if (!question) return;
     const turnId = `question:${question.id}`;
@@ -202,15 +205,15 @@ async function attachAgentVoiceSession(
       } else if (event.type === "agent.question_ready") {
         await promptQuestion(event.data.id);
       } else if (event.type === "agent.session_completed" && "overallScore" in event.data) {
+        await speak(
+          `本场面试已完成，综合得分 ${event.data.overallScore} 分。${event.data.overallFeedback}`,
+          `${sourceTurnId}:report:${event.sequence}`,
+        );
         sendJson(socket, {
           type: "session_completed",
           overallScore: event.data.overallScore,
           overallFeedback: event.data.overallFeedback,
         });
-        await speak(
-          `本场面试已完成，综合得分 ${event.data.overallScore} 分。${event.data.overallFeedback}`,
-          `${sourceTurnId}:report:${event.sequence}`,
-        );
       }
     }
   }
@@ -228,7 +231,12 @@ async function attachAgentVoiceSession(
     if (!result.duplicate && !interrupted.has(turn.turnId)) {
       await playAgentEvents(result.events, turn.turnId);
     }
-    sendStage(socket, "done", result.duplicate ? "该语音轮次已处理" : "语音轮次已完成", turn.turnId);
+    sendStage(
+      socket,
+      "done",
+      result.duplicate ? "该语音轮次已处理" : "语音轮次已完成",
+      turn.turnId,
+    );
   }
 
   /** 消费 ASR partial/final；final 之后才恢复 Graph。 */
@@ -249,7 +257,13 @@ async function attachAgentVoiceSession(
     } catch (error) {
       if (!turn.abortController.signal.aborted) {
         voiceError("agent_voice_turn_failed", error, { sessionId, turnId: turn.turnId });
-        sendError(socket, "VOICE_AGENT_FAILED", "agent", "语音回答处理失败，请使用同一轮次重试", turn.turnId);
+        sendError(
+          socket,
+          "VOICE_AGENT_FAILED",
+          "agent",
+          "语音回答处理失败，请使用同一轮次重试",
+          turn.turnId,
+        );
       }
     } finally {
       if (activeAudio?.turnId === turn.turnId) activeAudio = null;
@@ -263,10 +277,18 @@ async function attachAgentVoiceSession(
   }
 
   /** 开始 ASR，并回放验证期间缓存的 PCM。 */
-  async function startAudio(event: Extract<VoiceClientEvent, { type: "audio_start" }>): Promise<void> {
+  async function startAudio(
+    event: Extract<VoiceClientEvent, { type: "audio_start" }>,
+  ): Promise<void> {
     if (event.sessionId !== sessionId || !(await validateQuestion(event.questionId))) {
       pendingAudio = null;
-      sendError(socket, "VOICE_QUESTION_STALE", "audio_start", "当前题目已变化，请刷新会话", event.turnId);
+      sendError(
+        socket,
+        "VOICE_QUESTION_STALE",
+        "audio_start",
+        "当前题目已变化，请刷新会话",
+        event.turnId,
+      );
       return;
     }
     if (activeSpeech) await interruptOutput(activeSpeech.turnId);
@@ -277,7 +299,10 @@ async function attachAgentVoiceSession(
       questionId: event.questionId,
       turnId: event.turnId,
       abortController: controller,
-      asr: voiceProvider.createAsrSession({ sampleRate: event.sampleRate, signal: controller.signal }),
+      asr: voiceProvider.createAsrSession({
+        sampleRate: event.sampleRate,
+        signal: controller.signal,
+      }),
       chunks: 0,
       bytes: 0,
     };
@@ -327,7 +352,11 @@ async function attachAgentVoiceSession(
       return;
     }
     if (event.type === "audio_start") {
-      if (!/^[A-Za-z0-9:_-]{1,160}$/.test(event.turnId) || event.sampleRate < 8_000 || event.sampleRate > 48_000) {
+      if (
+        !/^[A-Za-z0-9:_-]{1,160}$/.test(event.turnId) ||
+        event.sampleRate < 8_000 ||
+        event.sampleRate > 48_000
+      ) {
         sendError(socket, "VOICE_AUDIO_INVALID", "audio_start", "语音轮次参数无效", event.turnId);
         return;
       }

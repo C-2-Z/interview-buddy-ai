@@ -62,6 +62,8 @@ import { createAgentRunAuditor } from "./audit/agent-run.repository.js";
 import { QuestionEvaluationService } from "./evaluation/evaluation.service.js";
 import { createAgentReportRepository } from "./report/report.repository.js";
 import { DefaultAgentReportService } from "./report/report.service.js";
+import { createAgentReadinessRepository } from "../agent-readiness/agent-readiness.repository.js";
+import { createAgentReadinessService } from "../agent-readiness/agent-readiness.service.js";
 
 const logger = createModuleLogger("interview-agent");
 const PREPARE_OPERATION_KEY = "prepare:agent-v1";
@@ -69,9 +71,7 @@ const PREPARE_NODE_NAME = "prepare_interview";
 const INPUT_NODE_NAME = "wait_for_input";
 
 /** 已编译 Interview Agent Graph 的结构类型。 */
-export type InterviewAgentGraph = ReturnType<
-  typeof compileInterviewAgentGraph
->;
+export type InterviewAgentGraph = ReturnType<typeof compileInterviewAgentGraph>;
 
 /** Service 创建期间解析出的无凭据模型选择。 */
 export type ResolvedAgentModel = {
@@ -92,9 +92,9 @@ export type InterviewAgentServiceDependencies = {
   /** 非敏感运行配置。 */
   runtimeConfig: AgentRuntimeConfig;
   /** 解析用户设置中的 Provider，但返回值不携带 API Key。 */
-  resolveModel: (
-    input: CreateAgentSessionInput,
-  ) => Promise<ResolvedAgentModel>;
+  resolveModel: (input: CreateAgentSessionInput) => Promise<ResolvedAgentModel>;
+  /** 在任何数据库写入前重新检查当前创建方案，阻止绕过前端 readiness。 */
+  assertCreationReady?: (input: CreateAgentSessionInput) => Promise<void>;
   /** Phase 2 Skill/简历/研究/能力蓝图编排；测试可省略以保留最小图验证。 */
   preparationService?: InterviewPreparationService;
   /** Phase 2 原子准备持久化；必须与 preparationService 同时提供。 */
@@ -108,6 +108,7 @@ export type InterviewAgentServiceDependencies = {
 /** Service 对 HTTP adapter 暴露的稳定错误码。 */
 export type InterviewAgentServiceErrorCode =
   | "agent_interview_disabled"
+  | "agent_readiness_blocked"
   | "agent_session_not_found"
   | "agent_operation_in_progress"
   | "agent_invalid_phase"
@@ -200,9 +201,7 @@ async function loadCommittedSnapshot(
  * @param projection - 已通过 RLS 读取的 Agent 会话投影。
  * @returns 不含回答正文或凭据的准备状态。
  */
-function stateFromProjection(
-  projection: AgentSessionProjection,
-): InterviewAgentState {
+function stateFromProjection(projection: AgentSessionProjection): InterviewAgentState {
   const config = FrozenAgentConfigSchema.parse(projection.agentConfig);
   const rolePlan = buildRolePlan(projection.mode, config.questionCount);
   return {
@@ -281,9 +280,7 @@ export class InterviewAgentService {
    *
    * @param dependencies - Repository、Graph 工厂、运行配置和模型解析器。
    */
-  constructor(
-    private readonly dependencies: InterviewAgentServiceDependencies,
-  ) {}
+  constructor(private readonly dependencies: InterviewAgentServiceDependencies) {}
 
   /**
    * 创建 Agent 会话并用 Mock Graph 准备到第一个 interrupt。
@@ -294,9 +291,7 @@ export class InterviewAgentService {
    * @param input - 已通过 HTTP Zod 校验的创建参数。
    * @returns 规范要求的 HTTP 202 创建结果。
    */
-  async createSession(
-    input: CreateAgentSessionInput,
-  ): Promise<CreateAgentSessionResponse> {
+  async createSession(input: CreateAgentSessionInput): Promise<CreateAgentSessionResponse> {
     if (!this.dependencies.runtimeConfig.enabled) {
       throw new InterviewAgentServiceError(
         "agent_interview_disabled",
@@ -304,6 +299,9 @@ export class InterviewAgentService {
         503,
         false,
       );
+    }
+    if (this.dependencies.assertCreationReady) {
+      await this.dependencies.assertCreationReady(input);
     }
     // 在数据库创建前解析 Graph 配置，缺少 DATABASE_URL 时不留下不可恢复的孤儿会话。
     const graph = this.dependencies.getGraph();
@@ -313,13 +311,10 @@ export class InterviewAgentService {
       modelProvider: model.name,
       modelName: model.model,
       webResearch:
-        (input.webResearch ?? true) &&
-        this.dependencies.runtimeConfig.webResearchEnabled,
+        (input.webResearch ?? true) && this.dependencies.runtimeConfig.webResearchEnabled,
       promptVersion: this.dependencies.runtimeConfig.promptVersion,
     };
-    const created = await this.dependencies.repository.createSession(
-      resolvedInput,
-    );
+    const created = await this.dependencies.repository.createSession(resolvedInput);
 
     try {
       await this.prepareSession(graph, created, resolvedInput);
@@ -342,10 +337,7 @@ export class InterviewAgentService {
   async getSession(sessionId: string): Promise<AgentSessionView> {
     await this.dependencies.repository.getOwnedSessionProjection(sessionId);
     return {
-      snapshot: await loadCommittedSnapshot(
-        this.dependencies.repository,
-        sessionId,
-      ),
+      snapshot: await loadCommittedSnapshot(this.dependencies.repository, sessionId),
     };
   }
 
@@ -385,11 +377,12 @@ export class InterviewAgentService {
         });
       } catch (error) {
         if (error instanceof AgentInputRepositoryError) {
-          const code = error.code === "not_found"
-            ? "agent_session_not_found"
-            : error.code === "invalid_phase"
-              ? "agent_invalid_phase"
-              : "agent_graph_unavailable";
+          const code =
+            error.code === "not_found"
+              ? "agent_session_not_found"
+              : error.code === "invalid_phase"
+                ? "agent_invalid_phase"
+                : "agent_graph_unavailable";
           throw new InterviewAgentServiceError(
             code,
             error.code === "not_found"
@@ -419,10 +412,7 @@ export class InterviewAgentService {
       return {
         duplicate: true,
         operationKey,
-        snapshot: await loadCommittedSnapshot(
-          this.dependencies.repository,
-          sessionId,
-        ),
+        snapshot: await loadCommittedSnapshot(this.dependencies.repository, sessionId),
       };
     }
     if (!claim.claimed || claim.inProgress) {
@@ -435,13 +425,8 @@ export class InterviewAgentService {
     }
 
     try {
-      const before =
-        await this.dependencies.repository.getOwnedSessionProjection(
-          sessionId,
-        );
-      const expectedPhase = this.dependencies.inputRepository
-        ? "reasoning"
-        : "awaiting_answer";
+      const before = await this.dependencies.repository.getOwnedSessionProjection(sessionId);
+      const expectedPhase = this.dependencies.inputRepository ? "reasoning" : "awaiting_answer";
       if (before.phase !== expectedPhase) {
         throw new InterviewAgentServiceError(
           "agent_invalid_phase",
@@ -456,11 +441,7 @@ export class InterviewAgentService {
         createAgentResumeCommand(input.inputId),
         createAgentGraphConfig(sessionId),
       );
-      const state = parseOwnedGraphState(
-        invoked,
-        sessionId,
-        this.dependencies.userId,
-      );
+      const state = parseOwnedGraphState(invoked, sessionId, this.dependencies.userId);
       if (state.phase === "awaiting_answer") {
         const snapshot = createAgentSnapshot(state, before.eventCursor + 2);
         await this.dependencies.repository.commitOperation({
@@ -482,10 +463,7 @@ export class InterviewAgentService {
         return {
           duplicate: false,
           operationKey,
-          snapshot: await loadCommittedSnapshot(
-            this.dependencies.repository,
-            sessionId,
-          ),
+          snapshot: await loadCommittedSnapshot(this.dependencies.repository, sessionId),
         };
       }
       if (state.phase !== "completed") {
@@ -499,16 +477,17 @@ export class InterviewAgentService {
 
       const completedAt = new Date().toISOString();
       const reportFinalized = this.dependencies.reportFinalizedInGraph === true;
-      const snapshot = createAgentSnapshot(
-        state,
-        before.eventCursor + (reportFinalized ? 2 : 3),
-      );
+      const snapshot = createAgentSnapshot(state, before.eventCursor + (reportFinalized ? 2 : 3));
       const events: AgentEventDraft[] = [
         { type: "agent.phase", data: { phase: "completed" } },
-        ...(!reportFinalized ? [{
-          type: "agent.session_completed",
-          data: { sessionId, completedAt },
-        } as const] : []),
+        ...(!reportFinalized
+          ? [
+              {
+                type: "agent.session_completed",
+                data: { sessionId, completedAt },
+              } as const,
+            ]
+          : []),
         { type: "agent.snapshot", data: snapshot },
       ];
       await this.dependencies.repository.commitOperation({
@@ -528,19 +507,14 @@ export class InterviewAgentService {
       return {
         duplicate: false,
         operationKey,
-        snapshot: await loadCommittedSnapshot(
-          this.dependencies.repository,
-          sessionId,
-        ),
+        snapshot: await loadCommittedSnapshot(this.dependencies.repository, sessionId),
       };
     } catch (error) {
       await markOperationFailed(
         this.dependencies.repository,
         sessionId,
         operationKey,
-        error instanceof InterviewAgentServiceError
-          ? error.code
-          : "agent_graph_resume_failed",
+        error instanceof InterviewAgentServiceError ? error.code : "agent_graph_resume_failed",
       );
       if (
         error instanceof InterviewAgentServiceError ||
@@ -592,8 +566,7 @@ export class InterviewAgentService {
    * @returns 重试后的最新已提交快照。
    */
   async retrySession(sessionId: string): Promise<AgentRetryResponse> {
-    const projection =
-      await this.dependencies.repository.getOwnedSessionProjection(sessionId);
+    const projection = await this.dependencies.repository.getOwnedSessionProjection(sessionId);
     if (projection.phase !== "preparing" && projection.phase !== "failed") {
       throw new InterviewAgentServiceError(
         "agent_invalid_phase",
@@ -607,10 +580,7 @@ export class InterviewAgentService {
     const duplicate = await this.prepareFromProjection(graph, projection);
     return {
       duplicate,
-      snapshot: await loadCommittedSnapshot(
-        this.dependencies.repository,
-        sessionId,
-      ),
+      snapshot: await loadCommittedSnapshot(this.dependencies.repository, sessionId),
     };
   }
 
@@ -647,8 +617,7 @@ export class InterviewAgentService {
         userId: this.dependencies.userId,
         input,
         promptVersion: input.promptVersion,
-        webResearchEnabled:
-          this.dependencies.runtimeConfig.webResearchEnabled,
+        webResearchEnabled: this.dependencies.runtimeConfig.webResearchEnabled,
       });
       const preparation = await this.preparePlanIfConfigured(
         created.sessionId,
@@ -662,24 +631,14 @@ export class InterviewAgentService {
           userId: this.dependencies.userId,
           input,
           promptVersion: input.promptVersion,
-          webResearchEnabled:
-            this.dependencies.runtimeConfig.webResearchEnabled,
+          webResearchEnabled: this.dependencies.runtimeConfig.webResearchEnabled,
           preparedQuestionId,
         }),
         createAgentGraphConfig(created.sessionId),
       );
-      const state = parseOwnedGraphState(
-        invoked,
-        created.sessionId,
-        this.dependencies.userId,
-      );
+      const state = parseOwnedGraphState(invoked, created.sessionId, this.dependencies.userId);
       if (preparation && preparedQuestionId) {
-        await this.commitPreparedPlan(
-          state,
-          created.eventCursor,
-          preparation,
-          preparedQuestionId,
-        );
+        await this.commitPreparedPlan(state, created.eventCursor, preparation, preparedQuestionId);
       } else {
         await this.commitPreparedState(state, created.eventCursor);
       }
@@ -736,7 +695,11 @@ export class InterviewAgentService {
     questionId: string,
   ): Promise<void> {
     const repository = this.dependencies.preparationRepository;
-    if (!repository || state.phase !== "awaiting_answer" || state.currentQuestionId !== questionId) {
+    if (
+      !repository ||
+      state.phase !== "awaiting_answer" ||
+      state.currentQuestionId !== questionId
+    ) {
       throw new InterviewAgentServiceError(
         "agent_graph_unavailable",
         "The Agent graph did not reach the prepared input interrupt.",
@@ -759,8 +722,7 @@ export class InterviewAgentService {
         roleId,
         dimensionKey,
         source: plan.firstQuestion.source,
-        bankQuestionId:
-          plan.firstQuestion.source === "bank" ? plan.firstQuestion.id : null,
+        bankQuestionId: plan.firstQuestion.source === "bank" ? plan.firstQuestion.id : null,
       },
       result: {
         phase: "awaiting_answer",
@@ -920,14 +882,15 @@ export function createInterviewAgentService(
   supabase: UserSupabaseClient,
   userId: string,
 ): InterviewAgentService {
+  const readinessService = createAgentReadinessService(
+    supabase,
+    userId,
+    createAgentReadinessRepository(supabase),
+  );
   const preparationRepository = createInterviewPreparationRepository(supabase);
   const inputRepository = createAgentInputRepository(supabase);
   const agentRunAuditor = createAgentRunAuditor(supabase);
-  const agentModelProvider = createProductionAgentModelProvider(
-    supabase,
-    userId,
-    agentRunAuditor,
-  );
+  const agentModelProvider = createProductionAgentModelProvider(supabase, userId, agentRunAuditor);
   const questionRuntimeService = new DefaultQuestionRuntimeService({
     runtimeRepository: createQuestionRuntimeRepository(supabase),
     preparationRepository,
@@ -937,20 +900,34 @@ export function createInterviewAgentService(
     createAgentEvaluationRepository(supabase),
     createAgentEvaluationModelProvider(supabase, userId, agentRunAuditor),
   );
-  const reportService = new DefaultAgentReportService(
-    createAgentReportRepository(supabase),
-  );
+  const reportService = new DefaultAgentReportService(createAgentReportRepository(supabase));
   return new InterviewAgentService({
     repository: createInterviewAgentRepository(supabase),
     userId,
-    getGraph: () => getDefaultInterviewAgentGraph(
-      inputRepository,
-      questionRuntimeService,
-      agentModelProvider,
-      evaluationService,
-      reportService,
-    ),
+    getGraph: () =>
+      getDefaultInterviewAgentGraph(
+        inputRepository,
+        questionRuntimeService,
+        agentModelProvider,
+        evaluationService,
+        reportService,
+      ),
     runtimeConfig: getAgentRuntimeConfig(),
+    async assertCreationReady(input) {
+      const readiness = await readinessService.check({
+        interviewMode: input.interviewMode,
+        modelProvider: input.modelProvider,
+        webResearch: input.webResearch ?? true,
+      });
+      if (readiness.status === "blocked") {
+        throw new InterviewAgentServiceError(
+          "agent_readiness_blocked",
+          "The selected interview configuration is not ready.",
+          503,
+          false,
+        );
+      }
+    },
     preparationRepository,
     inputRepository,
     reportFinalizedInGraph: true,
@@ -964,11 +941,7 @@ export function createInterviewAgentService(
       },
     }),
     async resolveModel(input) {
-      const provider = await resolveProviderForCreation(
-        supabase,
-        userId,
-        input,
-      );
+      const provider = await resolveProviderForCreation(supabase, userId, input);
       return { name: provider.name, model: provider.model };
     },
   });

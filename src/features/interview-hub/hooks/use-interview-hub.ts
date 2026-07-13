@@ -1,32 +1,21 @@
-/** interview-hub - 面试中心数据 */
-import { useCallback, useEffect, useState } from "react";
-import { listRecentInterviews } from "../api";
-import type { RecentInterview } from "../types";
+/** interview-hub：并行获取文字与语音模式级 readiness。 */
+import { useAgentReadiness } from "@/features/agent-readiness/hooks/use-agent-readiness";
 
 /**
- * use interview hub
- * @returns
+ * 首页只检查两种入口的创建能力，不请求最近会话或其他业务数据。
+ *
+ * @returns 文字与语音各自独立的 React Query 结果。
  */
 export function useInterviewHub() {
-  const [sessions, setSessions] = useState<RecentInterview[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setSessions((await listRecentInterviews()).slice(0, 10));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "加载最近面试失败");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  return { sessions, loading, error, refresh };
+  const text = useAgentReadiness({
+    interviewMode: "text",
+    modelProvider: "deepseek",
+    webResearch: false,
+  });
+  const voice = useAgentReadiness({
+    interviewMode: "voice",
+    modelProvider: "deepseek",
+    webResearch: false,
+  });
+  return { text, voice };
 }

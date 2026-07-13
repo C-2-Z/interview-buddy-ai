@@ -25,11 +25,11 @@ type SupabaseOpenApiDocument = {
  * @param document - Supabase PostgREST OpenAPI 响应。
  * @returns 所有必要 RPC 均存在时为 true。
  */
-export function hasRequiredAgentRpcs(document:unknown):boolean {
-  if(!document||typeof document!=="object")return false;
-  const paths=(document as SupabaseOpenApiDocument).paths;
-  if(!paths||typeof paths!=="object")return false;
-  return REQUIRED_AGENT_RPCS.every((name)=>Object.hasOwn(paths,`/rpc/${name}`));
+export function hasRequiredAgentRpcs(document: unknown): boolean {
+  if (!document || typeof document !== "object") return false;
+  const paths = (document as SupabaseOpenApiDocument).paths;
+  if (!paths || typeof paths !== "object") return false;
+  return REQUIRED_AGENT_RPCS.every((name) => Object.hasOwn(paths, `/rpc/${name}`));
 }
 
 /**
@@ -37,12 +37,19 @@ export function hasRequiredAgentRpcs(document:unknown):boolean {
  *
  * @returns 关键 RPC 完整且元数据请求成功时为 true。
  */
-async function inspectLegacyAgentRpcMetadata():Promise<boolean>{
-  const url=process.env.SUPABASE_URL?.trim();
-  const serviceKey=process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if(!url||!serviceKey)return false;
-  const response=await fetch(`${url.replace(/\/$/,"")}/rest/v1/`,{headers:{apikey:serviceKey,Authorization:`Bearer ${serviceKey}`,Accept:"application/openapi+json"},signal:AbortSignal.timeout(2_000)});
-  if(!response.ok)return false;
+async function inspectLegacyAgentRpcMetadata(): Promise<boolean> {
+  const url = process.env.SUPABASE_URL?.trim();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!url || !serviceKey) return false;
+  const response = await fetch(`${url.replace(/\/$/, "")}/rest/v1/`, {
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      Accept: "application/openapi+json",
+    },
+    signal: AbortSignal.timeout(2_000),
+  });
+  if (!response.ok) return false;
   return hasRequiredAgentRpcs(await response.json());
 }
 
@@ -83,9 +90,11 @@ export function createAgentReadinessRepository(
   return new AgentReadinessRepository({
     async checkAgentDatabase() {
       // RPC 只返回固定迁移版本，既验证 PostgREST schema cache，也不会创建业务数据。
-      const client = supabase as unknown as {rpc(name:"check_agent_readiness"):PromiseLike<{data:string|null;error:unknown}>};
+      const client = supabase as unknown as {
+        rpc(name: "check_agent_readiness"): PromiseLike<{ data: string | null; error: unknown }>;
+      };
       const { data, error } = await client.rpc("check_agent_readiness");
-      if(!error&&data==="20260713000001")return true;
+      if (!error && data === "20260713000001") return true;
       // 老环境在应用新探测迁移前仍可通过既有只读元数据证明主链路完整，避免无谓阻断用户。
       return inspectLegacyAgentRpcMetadata();
     },

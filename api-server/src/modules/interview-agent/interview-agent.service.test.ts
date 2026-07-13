@@ -16,10 +16,7 @@ import type {
   InterviewAgentRepository,
   SafeAgentJsonObject,
 } from "./interview-agent.repository.js";
-import {
-  InterviewAgentService,
-  InterviewAgentServiceError,
-} from "./interview-agent.service.js";
+import { InterviewAgentService, InterviewAgentServiceError } from "./interview-agent.service.js";
 import type {
   AgentEvent,
   AgentSnapshot,
@@ -204,9 +201,7 @@ class MemoryInterviewAgentRepository implements InterviewAgentRepository {
   }
 
   /** @inheritdoc */
-  async commitOperation(
-    input: CommitAgentOperationInput,
-  ): Promise<AgentOperationCommit> {
+  async commitOperation(input: CommitAgentOperationInput): Promise<AgentOperationCommit> {
     if (!this.projection) throw new Error("missing session");
     const existing = this.operations.get(input.operationKey);
     if (!existing || existing.status !== "running") {
@@ -239,9 +234,7 @@ class MemoryInterviewAgentRepository implements InterviewAgentRepository {
   }
 
   /** @inheritdoc */
-  async failOperation(
-    input: FailAgentOperationInput,
-  ): Promise<AgentOperationFailure> {
+  async failOperation(input: FailAgentOperationInput): Promise<AgentOperationFailure> {
     const existing = this.operations.get(input.operationKey);
     if (!existing) throw new Error("missing operation");
     if (existing.status === "completed") {
@@ -325,8 +318,7 @@ class MemoryInterviewAgentRepository implements InterviewAgentRepository {
     const messageId = this.acceptedInputs.get(inputId);
     const event = this.events.find(
       (candidate) =>
-        candidate.type === "agent.message_completed" &&
-        candidate.data.id === messageId,
+        candidate.type === "agent.message_completed" && candidate.data.id === messageId,
     );
     if (!messageId || event?.type !== "agent.message_completed") {
       throw new Error("missing input");
@@ -457,9 +449,7 @@ class MemoryInterviewAgentRepository implements InterviewAgentRepository {
 
   /** 返回最新 Snapshot 引用的非空题目 UUID。 */
   private getCurrentQuestionId(): string {
-    const snapshot = [...this.events]
-      .reverse()
-      .find((event) => event.type === "agent.snapshot");
+    const snapshot = [...this.events].reverse().find((event) => event.type === "agent.snapshot");
     if (snapshot?.type !== "agent.snapshot" || !snapshot.data.currentQuestionId) {
       throw new Error("missing current question");
     }
@@ -472,6 +462,7 @@ function createHarness(
   runtime: AgentRuntimeConfig = ENABLED_RUNTIME,
   persistInputs = false,
   progressQuestions = false,
+  assertCreationReady?: () => Promise<void>,
 ) {
   const checkpointer = new MemorySaver();
   const repository = new MemoryInterviewAgentRepository();
@@ -492,6 +483,7 @@ function createHarness(
     userId: USER_ID,
     getGraph: () => graph,
     runtimeConfig: runtime,
+    assertCreationReady,
     inputRepository: persistInputs ? repository : undefined,
     async resolveModel() {
       return { name: "deepseek", model: "deepseek-v4-flash" };
@@ -510,7 +502,32 @@ const CREATE_INPUT = {
   webResearch: true,
 } as const;
 
-test("disabled Agent creation never falls back to legacy writes",async()=>{const harness=createHarness({...ENABLED_RUNTIME,enabled:false});await assert.rejects(harness.service.createSession(CREATE_INPUT),(error:unknown)=>error instanceof InterviewAgentServiceError&&error.code==="agent_interview_disabled");assert.equal(harness.repository.events.length,0);});
+test("disabled Agent creation never falls back to legacy writes", async () => {
+  const harness = createHarness({ ...ENABLED_RUNTIME, enabled: false });
+  await assert.rejects(
+    harness.service.createSession(CREATE_INPUT),
+    (error: unknown) =>
+      error instanceof InterviewAgentServiceError && error.code === "agent_interview_disabled",
+  );
+  assert.equal(harness.repository.events.length, 0);
+});
+
+test("server readiness blocks creation before any session write", async () => {
+  const harness = createHarness(ENABLED_RUNTIME, false, false, async () => {
+    throw new InterviewAgentServiceError(
+      "agent_readiness_blocked",
+      "The selected interview configuration is not ready.",
+      503,
+      false,
+    );
+  });
+  await assert.rejects(
+    harness.service.createSession(CREATE_INPUT),
+    (error: unknown) =>
+      error instanceof InterviewAgentServiceError && error.code === "agent_readiness_blocked",
+  );
+  assert.equal(harness.repository.events.length, 0);
+});
 
 test("create reaches durable awaiting_answer snapshot at the interrupt", async () => {
   const harness = createHarness();
@@ -522,10 +539,9 @@ test("create reaches durable awaiting_answer snapshot at the interrupt", async (
   assert.equal(view.snapshot.phase, "awaiting_answer");
   assert.equal(view.snapshot.currentQuestionId, `mock:${SESSION_ID}:general:1`);
   assert.equal(view.snapshot.eventCursor, 3);
-  assert.deepEqual(
-    (await harness.graph.getState(createAgentGraphConfig(SESSION_ID))).next,
-    ["wait_for_input"],
-  );
+  assert.deepEqual((await harness.graph.getState(createAgentGraphConfig(SESSION_ID))).next, [
+    "wait_for_input",
+  ]);
 });
 
 test("Phase 2 preparation commits the bank-first question and snapshot atomically", async () => {
@@ -534,21 +550,31 @@ test("Phase 2 preparation commits the bank-first question and snapshot atomicall
   const repository = new MemoryInterviewAgentRepository();
   const bankQuestionId = "33333333-3333-4333-8333-333333333333";
   const tools: InterviewAgentTools = {
-    async loadSkill() { return null; },
-    async loadResumeSummary() { return null; },
-    async searchQuestionBank() {
-      return [{
-        id: bankQuestionId,
-        question: "请说明一次数据库索引优化的完整过程。",
-        position: "后端工程师",
-        difficulty: "中级",
-        type: "技术题",
-        tags: ["technical_depth"],
-        source: "bank" as const,
-      }];
+    async loadSkill() {
+      return null;
     },
-    async loadSessionMessages() { return []; },
-    async loadRubric() { return []; },
+    async loadResumeSummary() {
+      return null;
+    },
+    async searchQuestionBank() {
+      return [
+        {
+          id: bankQuestionId,
+          question: "请说明一次数据库索引优化的完整过程。",
+          position: "后端工程师",
+          difficulty: "中级",
+          type: "技术题",
+          tags: ["technical_depth"],
+          source: "bank" as const,
+        },
+      ];
+    },
+    async loadSessionMessages() {
+      return [];
+    },
+    async loadRubric() {
+      return [];
+    },
   };
   let committed: CommitPreparationInput | undefined;
   const preparationRepository: PreparationCommitRepository = {
@@ -571,8 +597,14 @@ test("Phase 2 preparation commits the bank-first question and snapshot atomicall
     preparationService: new InterviewPreparationService({
       tools,
       webSearchProvider: new DisabledWebSearchProvider(),
-      modelProvider: { async generateQuestion() { throw new Error("bank question must win"); } },
-      async loadResearchSources() { return []; },
+      modelProvider: {
+        async generateQuestion() {
+          throw new Error("bank question must win");
+        },
+      },
+      async loadResearchSources() {
+        return [];
+      },
     }),
     userId: USER_ID,
     getGraph: () => graph,
@@ -583,9 +615,7 @@ test("Phase 2 preparation commits the bank-first question and snapshot atomicall
   });
 
   await service.createSession(CREATE_INPUT);
-  const questionEvent = repository.events.find(
-    (event) => event.type === "agent.question_ready",
-  );
+  const questionEvent = repository.events.find((event) => event.type === "agent.question_ready");
   assert.ok(committed);
   assert.equal(committed.question.bankQuestionId, bankQuestionId);
   assert.match(committed.question.id, /^[0-9a-f-]{36}$/);
@@ -594,7 +624,10 @@ test("Phase 2 preparation commits the bank-first question and snapshot atomicall
     questionEvent?.type === "agent.question_ready" ? questionEvent.data.id : null,
     committed.question.id,
   );
-  assert.equal((await service.getSession(SESSION_ID)).snapshot.currentQuestionId, committed.question.id);
+  assert.equal(
+    (await service.getSession(SESSION_ID)).snapshot.currentQuestionId,
+    committed.question.id,
+  );
 });
 
 test("duplicate input returns the first result without resuming twice", async () => {
@@ -630,9 +663,7 @@ test("answer content never enters state or any MemorySaver checkpoint", async ()
   });
 
   const serialized: string[] = [];
-  for await (const tuple of harness.checkpointer.list(
-    createAgentGraphConfig(SESSION_ID),
-  )) {
+  for await (const tuple of harness.checkpointer.list(createAgentGraphConfig(SESSION_ID))) {
     serialized.push(JSON.stringify(tuple));
   }
   const checkpointText = serialized.join("\n");
@@ -688,9 +719,7 @@ test("Phase 3 guard redirects copied input and interrupts on the same question",
     ),
     true,
   );
-  const graphState = await harness.graph.getState(
-    createAgentGraphConfig(SESSION_ID),
-  );
+  const graphState = await harness.graph.getState(createAgentGraphConfig(SESSION_ID));
   assert.deepEqual(graphState.next, ["wait_for_input"]);
   assert.equal(JSON.stringify(graphState).includes("测试题目"), false);
 });
@@ -716,9 +745,7 @@ test("Phase 3 asks at most three follow-ups before leaving the question", async 
   assert.equal(final.snapshot.followUpCount, 3);
   assert.equal(
     harness.repository.events.filter(
-      (event) =>
-        event.type === "agent.message_completed" &&
-        event.data.role === "assistant",
+      (event) => event.type === "agent.message_completed" && event.data.role === "assistant",
     ).length,
     3,
   );
@@ -727,7 +754,8 @@ test("Phase 3 asks at most three follow-ups before leaving the question", async 
 test("Phase 3 service completes all frozen questions instead of ending after the first", async () => {
   const harness = createHarness(ENABLED_RUNTIME, true, true);
   await harness.service.createSession(CREATE_INPUT);
-  const sufficient = "我先分析慢查询日志和执行计划，定位到联合索引缺失；随后增加索引并完成压测，最终 P95 延迟从 800 毫秒降低到 120 毫秒。";
+  const sufficient =
+    "我先分析慢查询日志和执行计划，定位到联合索引缺失；随后增加索引并完成压测，最终 P95 延迟从 800 毫秒降低到 120 毫秒。";
   for (let index = 1; index <= 2; index += 1) {
     const result = await harness.service.submitInput(SESSION_ID, {
       inputId: `complete-answer-${index}`,
@@ -767,10 +795,7 @@ test("a second concurrent claim cannot invoke the same input operation", async (
     }),
   ]);
 
-  assert.equal(
-    requests.filter((request) => request.status === "fulfilled").length,
-    1,
-  );
+  assert.equal(requests.filter((request) => request.status === "fulfilled").length, 1);
   const rejected = requests.find(
     (request): request is PromiseRejectedResult => request.status === "rejected",
   );

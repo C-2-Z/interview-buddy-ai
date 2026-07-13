@@ -1,4 +1,2 @@
-/** 面试中心：概览仪表盘 - API 调用函数 */
-import { listInterviewHistory as listSessions } from "@/features/interview-history/api";
-
-export const listRecentInterviews = listSessions;
+/** interview-hub：复用 agent-readiness 的模式级检查，不维护第二套请求协议。 */
+export { getAgentReadiness as getInterviewModeReadiness } from "@/features/agent-readiness/api";

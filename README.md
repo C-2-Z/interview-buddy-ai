@@ -4,14 +4,14 @@
 
 ## 技术栈
 
-| 层 | 技术 |
-| --- | --- |
-| 前端 | TanStack React Start, React 19, TanStack Router |
-| UI | Tailwind CSS 4, shadcn/ui, Radix UI |
-| 后端 API | Hono |
-| 数据库与认证 | Supabase PostgreSQL, RLS, Supabase Auth |
-| AI | DeepSeek / OpenAI / Anthropic 兼容模型 |
-| 构建 | Vite + Rolldown |
+| 层           | 技术                                            |
+| ------------ | ----------------------------------------------- |
+| 前端         | TanStack React Start, React 19, TanStack Router |
+| UI           | Tailwind CSS 4, shadcn/ui, Radix UI             |
+| 后端 API     | Hono                                            |
+| 数据库与认证 | Supabase PostgreSQL, RLS, Supabase Auth         |
+| AI           | DeepSeek / OpenAI / Anthropic 兼容模型          |
+| 构建         | Vite + Rolldown                                 |
 
 ## 项目结构
 
@@ -22,8 +22,10 @@ interview-buddy-ai/
 │   │   ├── router.tsx                # TanStack Router 配置
 │   │   └── start.ts                  # TanStack Start 实例化
 │   ├── features/                     # 前端功能模块（核心业务逻辑在这里）
-│   │   ├── interview-create/         #   创建面试
-│   │   ├── interview-session/        #   面试会话
+│   │   ├── auth-session/             #   认证守卫与认证布局
+│   │   ├── interview-hub/            #   文本 / 语音双入口首页
+│   │   ├── interview-agent/          #   文本面试创建与会话
+│   │   ├── immersive-voice-interview/#   沉浸式语音面试
 │   │   ├── question-bank/            #   题库
 │   │   └── settings/                 #   用户设置
 │   ├── shared/                       # 前端共享基础设施
@@ -42,7 +44,7 @@ interview-buddy-ai/
 │   │   ├── __root.tsx                #    根布局
 │   │   ├── index.tsx                 #    着陆页
 │   │   ├── auth.tsx                  #    登录/注册
-│   │   └── _authenticated/           #    需认证路由
+│   │   ├── _authenticated/           #    需认证且带应用导航的路由
 │   │       ├── route.tsx             #      认证后布局
 │   │       ├── dashboard.tsx         #      仪表盘
 │   │       ├── new.tsx               #      创建新面试
@@ -52,6 +54,10 @@ interview-buddy-ai/
 │   │       │   ├── index.tsx
 │   │       │   └── $id.tsx
 │   │       └── settings.tsx          #      用户设置
+│   │   └── _focus/                   #    需认证且无应用导航的专注路由
+│   │       ├── interview-hub.tsx     #      双入口首页
+│   │       ├── voice.new.tsx         #      语音面试准备厅
+│   │       └── voice.session.$id.tsx #      沉浸式语音面试间
 │   ├── router.tsx                    # (deprecated) 旧路由配置
 │   ├── server.ts                     # SSR 服务端入口
 │   ├── start.ts                      # (deprecated) 旧 start 封装
@@ -162,33 +168,36 @@ Hono API 服务 (api-server/)
 
 ## 路由表
 
-| 路径                          | 前端文件                                            | 后端模块              | 认证 | 说明                     |
-| ----------------------------- | --------------------------------------------------- | --------------------- | ---- | ------------------------ |
-| /                             | routes/index.tsx                                    | —                     | 否   | 着陆页                   |
-| /auth                         | routes/auth.tsx                                     | —                     | 否   | 登录 / 注册              |
-| /dashboard                    | routes/\_authenticated/dashboard.tsx                | —                     | 是   | 仪表盘                   |
-| /new                          | routes/\_authenticated/new.tsx                      | modules/sessions/     | 是   | 创建新面试               |
-| /history                      | routes/\_authenticated/history.tsx                  | modules/sessions/     | 是   | 历史记录                 |
-| /session/$id          | routes/\_authenticated/session.\$id.tsx             | modules/questions/    | 是   | 面试会话                 |
-| /bank                         | routes/\_authenticated/bank/index.tsx               | modules/bank/         | 是   | 题库列表                 |
-| /bank/$id             | routes/\_authenticated/bank/\$id.tsx                | modules/bank/         | 是   | 题库题目详情             |
-| /settings                     | routes/\_authenticated/settings.tsx                 | modules/settings/ +<br>modules/model-providers/ | 是   | 用户设置（模型/API Key） |
+| 路径               | 前端文件                                | 后端模块                                        | 认证 | 说明                     |
+| ------------------ | --------------------------------------- | ----------------------------------------------- | ---- | ------------------------ |
+| /                  | routes/index.tsx                        | —                                               | 否   | 着陆页                   |
+| /auth              | routes/auth.tsx                         | —                                               | 否   | 登录 / 注册              |
+| /interview-hub     | routes/\_focus/interview-hub.tsx        | modules/agent-readiness/                        | 是   | 文本 / 语音双入口首页    |
+| /voice/new         | routes/\_focus/voice.new.tsx            | modules/interview-agent/                        | 是   | 语音面试准备与设备校准   |
+| /voice/session/$id | routes/\_focus/voice.session.\$id.tsx   | modules/voice/ +<br>modules/interview-agent/    | 是   | 沉浸式语音面试           |
+| /dashboard         | routes/\_authenticated/dashboard.tsx    | —                                               | 是   | 仪表盘                   |
+| /new               | routes/\_authenticated/new.tsx          | modules/sessions/                               | 是   | 创建新面试               |
+| /history           | routes/\_authenticated/history.tsx      | modules/sessions/                               | 是   | 历史记录                 |
+| /session/$id       | routes/\_authenticated/session.\$id.tsx | modules/interview-agent/                        | 是   | 文本面试与统一报告       |
+| /bank              | routes/\_authenticated/bank/index.tsx   | modules/bank/                                   | 是   | 题库列表                 |
+| /bank/$id          | routes/\_authenticated/bank/\$id.tsx    | modules/bank/                                   | 是   | 题库题目详情             |
+| /settings          | routes/\_authenticated/settings.tsx     | modules/settings/ +<br>modules/model-providers/ | 是   | 用户设置（模型/API Key） |
 
 ## API 端点
 
-| 方法 | 路径 | 说明 | 认证 |
-|------|------|------|------|
-| POST | /api/sessions | 创建面试 + AI 出题 | Bearer Token |
-| GET | /api/sessions | 列出所有面试 | Bearer Token |
-| GET | /api/sessions/:id | 获取面试详情 + 题目 | Bearer Token |
-| POST | /api/sessions/:id/finish | 完成面试并生成总结 | Bearer Token |
-| POST | /api/questions/:id/message | 发送对话消息 | Bearer Token |
-| POST | /api/questions/:id/evaluate | 评价对话并评分 | Bearer Token |
-| GET | /api/bank | 题库列表 | Bearer Token |
-| GET | /api/settings | 获取用户设置（含 AI 供应商） | Bearer Token |
-| PATCH | /api/settings | 更新用户设置（加密 API Key） | Bearer Token |
-| GET | /api/skills | Skill 列表 | Bearer Token |
-| GET | /api/health | 健康检查 | 无 |
+| 方法  | 路径                        | 说明                         | 认证         |
+| ----- | --------------------------- | ---------------------------- | ------------ |
+| POST  | /api/sessions               | 创建面试 + AI 出题           | Bearer Token |
+| GET   | /api/sessions               | 列出所有面试                 | Bearer Token |
+| GET   | /api/sessions/:id           | 获取面试详情 + 题目          | Bearer Token |
+| POST  | /api/sessions/:id/finish    | 完成面试并生成总结           | Bearer Token |
+| POST  | /api/questions/:id/message  | 发送对话消息                 | Bearer Token |
+| POST  | /api/questions/:id/evaluate | 评价对话并评分               | Bearer Token |
+| GET   | /api/bank                   | 题库列表                     | Bearer Token |
+| GET   | /api/settings               | 获取用户设置（含 AI 供应商） | Bearer Token |
+| PATCH | /api/settings               | 更新用户设置（加密 API Key） | Bearer Token |
+| GET   | /api/skills                 | Skill 列表                   | Bearer Token |
+| GET   | /api/health                 | 健康检查                     | 无           |
 
 ## 关键架构模式
 
@@ -196,23 +205,23 @@ Hono API 服务 (api-server/)
 
 每个模块由四个文件组成，职责严格分离：
 
-| 层 | 文件 | 职责 |
-|----|------|------|
-| 路由 | `<name>.routes.ts` | 认证校验、请求体解析（Zod）、调用 service、返回 JSON |
-| 业务 | `<name>.service.ts` | 业务流程编排、AI 调用、组合 repository 查询 |
-| 数据 | `<name>.repository.ts` | 数据库查询（通过 Supabase client） |
-| 校验 | `<name>.schemas.ts` | Zod schema 定义，校验请求体 |
+| 层   | 文件                   | 职责                                                 |
+| ---- | ---------------------- | ---------------------------------------------------- |
+| 路由 | `<name>.routes.ts`     | 认证校验、请求体解析（Zod）、调用 service、返回 JSON |
+| 业务 | `<name>.service.ts`    | 业务流程编排、AI 调用、组合 repository 查询          |
+| 数据 | `<name>.repository.ts` | 数据库查询（通过 Supabase client）                   |
+| 校验 | `<name>.schemas.ts`    | Zod schema 定义，校验请求体                          |
 
 ### 2. 前端 feature 目录结构
 
 每个前端功能模块包含：
 
-| 文件 | 职责 |
-|------|------|
-| `api.ts` | API 调用函数（通过 `shared/api/http-client.ts`） |
-| `types.ts` | 功能域专属类型定义 |
-| `hooks/` | React Hooks（状态管理 + API 调用封装） |
-| `components/` | UI 组件 |
+| 文件          | 职责                                             |
+| ------------- | ------------------------------------------------ |
+| `api.ts`      | API 调用函数（通过 `shared/api/http-client.ts`） |
+| `types.ts`    | 功能域专属类型定义                               |
+| `hooks/`      | React Hooks（状态管理 + API 调用封装）           |
+| `components/` | UI 组件                                          |
 
 ### 3. AI 多模型架构
 
@@ -232,6 +241,7 @@ modules/*/service.ts
 ### 4. Skill 驱动出题
 
 `modules/skills/` 管理岗位技能定义：
+
 - `skill.json` — 技能元数据（名称、知识点列表、技术标签）
 - `persona.md` — AI 面试官角色设定 Prompt
 - `lib/skills/_shared/references/` — 各知识点参考资料
@@ -241,6 +251,7 @@ modules/*/service.ts
 ### 5. 认证体系
 
 两层认证机制：
+
 1. **客户端**: `auth-attacher.ts` 自动从 Supabase session 提取 access_token 附加到请求头
 2. **API 服务**: `shared/auth/require-auth.ts` 校验 Bearer token，解析 claims，创建认证 Supabase 客户端
 
@@ -289,17 +300,17 @@ cd api-server && npm run build
 
 ## API
 
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| POST | `/api/sessions` | 创建面试并生成题目 |
-| GET | `/api/sessions` | 列出面试记录 |
-| GET | `/api/sessions/:id` | 获取面试详情和题目 |
-| POST | `/api/sessions/:id/finish` | 完成面试并生成总结 |
-| GET | `/api/sessions/:id/generation` | 获取渐进生成状态 |
-| GET | `/api/sessions/:id/generation/events` | 订阅题目生成 SSE 事件 |
-| POST | `/api/sessions/:id/generation/retry` | 重试未完成的生成任务 |
-| POST | `/api/questions/:id/message` | 发送回答并获取 AI 追问 |
-| POST | `/api/questions/:id/evaluate` | 手动结束对话并评分 |
-| GET | `/api/bank` | 题库列表 |
-| GET | `/api/settings` | 用户模型设置 |
-| GET | `/api/skills` | Skill 元数据 |
+| 方法 | 路径                                  | 说明                   |
+| ---- | ------------------------------------- | ---------------------- |
+| POST | `/api/sessions`                       | 创建面试并生成题目     |
+| GET  | `/api/sessions`                       | 列出面试记录           |
+| GET  | `/api/sessions/:id`                   | 获取面试详情和题目     |
+| POST | `/api/sessions/:id/finish`            | 完成面试并生成总结     |
+| GET  | `/api/sessions/:id/generation`        | 获取渐进生成状态       |
+| GET  | `/api/sessions/:id/generation/events` | 订阅题目生成 SSE 事件  |
+| POST | `/api/sessions/:id/generation/retry`  | 重试未完成的生成任务   |
+| POST | `/api/questions/:id/message`          | 发送回答并获取 AI 追问 |
+| POST | `/api/questions/:id/evaluate`         | 手动结束对话并评分     |
+| GET  | `/api/bank`                           | 题库列表               |
+| GET  | `/api/settings`                       | 用户模型设置           |
+| GET  | `/api/skills`                         | Skill 元数据           |

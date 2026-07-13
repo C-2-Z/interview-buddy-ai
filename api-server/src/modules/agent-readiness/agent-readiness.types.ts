@@ -5,11 +5,7 @@ export type ReadinessStatus = "ready" | "degraded" | "blocked";
 
 /** 用户可执行的固定恢复动作。 */
 export type ReadinessRecoveryAction =
-  | "open_settings"
-  | "retry"
-  | "use_text"
-  | "disable_research"
-  | "contact_admin";
+  "open_settings" | "retry" | "use_text" | "disable_research" | "contact_admin";
 
 /** 单项能力的可用性，不包含凭据或内部错误。 */
 export type ReadinessCapability = {
@@ -31,6 +27,8 @@ export type AgentReadinessResponse = {
   /** 文本、语音与联网研究的独立状态。 */ capabilities: {
     /** 普通文本面试能力。 */ text: ReadinessCapability;
     /** 语音面试能力。 */ voice: ReadinessCapability;
+    /** Qwen 实时语音识别能力。 */ voiceRecognition: ReadinessCapability;
+    /** Qwen 实时语音播报能力。 */ voiceSynthesis: ReadinessCapability;
     /** 开场前联网研究能力。 */ webResearch: ReadinessCapability;
   };
   /** 会阻止当前方案创建的问题。 */ blockers: ReadinessIssue[];
