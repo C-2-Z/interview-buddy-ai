@@ -54,6 +54,8 @@ export type AgentWorkspaceQuestion={
 };
 /** 完整工作台读取模型。 */
 export type AgentWorkspace={
+  /** 面向用户的业务生命周期状态。 */
+  productStatus:"in_progress"|"paused"|"completed"|"abandoned"|"failed";
   snapshot:AgentSnapshot;
   config:{position:string;difficulty:string;questionCount:number;targetCompany:string|null};
   research:{status:"pending"|"running"|"completed"|"skipped"|"failed";sources:Array<{id:string;category:"company"|"role"|"industry";title:string;url:string}>};

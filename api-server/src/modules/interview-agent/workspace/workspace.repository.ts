@@ -20,6 +20,7 @@ export interface WorkspaceDatabaseClient {
 
 const ResponseSchema = z.object({ data: z.unknown(), error: z.unknown().nullable() }).passthrough();
 const SessionSchema = z.object({
+  status: z.enum(["in_progress","paused","completed","abandoned","failed"]),
   position: z.string(), difficulty: z.string(), research_status: z.enum(["pending","running","completed","skipped","failed"]),
   agent_config: z.object({ questionCount: z.number().int(), targetCompany: z.string().nullable() }).passthrough(),
   overall_score: z.number().int().nullable(), overall_feedback: z.string().nullable(), dimension_summary: z.unknown().nullable(), report_status: z.string(),
@@ -54,7 +55,7 @@ export class AgentWorkspaceRepository {
    */
   async load(sessionId: string): Promise<Omit<AgentWorkspace, "snapshot">> {
     const [sessionRaw, questionsRaw, sourcesRaw] = await Promise.all([
-      execute(this.database.from("interview_sessions").select("position, difficulty, research_status, agent_config, overall_score, overall_feedback, dimension_summary, report_status").eq("id",sessionId).single()),
+      execute(this.database.from("interview_sessions").select("position, difficulty, status, research_status, agent_config, overall_score, overall_feedback, dimension_summary, report_status").eq("id",sessionId).single()),
       execute(this.database.from("interview_questions").select("id, question, order_index, role_id, dimension_key, selection_source, score, feedback").eq("session_id",sessionId).order("order_index",{ascending:true})),
       execute(this.database.from("agent_research_sources").select("id, category, title, url").eq("session_id",sessionId).order("created_at",{ascending:true})),
     ]);
@@ -81,6 +82,7 @@ export class AgentWorkspaceRepository {
       };
     });
     return {
+      productStatus:session.status,
       config:{position:session.position,difficulty:session.difficulty,questionCount:session.agent_config.questionCount,targetCompany:session.agent_config.targetCompany},
       research:{status:session.research_status,sources:z.array(SourceSchema).parse(sourcesRaw)},
       questions:mappedQuestions,

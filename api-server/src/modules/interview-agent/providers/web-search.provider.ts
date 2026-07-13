@@ -1,4 +1,4 @@
-/** Interview Agent WebSearchProvider、Tavily Adapter 与不可信内容清洗。 */
+/** Interview Agent WebSearchProvider、Tavily/Wikimedia Adapter 与不可信内容清洗。 */
 import { createHash } from "node:crypto";
 import { TavilySearch } from "@langchain/tavily";
 import { z } from "zod";
@@ -39,6 +39,19 @@ export type TavilyWebSearchProviderOptions = {
   /** 测试可注入的 Tavily Tool 工厂。 */
   createTool?: (maxResults: number) => TavilySearchInvoker;
 };
+
+/** 免 Key 公开知识检索的非敏感运行选项。 */
+export type PublicKnowledgeSearchProviderOptions = {
+  /** 单次 Wikimedia 查询最长等待时间。 */
+  timeoutMs: number;
+  /** 测试可注入的当前时间函数。 */
+  now?: () => Date;
+  /** 测试可注入的 HTTP 客户端。 */
+  fetcher?: typeof fetch;
+};
+
+/** 服务端最终采用的联网研究通道。 */
+export type WebSearchProviderMode = "tavily" | "public_knowledge" | "disabled";
 
 /** Adapter 实际使用的最小 Tavily 调用端口。 */
 export interface TavilySearchInvoker {
@@ -106,6 +119,24 @@ const TavilyResponseSchema = z
   })
   .passthrough();
 
+const WikimediaResponseSchema = z
+  .object({
+    pages: z
+      .array(
+        z
+          .object({
+            id: z.number().int().positive(),
+            key: z.string().trim().min(1).max(500),
+            title: z.string(),
+            excerpt: z.string().optional().default(""),
+            description: z.string().nullable().optional(),
+          })
+          .passthrough(),
+      )
+      .max(20),
+  })
+  .passthrough();
+
 /**
  * 解码清洗文本中常见 HTML entity，避免标签移除后仍残留隐藏控制语义。
  *
@@ -144,7 +175,7 @@ function decodeHtmlEntities(value: string): string {
 /**
  * 移除脚本、样式、隐藏块、标签、零宽字符和控制字符并限制长度。
  *
- * @param value - Tavily 返回的标题或正文。
+ * @param value - 外部搜索 Provider 返回的标题或正文。
  * @param maxLength - 清洗后的最大字符数。
  * @returns 可作为不可信数据保存的单行/多行纯文本。
  */
@@ -178,7 +209,7 @@ export function sanitizeWebText(
 /**
  * 规范化外部 URL，仅允许无内嵌凭据的 HTTP(S) 地址。
  *
- * @param value - Tavily 返回的 URL。
+ * @param value - 外部搜索 Provider 返回的 URL。
  * @returns 移除 fragment 后的规范地址；非法时为 null。
  */
 function normalizeResultUrl(value: string): string | null {
@@ -305,6 +336,104 @@ export class TavilyWebSearchProvider implements WebSearchProvider {
   }
 }
 
+/**
+ * 判断固定公开来源是否满足调用方的 include/exclude 域名边界。
+ *
+ * @param hostname - Provider 固定的来源主机名。
+ * @param input - 已通过严格校验的搜索输入。
+ * @returns 当前来源允许参加本次搜索时为 true。
+ */
+function allowsProviderDomain(
+  hostname: string,
+  input: z.infer<typeof WebSearchQuerySchema>,
+): boolean {
+  const matches = (domain: string) =>
+    hostname === domain || hostname.endsWith(`.${domain}`);
+  if (input.includeDomains && !input.includeDomains.some(matches)) return false;
+  if (input.excludeDomains?.some(matches)) return false;
+  return true;
+}
+
+/**
+ * 无第三方 Key 时使用 Wikimedia Core REST API 提供真实、可追溯的公开知识检索。
+ *
+ * 该通道只请求固定 Wikipedia HTTPS 主机，不跟随网页内容产生新 URL，结果仍经过
+ * 与 Tavily 相同的清洗、长度限制、URL 规范化和内容哈希流程。
+ */
+export class PublicKnowledgeWebSearchProvider implements WebSearchProvider {
+  readonly available = true;
+  private readonly now: () => Date;
+  private readonly fetcher: typeof fetch;
+
+  /**
+   * 创建免 Key 公开知识 Provider。
+   *
+   * @param options - 超时以及可选测试时钟和 HTTP 客户端。
+   */
+  constructor(private readonly options: PublicKnowledgeSearchProviderOptions) {
+    if (!Number.isInteger(options.timeoutMs) || options.timeoutMs < 1_000) {
+      throw new WebSearchProviderError();
+    }
+    this.now = options.now ?? (() => new Date());
+    this.fetcher = options.fetcher ?? fetch;
+  }
+
+  /** @inheritdoc */
+  async search(
+    input: WebSearchQuery,
+    signal?: AbortSignal,
+  ): Promise<WebSearchResult[]> {
+    const parsed = WebSearchQuerySchema.parse(input);
+    const language = /[\u3400-\u9fff]/u.test(parsed.query) ? "zh" : "en";
+    const hostname = `${language}.wikipedia.org`;
+    if (!allowsProviderDomain(hostname, parsed)) return [];
+
+    const endpoint = new URL(
+      `https://api.wikimedia.org/core/v1/wikipedia/${language}/search/page`,
+    );
+    endpoint.search = new URLSearchParams({
+      q: parsed.query,
+      limit: String(parsed.maxResults),
+    }).toString();
+
+    try {
+      const response = await this.fetcher(endpoint, {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "EZMock/1.0 (https://ezmock.site)",
+        },
+        redirect: "error",
+        signal: combinedAbortSignal(this.options.timeoutMs, signal),
+      });
+      if (!response.ok) throw new WebSearchProviderError();
+      const payload = WikimediaResponseSchema.parse(await response.json());
+      const fetchedAt = this.now().toISOString();
+      const seen = new Set<string>();
+      const results: WebSearchResult[] = [];
+
+      for (const page of payload.pages) {
+        const title = sanitizeWebText(page.title, 300);
+        const snippet = sanitizeWebText(
+          [page.description, page.excerpt].filter(Boolean).join("。"),
+        );
+        const url = normalizeResultUrl(
+          `https://${hostname}/wiki/${encodeURIComponent(page.key)}`,
+        );
+        if (!title || !snippet || !url) continue;
+        const contentHash = researchContentHash(title, url, snippet);
+        if (seen.has(contentHash)) continue;
+        seen.add(contentHash);
+        results.push({ title, url, snippet, fetchedAt, contentHash });
+        if (results.length >= parsed.maxResults) break;
+      }
+      return results;
+    } catch (error) {
+      if (error instanceof WebSearchProviderError) throw error;
+      throw new WebSearchProviderError();
+    }
+  }
+}
+
 /** 缺少 Key 时使用的显式降级 Provider。 */
 export class DisabledWebSearchProvider implements WebSearchProvider {
   readonly available = false;
@@ -319,17 +448,32 @@ export class DisabledWebSearchProvider implements WebSearchProvider {
 }
 
 /**
- * 从服务端环境创建 Tavily 或禁用 Provider。
+ * 从服务端环境创建 Tavily、公开知识后备或显式禁用 Provider。
  *
- * @returns 有非空 `TAVILY_API_KEY` 时使用 Tavily，否则安全跳过联网。
+ * @returns 有非空 `TAVILY_API_KEY` 时使用 Tavily，否则默认使用无需 Key 的公开知识检索。
  */
 export function createWebSearchProviderFromEnv(): WebSearchProvider {
   const apiKey = process.env.TAVILY_API_KEY?.trim();
-  if (!apiKey) return new DisabledWebSearchProvider();
   const timeoutMs = Number(
     process.env.AGENT_WEB_RESEARCH_TIMEOUT_MS?.trim() || 10_000,
   );
-  return new TavilyWebSearchProvider({ apiKey, timeoutMs });
+  if (apiKey) return new TavilyWebSearchProvider({ apiKey, timeoutMs });
+  if (process.env.AGENT_PUBLIC_WEB_RESEARCH_ENABLED !== "0") {
+    return new PublicKnowledgeWebSearchProvider({ timeoutMs });
+  }
+  return new DisabledWebSearchProvider();
+}
+
+/**
+ * 解析 readiness 可安全公开的联网研究通道，不创建客户端也不读取 Key 内容。
+ *
+ * @returns Tavily、公开知识后备或显式禁用。
+ */
+export function resolveWebSearchProviderModeFromEnv(): WebSearchProviderMode {
+  if (process.env.TAVILY_API_KEY?.trim()) return "tavily";
+  return process.env.AGENT_PUBLIC_WEB_RESEARCH_ENABLED === "0"
+    ? "disabled"
+    : "public_knowledge";
 }
 
 /**

@@ -39,3 +39,6 @@ dist-ssr
 
 # Portable local infrastructure downloaded by setup scripts
 .runtime/
+
+# Supabase CLI local link metadata
+supabase/.temp/

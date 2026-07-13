@@ -109,6 +109,7 @@ export type InterviewAgentServiceDependencies = {
 export type InterviewAgentServiceErrorCode =
   | "agent_interview_disabled"
   | "agent_session_not_found"
+  | "agent_session_not_active"
   | "agent_operation_in_progress"
   | "agent_invalid_phase"
   | "agent_graph_unavailable"
@@ -147,6 +148,19 @@ export class InterviewAgentServiceError extends Error {
 
 /** 进程内复用运行时 saver；Graph 按用户 Repository 轻量编译。 */
 let defaultCheckpointer: BaseCheckpointSaver | undefined;
+
+/**
+ * 清理当前进程复用的 Agent checkpoint；生命周期结束后不保留可继续写入的旧 Graph 状态。
+ *
+ * @param threadId - 与业务会话绑定的 LangGraph thread ID。
+ * @returns checkpoint 删除完成后解决；底层异常由调用模块转换为稳定错误。
+ */
+export async function deleteAgentRuntimeCheckpoint(
+  threadId: string,
+): Promise<void> {
+  defaultCheckpointer ??= createAgentRuntimeCheckpointer();
+  await defaultCheckpointer.deleteThread(threadId);
+}
 
 /**
  * 延迟创建生产 Graph；该路径不会调用 checkpointer.setup() 或执行 DDL。
@@ -374,6 +388,18 @@ export class InterviewAgentService {
     input: AgentInput,
     source: "text" | "voice" = "text",
   ): Promise<AgentInputResponse> {
+    const lifecycleProjection =
+      await this.dependencies.repository.getOwnedSessionProjection(sessionId);
+    if (lifecycleProjection.productStatus !== "in_progress") {
+      throw new InterviewAgentServiceError(
+        "agent_session_not_active",
+        lifecycleProjection.productStatus === "paused"
+          ? "The Agent session is paused. Resume it before answering."
+          : "The Agent session can no longer accept answers.",
+        409,
+        false,
+      );
+    }
     const operationKey = `input:${input.inputId}`;
     if (this.dependencies.inputRepository) {
       try {

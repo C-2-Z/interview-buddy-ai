@@ -21,6 +21,7 @@ import { Route as AuthenticatedResumesIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedBankIndexRouteImport } from './routes/_authenticated/bank/index'
 import { Route as AuthenticatedSessionIdRouteImport } from './routes/_authenticated/session.$id'
 import { Route as AuthenticatedResumesIdRouteImport } from './routes/_authenticated/resumes/$id'
+import { Route as AuthenticatedReportIdRouteImport } from './routes/_authenticated/report.$id'
 import { Route as AuthenticatedLegacyIdRouteImport } from './routes/_authenticated/legacy.$id'
 import { Route as AuthenticatedBankIdRouteImport } from './routes/_authenticated/bank/$id'
 
@@ -85,6 +86,11 @@ const AuthenticatedResumesIdRoute = AuthenticatedResumesIdRouteImport.update({
   path: '/resumes/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedReportIdRoute = AuthenticatedReportIdRouteImport.update({
+  id: '/report/$id',
+  path: '/report/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedLegacyIdRoute = AuthenticatedLegacyIdRouteImport.update({
   id: '/legacy/$id',
   path: '/legacy/$id',
@@ -106,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/bank/$id': typeof AuthenticatedBankIdRoute
   '/legacy/$id': typeof AuthenticatedLegacyIdRoute
+  '/report/$id': typeof AuthenticatedReportIdRoute
   '/resumes/$id': typeof AuthenticatedResumesIdRoute
   '/session/$id': typeof AuthenticatedSessionIdRoute
   '/bank/': typeof AuthenticatedBankIndexRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/bank/$id': typeof AuthenticatedBankIdRoute
   '/legacy/$id': typeof AuthenticatedLegacyIdRoute
+  '/report/$id': typeof AuthenticatedReportIdRoute
   '/resumes/$id': typeof AuthenticatedResumesIdRoute
   '/session/$id': typeof AuthenticatedSessionIdRoute
   '/bank': typeof AuthenticatedBankIndexRoute
@@ -138,6 +146,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/bank/$id': typeof AuthenticatedBankIdRoute
   '/_authenticated/legacy/$id': typeof AuthenticatedLegacyIdRoute
+  '/_authenticated/report/$id': typeof AuthenticatedReportIdRoute
   '/_authenticated/resumes/$id': typeof AuthenticatedResumesIdRoute
   '/_authenticated/session/$id': typeof AuthenticatedSessionIdRoute
   '/_authenticated/bank/': typeof AuthenticatedBankIndexRoute
@@ -155,6 +164,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/bank/$id'
     | '/legacy/$id'
+    | '/report/$id'
     | '/resumes/$id'
     | '/session/$id'
     | '/bank/'
@@ -170,6 +180,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/bank/$id'
     | '/legacy/$id'
+    | '/report/$id'
     | '/resumes/$id'
     | '/session/$id'
     | '/bank'
@@ -186,6 +197,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/bank/$id'
     | '/_authenticated/legacy/$id'
+    | '/_authenticated/report/$id'
     | '/_authenticated/resumes/$id'
     | '/_authenticated/session/$id'
     | '/_authenticated/bank/'
@@ -284,6 +296,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedResumesIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/report/$id': {
+      id: '/_authenticated/report/$id'
+      path: '/report/$id'
+      fullPath: '/report/$id'
+      preLoaderRoute: typeof AuthenticatedReportIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/legacy/$id': {
       id: '/_authenticated/legacy/$id'
       path: '/legacy/$id'
@@ -309,6 +328,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedBankIdRoute: typeof AuthenticatedBankIdRoute
   AuthenticatedLegacyIdRoute: typeof AuthenticatedLegacyIdRoute
+  AuthenticatedReportIdRoute: typeof AuthenticatedReportIdRoute
   AuthenticatedResumesIdRoute: typeof AuthenticatedResumesIdRoute
   AuthenticatedSessionIdRoute: typeof AuthenticatedSessionIdRoute
   AuthenticatedBankIndexRoute: typeof AuthenticatedBankIndexRoute
@@ -323,6 +343,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedBankIdRoute: AuthenticatedBankIdRoute,
   AuthenticatedLegacyIdRoute: AuthenticatedLegacyIdRoute,
+  AuthenticatedReportIdRoute: AuthenticatedReportIdRoute,
   AuthenticatedResumesIdRoute: AuthenticatedResumesIdRoute,
   AuthenticatedSessionIdRoute: AuthenticatedSessionIdRoute,
   AuthenticatedBankIndexRoute: AuthenticatedBankIndexRoute,

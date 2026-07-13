@@ -9,6 +9,7 @@ import { resumes } from "./modules/resumes/resumes.routes.js";
 import { performanceRoutes } from "./modules/performance/performance.routes.js";
 import { interviewAgentRoutes } from "./modules/interview-agent/interview-agent.routes.js";
 import { agentReadinessRoutes } from "./modules/agent-readiness/agent-readiness.routes.js";
+import { interviewLifecycleRoutes } from "./modules/interview-lifecycle/interview-lifecycle.routes.js";
 import { sessions } from "./modules/sessions/sessions.routes.js";
 import { createModuleLogger } from "./shared/logger/voice-logger.js";
 
@@ -31,6 +32,7 @@ app.route("/api/resumes", resumes);
 app.route("/api/performance", performanceRoutes);
 app.route("/api/sessions", sessions);
 app.route("/api/agent/readiness", agentReadinessRoutes);
+app.route("/api/agent", interviewLifecycleRoutes);
 app.route("/api/agent", interviewAgentRoutes);
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));

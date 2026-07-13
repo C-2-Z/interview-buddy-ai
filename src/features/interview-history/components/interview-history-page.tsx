@@ -24,7 +24,9 @@ import { isVoiceSession, type InterviewHistoryItem } from "../types";
  */
 function InterviewActions({ item }: { item: InterviewHistoryItem }) {
   if(!item.agent_version)return <Button size="sm" variant="outline" className="min-h-10" asChild><Link to="/legacy/$id" params={{id:item.id}}>只读查看</Link></Button>;
-  return <div className="flex flex-wrap gap-2"><Button size="sm" className="min-h-10" asChild><Link to="/session/$id" params={{id:item.id}}>{item.status==="completed"?"查看报告":"继续面试"}</Link></Button><Button size="sm" variant="outline" className="min-h-10" asChild><Link to="/new">再来一次</Link></Button></div>;
+  const destination=item.status==="completed"?"/report/$id" as const:"/session/$id" as const;
+  const label=item.status==="completed"?"查看报告":item.status==="paused"?"继续面试":item.status==="abandoned"?"查看并删除":"继续面试";
+  return <div className="flex flex-wrap gap-2"><Button size="sm" className="min-h-10" asChild><Link to={destination} params={{id:item.id}}>{label}</Link></Button><Button size="sm" variant="outline" className="min-h-10" asChild><Link to="/new">再来一次</Link></Button></div>;
 }
 
 /**
@@ -162,7 +164,7 @@ export function InterviewHistoryPage() {
                     <Badge variant="outline">{isVoiceSession(item) ? "语音" : "文本"}</Badge>
                     <Badge variant="outline">{item.difficulty}</Badge>
                     <Badge variant={item.status === "completed" ? "default" : "secondary"}>
-                      {item.status === "completed" ? "已完成" : "进行中"}
+                      {item.status === "completed" ? "已完成" : item.status === "paused" ? "已暂停" : item.status === "abandoned" ? "已放弃" : "进行中"}
                     </Badge>
                     {!item.agent_version&&<Badge variant="secondary">旧会话只读</Badge>}
                     <span>{new Date(item.created_at).toLocaleString("zh-CN")}</span>

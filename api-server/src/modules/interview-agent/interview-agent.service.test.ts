@@ -97,6 +97,7 @@ class MemoryInterviewAgentRepository implements InterviewAgentRepository {
       mode: input.mode,
       interviewMode: input.interviewMode,
       phase: "preparing",
+      productStatus: "in_progress",
       currentRole,
       agentConfig: {
         interviewMode: input.interviewMode,

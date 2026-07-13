@@ -50,7 +50,7 @@ function buildTestState() {
   });
 }
 
-test("web research is opt-in when creation omits the optional field", () => {
+test("web research uses the available safe provider by default", () => {
   const state = createInitialAgentState({
     sessionId: SESSION_ID,
     userId: USER_ID,
@@ -62,7 +62,7 @@ test("web research is opt-in when creation omits the optional field", () => {
       questionCount: 3,
     }),
   });
-  assert.equal(state.config.webResearch, false);
+  assert.equal(state.config.webResearch, true);
 });
 
 /**
