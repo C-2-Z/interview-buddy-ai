@@ -1,33 +1,5 @@
-/** 面试场次+题目 DB 访问（含向后兼容）*/
-import type { Database, Json } from "../../lib/supabase-types.js";
+/** 新旧面试场次与题目的只读兼容 Repository。 */
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
-import type { ProviderName } from "../model-providers/provider.types.js";
-
-type InterviewSessionInsert =
-  Database["public"]["Tables"]["interview_sessions"]["Insert"];
-
-export type CreateSessionRow = {
-  user_id: string;
-  skill_id: string | null;
-  position: string;
-  difficulty: string;
-  interview_mode: "text" | "voice";
-  job_description: string | null;
-  model_provider: ProviderName;
-  model_name: string | null;
-  user_api_key: string | null;
-  target_company: string | null;
-  resume_text: string | null;
-  question_type_config: Json | null;
-};
-
-export type CreateQuestionRow = {
-  session_id: string;
-  order_index: number;
-  question: string;
-  skill_id: string | null;
-  topic_summary: string | null;
-};
 
 /**
  * 判断 missing schema column
@@ -40,7 +12,6 @@ function isMissingSchemaColumn(message: string): boolean {
     message,
   );
 }
-
 function withFallbackInterviewMode<T extends Record<string, unknown>>(row: T): T {
   return {
     ...row,
@@ -52,77 +23,13 @@ function withFallbackInterviewMode<T extends Record<string, unknown>>(row: T): T
           : "text",
   };
 }
-
-/**
- * 创建 session
- * @returns
- */
-export async function createSession(
-  supabase: UserSupabaseClient,
-  row: CreateSessionRow,
-): Promise<{ id: string }> {
-  const { data, error } = await supabase
-    .from("interview_sessions")
-    .insert(row)
-    .select("id");
-  if (!error) return data?.[0] as { id: string };
-
-  if (!isMissingSchemaColumn(error.message)) throw new Error(error.message);
-
-  const fallbackRow: InterviewSessionInsert = {
-    ...row,
-    voice_mode: row.interview_mode === "voice",
-  };
-  delete fallbackRow.interview_mode;
-
-  const { data: fallbackData, error: fallbackError } = await supabase
-    .from("interview_sessions")
-    .insert(fallbackRow)
-    .select("id");
-  if (!fallbackError) return fallbackData?.[0] as { id: string };
-
-  if (!isMissingSchemaColumn(fallbackError.message)) {
-    throw new Error(fallbackError.message);
-  }
-  if (row.interview_mode === "text") {
-    delete fallbackRow.voice_mode;
-    const { data: legacyData, error: legacyError } = await supabase
-      .from("interview_sessions")
-      .insert(fallbackRow)
-      .select("id");
-    if (legacyError) throw new Error(legacyError.message);
-    return legacyData?.[0] as { id: string };
-  }
-
-  throw new Error(
-    "Database is missing interview mode columns. Apply the voice interview migrations before creating voice sessions.",
-  );
-}
-
-/**
- * 创建 questions
- * @returns
- */
-export async function createQuestions(
-  supabase: UserSupabaseClient,
-  rows: CreateQuestionRow[],
-): Promise<void> {
-  const { error } = await supabase.from("interview_questions").insert(rows);
-  if (error) throw new Error(error.message);
-}
-
-/**
- * 列出 sessions
- *
- * @param supabase -
- * @returns Promise<
- */
+/** 列出当前用户所有新旧会话；旧会话由前端标记只读。 */
 export async function listSessions(supabase: UserSupabaseClient) {
   const selectors = [
-    "id, position, difficulty, status, overall_score, created_at, interview_mode, voice_mode",
-    "id, position, difficulty, status, overall_score, created_at, interview_mode",
-    "id, position, difficulty, status, overall_score, created_at, voice_mode",
-    "id, position, difficulty, status, overall_score, created_at",
+    "id, position, difficulty, status, overall_score, created_at, interview_mode, voice_mode, agent_version",
+    "id, position, difficulty, status, overall_score, created_at, interview_mode, agent_version",
+    "id, position, difficulty, status, overall_score, created_at, voice_mode, agent_version",
+    "id, position, difficulty, status, overall_score, created_at, agent_version",
   ];
 
   for (const selector of selectors) {
@@ -143,11 +50,7 @@ export async function listSessions(supabase: UserSupabaseClient) {
     "Unable to list sessions because interview mode columns are unavailable.",
   );
 }
-
-/**
- * 获取 session with questions
- * @returns
- */
+/** 读取一场新旧会话及题目，不提供任何写能力。 */
 export async function getSessionWithQuestions(
   supabase: UserSupabaseClient,
   sessionId: string,
@@ -167,58 +70,4 @@ export async function getSessionWithQuestions(
     ),
     questions: questions ?? [],
   };
-}
-
-/**
- * 获取 session provider config
- * @returns
- */
-export async function getSessionProviderConfig(
-  supabase: UserSupabaseClient,
-  sessionId: string,
-) {
-  const { data, error } = await supabase
-    .from("interview_sessions")
-    .select("model_provider, model_name, user_api_key, skill_id")
-    .eq("id", sessionId)
-    .single();
-  if (error) throw new Error(error.message);
-  return data;
-}
-
-/**
- * 获取 scored questions
- * @returns
- */
-export async function getScoredQuestions(
-  supabase: UserSupabaseClient,
-  sessionId: string,
-) {
-  const { data, error } = await supabase
-    .from("interview_questions")
-    .select("score, feedback, question")
-    .eq("session_id", sessionId);
-  if (error) throw new Error(error.message);
-  return data ?? [];
-}
-
-/**
- * 完成 session
- * @returns
- */
-export async function completeSession(
-  supabase: UserSupabaseClient,
-  sessionId: string,
-  overallScore: number,
-  overallFeedback: string,
-): Promise<void> {
-  const { error } = await supabase
-    .from("interview_sessions")
-    .update({
-      status: "completed",
-      overall_score: overallScore,
-      overall_feedback: overallFeedback,
-    })
-    .eq("id", sessionId);
-  if (error) throw new Error(error.message);
 }

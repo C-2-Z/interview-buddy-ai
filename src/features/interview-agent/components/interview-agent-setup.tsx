@@ -1,262 +1,37 @@
-/** Agent setup page with mode selection and web research toggle. */
-import { useState } from "react";
-import { ChevronDown, Globe, Keyboard, Loader2, Mic2, Settings2, Users } from "lucide-react";
-import { useRouter } from "@tanstack/react-router";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { ModelSelector } from "@/features/interview-create/components/model-selector";
-import { SkillSelector } from "@/features/interview-create/components/skill-selector";
-import { SkillTags } from "@/features/interview-create/components/skill-tags";
-import { ResumeUpload } from "@/features/interview-create/components/resume-upload";
-import { QUESTION_COUNTS } from "@/features/interview-create/constants";
-import { useAgentSession } from "../hooks/use-agent-session";
-import type { AgentMode } from "../types";
-import { AGENT_ROLE_DISPLAY } from "../types";
+/** Agent 新建页：冻结角色模式、交互通道、岗位、题量、模型与研究选项。 */
+import {useState} from "react";
+import {Globe,Keyboard,Loader2,Mic2,Users} from "lucide-react";
+import {useNavigate} from "@tanstack/react-router";
+import {Button} from "@/components/ui/button";
+import {Card,CardContent,CardDescription,CardHeader,CardTitle} from "@/components/ui/card";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from "@/components/ui/select";
+import {Switch} from "@/components/ui/switch";
+import {Textarea} from "@/components/ui/textarea";
+import {useAgentSession} from "../hooks/use-agent-session";
+import type {AgentMode,CreateAgentSessionBody} from "../types";
 
-type AgentSetupDraft = {
-  mode: AgentMode;
-  position: string;
-  difficulty: string;
-  count: number;
-  targetCompany: string;
-  jobDescription: string;
-  webResearch: boolean;
-  modelProvider: string;
-  selectedSkillId: string | null;
-  resumeId: string | undefined;
-  resumeName: string;
-  resumeText: string;
-  interviewMode: "text" | "voice";
-};
+/** 表单草稿。 */
+type SetupDraft={mode:AgentMode;interviewMode:"text"|"voice";position:string;difficulty:"初级"|"中级"|"高级";questionCount:number;targetCompany:string;jobDescription:string;modelProvider:"deepseek"|"openai"|"anthropic";webResearch:boolean};
+const INITIAL_DRAFT:SetupDraft={mode:"single",interviewMode:"text",position:"",difficulty:"中级",questionCount:5,targetCompany:"",jobDescription:"",modelProvider:"deepseek",webResearch:true};
 
-const DEFAULT_DRAFT: AgentSetupDraft = {
-  mode: "single",
-  position: "",
-  difficulty: "??",
-  count: 5,
-  targetCompany: "",
-  jobDescription: "",
-  webResearch: true,
-  modelProvider: "deepseek",
-  selectedSkillId: null,
-  resumeId: undefined,
-  resumeName: "",
-  resumeText: "",
-  interviewMode: "text",
-};
-
-export function InterviewAgentSetupPage() {
-  const router = useRouter();
-  const { create, loading, error } = useAgentSession();
-  const [draft, setDraft] = useState<AgentSetupDraft>(DEFAULT_DRAFT);
-  const [step, setStep] = useState<1 | 2>(1);
-
-  const patchDraft = (patch: Partial<AgentSetupDraft>) => {
-    setDraft((prev) => ({ ...prev, ...patch }));
-  };
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (step === 1) {
-      setStep(2);
-      return;
-    }
-    const sessionId = await create({
-      mode: draft.mode,
-      interviewMode: draft.interviewMode,
-      position: draft.position,
-      difficulty: draft.difficulty,
-      questionCount: draft.count,
-      targetCompany: draft.targetCompany || undefined,
-      jobDescription: draft.jobDescription || undefined,
-      skillId: draft.selectedSkillId || undefined,
-      resumeId: draft.resumeId,
-      modelProvider: draft.modelProvider,
-      webResearch: draft.webResearch,
-    });
-    if (sessionId) {
-      router.navigate({ to: "/agent/" + sessionId });
-    }
-  };
-
-  const isVoice = draft.interviewMode === "voice";
-  const ModeIcon = isVoice ? Mic2 : Keyboard;
-
-  return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <header className="flex items-start gap-4">
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-          <ModeIcon className="size-6" />
-        </span>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Agent ????</h1>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            AI ??? LangGraph ??????????????????
-          </p>
-        </div>
-      </header>
-
-      {error && (
-        <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>
-      )}
-
-      <Card className="border-border/80 shadow-sm">
-        <CardHeader>
-          <CardTitle>{step === 1 ? "??????" : "??????"}</CardTitle>
-          <CardDescription>
-            {step === 1
-              ? "??????? AI ?????????????????HR ???????"
-              : "????????????????"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleCreate} className="space-y-6">
-            {step === 1 ? (
-              <>
-                <div className="space-y-3">
-                  <Label>????</Label>
-                  <ToggleGroup
-                    type="single"
-                    value={draft.mode}
-                    onValueChange={(value) => { if (value) patchDraft({ mode: value as AgentMode }); }}
-                    className="grid grid-cols-2 gap-3"
-                  >
-                    <ToggleGroupItem value="single" className="flex-col gap-2 p-6 data-[state=on]:border-primary">
-                      <Users className="size-8" />
-                      <div className="space-y-1 text-center">
-                        <div className="font-semibold">????</div>
-                        <div className="text-xs text-muted-foreground">?? AI ????????</div>
-                      </div>
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="panel" className="flex-col gap-2 p-6 data-[state=on]:border-primary">
-                      <Users className="size-8" />
-                      <div className="space-y-1 text-center">
-                        <div className="font-semibold">?????</div>
-                        <div className="text-xs text-muted-foreground">?? ?? HR ??????</div>
-                      </div>
-                    </ToggleGroupItem>
-                  </ToggleGroup>
-                </div>
-
-                {draft.mode === "panel" && (
-                  <div className="flex flex-wrap gap-2">
-                    {(["technical", "manager", "hr"] as const).map((roleId) => (
-                      <Badge key={roleId} className={AGENT_ROLE_DISPLAY[roleId].color + " text-white"}>
-                        {AGENT_ROLE_DISPLAY[roleId].label}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="agent-position">???? *</Label>
-                  <Input id="agent-position" className="min-h-11 text-base"
-                    placeholder="???????? / ????? / ????"
-                    value={draft.position} maxLength={100}
-                    onChange={(e) => patchDraft({ position: e.target.value })} />
-                </div>
-
-                <div className="flex items-center gap-4 rounded-xl border p-4">
-                  <div className="flex items-center gap-2"><Keyboard className="size-4" /><span className="text-sm">??</span></div>
-                  <Switch checked={draft.interviewMode === "voice"}
-                    onCheckedChange={(checked) => patchDraft({ interviewMode: checked ? "voice" : "text" })} />
-                  <div className="flex items-center gap-2"><Mic2 className="size-4" /><span className="text-sm">??</span></div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="agent-difficulty">??</Label>
-                    <Select value={draft.difficulty} onValueChange={(v) => patchDraft({ difficulty: v })}>
-                      <SelectTrigger id="agent-difficulty" className="min-h-11"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="??">??</SelectItem>
-                        <SelectItem value="??">??</SelectItem>
-                        <SelectItem value="??">??</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="agent-count">????</Label>
-                    <Select value={String(draft.count)} onValueChange={(v) => patchDraft({ count: Number(v) })}>
-                      <SelectTrigger id="agent-count" className="min-h-11"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {QUESTION_COUNTS.map((c) => (<SelectItem key={c} value={String(c)}>{c} ?</SelectItem>))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between rounded-xl border p-4">
-                  <div className="flex items-center gap-3">
-                    <Globe className="size-5 text-muted-foreground" />
-                    <div>
-                      <div className="text-sm font-medium">????</div>
-                      <div className="text-xs text-muted-foreground">?????????????????????</div>
-                    </div>
-                  </div>
-                  <Switch checked={draft.webResearch} onCheckedChange={(c) => patchDraft({ webResearch: c })} />
-                </div>
-
-                <ResumeUpload
-                  resumeName={draft.resumeName} resumeText={draft.resumeText}
-                  onResumeNameChange={(n) => patchDraft({ resumeName: n, resumeId: undefined })}
-                  onResumeTextChange={(t) => patchDraft({ resumeText: t, resumeId: undefined })}
-                  onClear={() => patchDraft({ resumeId: undefined, resumeName: "", resumeText: "" })}
-                />
-
-                <Collapsible>
-                  <div className="rounded-xl border">
-                    <CollapsibleTrigger asChild>
-                      <Button type="button" variant="ghost"
-                        className="group min-h-12 w-full justify-between rounded-xl px-4">
-                        <span className="inline-flex items-center gap-2"><Settings2 />????</span>
-                        <ChevronDown className="transition-transform group-data-[state=open]:rotate-180" />
-                      </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="space-y-5 border-t p-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="agent-company">???? <span className="text-xs text-muted-foreground">????</span></Label>
-                        <Input id="agent-company" className="min-h-11 text-base"
-                          placeholder="??????? / ?? / Google"
-                          value={draft.targetCompany} maxLength={100}
-                          onChange={(e) => patchDraft({ targetCompany: e.target.value })} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="agent-jd">?????? <span className="text-xs text-muted-foreground">????</span></Label>
-                        <Textarea id="agent-jd" className="min-h-28 text-base"
-                          placeholder="?????????????????????"
-                          value={draft.jobDescription} maxLength={2000}
-                          onChange={(e) => patchDraft({ jobDescription: e.target.value })} />
-                      </div>
-                      <ModelSelector value={draft.modelProvider} onChange={(m) => patchDraft({ modelProvider: m })} />
-                    </CollapsibleContent>
-                  </div>
-                </Collapsible>
-              </>
-            )}
-
-            <div className="flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:justify-between">
-              {step === 2 ? (
-                <Button type="button" variant="outline" className="min-h-11" onClick={() => setStep(1)}>?????</Button>
-              ) : <span />}
-              <Button type="submit" disabled={loading || !draft.position.trim()} className="min-h-11 sm:min-w-40">
-                {loading ? <><Loader2 className="animate-spin" />AI ????</>
-                  : step === 1 ? "???" : "????"}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  );
+/** Agent 面试配置页面。 */
+export function InterviewAgentSetupPage({initialResumeId}:{/** 从简历详情进入时冻结的简历 UUID。 */initialResumeId?:string}){
+  const navigate=useNavigate();const session=useAgentSession();const [draft,setDraft]=useState(INITIAL_DRAFT);
+  const patch=(value:Partial<SetupDraft>)=>setDraft((current)=>({...current,...value}));
+  /** 校验并创建唯一 Agent 会话。 */
+  async function submit(event:React.FormEvent){event.preventDefault();const body:CreateAgentSessionBody={mode:draft.mode,interviewMode:draft.interviewMode,position:draft.position.trim(),difficulty:draft.difficulty,questionCount:draft.questionCount,targetCompany:draft.targetCompany.trim()||undefined,jobDescription:draft.jobDescription.trim()||undefined,resumeId:initialResumeId,modelProvider:draft.modelProvider,webResearch:draft.webResearch};const sessionId=await session.create(body);await navigate({to:"/session/$id",params:{id:sessionId}});}
+  return <div className="mx-auto max-w-3xl space-y-6"><header><h1 className="text-3xl font-bold tracking-tight">创建 Agent 面试</h1><p className="mt-2 text-sm text-muted-foreground">LangGraph 会冻结题量和角色计划，研究岗位背景，并在每题后基于真实回答证据评分。</p></header>
+    {session.error&&<div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{session.error}</div>}
+    <form onSubmit={submit}><Card><CardHeader><CardTitle>面试配置</CardTitle><CardDescription>新会话全部进入 Canonical Agent；文本和语音共享同一状态迁移。{initialResumeId?" 已绑定当前简历。":""}</CardDescription></CardHeader><CardContent className="space-y-6">
+      <div className="space-y-2"><Label htmlFor="position">目标岗位</Label><Input id="position" value={draft.position} onChange={(event)=>patch({position:event.target.value})} placeholder="例如：Java 后端工程师" maxLength={100} required/></div>
+      <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>角色模式</Label><div className="grid grid-cols-2 gap-2"><Button type="button" variant={draft.mode==="single"?"default":"outline"} onClick={()=>patch({mode:"single"})}><Users/>单面试官</Button><Button type="button" variant={draft.mode==="panel"?"default":"outline"} onClick={()=>patch({mode:"panel"})}><Users/>技术·主管·HR</Button></div></div><div className="space-y-2"><Label>交互通道</Label><div className="grid grid-cols-2 gap-2"><Button type="button" variant={draft.interviewMode==="text"?"default":"outline"} onClick={()=>patch({interviewMode:"text"})}><Keyboard/>文本</Button><Button type="button" variant={draft.interviewMode==="voice"?"default":"outline"} onClick={()=>patch({interviewMode:"voice"})}><Mic2/>语音</Button></div></div></div>
+      <div className="grid gap-4 sm:grid-cols-3"><div className="space-y-2"><Label>难度</Label><Select value={draft.difficulty} onValueChange={(value)=>patch({difficulty:value as SetupDraft["difficulty"]})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="初级">初级</SelectItem><SelectItem value="中级">中级</SelectItem><SelectItem value="高级">高级</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>题目数量</Label><Select value={String(draft.questionCount)} onValueChange={(value)=>patch({questionCount:Number(value)})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{Array.from({length:8},(_,index)=>index+3).map((count)=><SelectItem key={count} value={String(count)}>{count} 题</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>模型</Label><Select value={draft.modelProvider} onValueChange={(value)=>patch({modelProvider:value as SetupDraft["modelProvider"]})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="deepseek">DeepSeek</SelectItem><SelectItem value="openai">OpenAI</SelectItem><SelectItem value="anthropic">Anthropic</SelectItem></SelectContent></Select></div></div>
+      <div className="space-y-2"><Label htmlFor="company">目标公司（选填）</Label><Input id="company" value={draft.targetCompany} onChange={(event)=>patch({targetCompany:event.target.value})} maxLength={100}/></div>
+      <div className="space-y-2"><Label htmlFor="jd">岗位需求描述（选填）</Label><Textarea id="jd" value={draft.jobDescription} onChange={(event)=>patch({jobDescription:event.target.value})} maxLength={2000} className="min-h-28"/></div>
+      <div className="flex items-center justify-between rounded-xl border p-4"><div className="flex gap-3"><Globe className="size-5 text-muted-foreground"/><div><div className="text-sm font-medium">准备阶段联网研究</div><div className="text-xs text-muted-foreground">只读取公司、岗位与行业来源；网页内容不会成为指令。</div></div></div><Switch checked={draft.webResearch} onCheckedChange={(value)=>patch({webResearch:value})}/></div>
+      <Button type="submit" className="w-full" disabled={session.loading||!draft.position.trim()}>{session.loading?<><Loader2 className="animate-spin"/>Agent 正在准备</>:"创建并开始面试"}</Button>
+    </CardContent></Card></form>
+  </div>;
 }

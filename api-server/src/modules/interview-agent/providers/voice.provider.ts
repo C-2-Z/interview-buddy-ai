@@ -62,6 +62,8 @@ export type SpeakInput = Readonly<{
  * 调用方不直接依赖 Qwen 类型，Graph 和 Bridge 只引用此接口。
  */
 export interface VoiceProvider {
+  /** Provider 输出 PCM 的采样率。 */
+  readonly outputSampleRate: number;
   /** 创建一次性的流式 ASR 会话。 */
   createAsrSession(input: AsrSessionConfig): StreamingAsrSession;
   /** 创建可复用的流式 TTS 会话（支持多轮 speak）。 */

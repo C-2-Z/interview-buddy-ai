@@ -12,7 +12,7 @@ export const APP_NAVIGATION: AppNavigationGroup[] = [
         icon: Sparkles,
       },
       { label: "简历管理", description: "管理简历与 AI 分析", to: "/resumes", icon: FileStack },
-      { label: "面试记录", description: "查看记录与评估报告", to: "/interviews", icon: History },
+      { label: "面试记录", description: "查看记录与评估报告", to: "/history", icon: History },
     ],
   },
   {

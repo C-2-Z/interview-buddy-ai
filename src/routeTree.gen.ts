@@ -18,16 +18,11 @@ import { Route as AuthenticatedInterviewHubRouteImport } from './routes/_authent
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedResumesIndexRouteImport } from './routes/_authenticated/resumes/index'
-import { Route as AuthenticatedInterviewsIndexRouteImport } from './routes/_authenticated/interviews/index'
 import { Route as AuthenticatedBankIndexRouteImport } from './routes/_authenticated/bank/index'
-import { Route as AuthenticatedVoiceNewRouteImport } from './routes/_authenticated/voice/new'
 import { Route as AuthenticatedSessionIdRouteImport } from './routes/_authenticated/session.$id'
 import { Route as AuthenticatedResumesIdRouteImport } from './routes/_authenticated/resumes/$id'
-import { Route as AuthenticatedInterviewsIdRouteImport } from './routes/_authenticated/interviews/$id'
+import { Route as AuthenticatedLegacyIdRouteImport } from './routes/_authenticated/legacy.$id'
 import { Route as AuthenticatedBankIdRouteImport } from './routes/_authenticated/bank/$id'
-import { Route as AuthenticatedAgentNewRouteImport } from './routes/_authenticated/agent/new'
-import { Route as AuthenticatedAgentSessionIdRouteImport } from './routes/_authenticated/agent/$sessionId'
-import { Route as AuthenticatedVoiceSessionIdRouteImport } from './routes/_authenticated/voice/session.$id'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -75,20 +70,9 @@ const AuthenticatedResumesIndexRoute =
     path: '/resumes/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedInterviewsIndexRoute =
-  AuthenticatedInterviewsIndexRouteImport.update({
-    id: '/interviews/',
-    path: '/interviews/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedBankIndexRoute = AuthenticatedBankIndexRouteImport.update({
   id: '/bank/',
   path: '/bank/',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedVoiceNewRoute = AuthenticatedVoiceNewRouteImport.update({
-  id: '/voice/new',
-  path: '/voice/new',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSessionIdRoute = AuthenticatedSessionIdRouteImport.update({
@@ -101,34 +85,16 @@ const AuthenticatedResumesIdRoute = AuthenticatedResumesIdRouteImport.update({
   path: '/resumes/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedInterviewsIdRoute =
-  AuthenticatedInterviewsIdRouteImport.update({
-    id: '/interviews/$id',
-    path: '/interviews/$id',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
+const AuthenticatedLegacyIdRoute = AuthenticatedLegacyIdRouteImport.update({
+  id: '/legacy/$id',
+  path: '/legacy/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedBankIdRoute = AuthenticatedBankIdRouteImport.update({
   id: '/bank/$id',
   path: '/bank/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedAgentNewRoute = AuthenticatedAgentNewRouteImport.update({
-  id: '/agent/new',
-  path: '/agent/new',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedAgentSessionIdRoute =
-  AuthenticatedAgentSessionIdRouteImport.update({
-    id: '/agent/$sessionId',
-    path: '/agent/$sessionId',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedVoiceSessionIdRoute =
-  AuthenticatedVoiceSessionIdRouteImport.update({
-    id: '/voice/session/$id',
-    path: '/voice/session/$id',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -138,17 +104,12 @@ export interface FileRoutesByFullPath {
   '/interview-hub': typeof AuthenticatedInterviewHubRoute
   '/new': typeof AuthenticatedNewRoute
   '/settings': typeof AuthenticatedSettingsRoute
-  '/agent/$sessionId': typeof AuthenticatedAgentSessionIdRoute
-  '/agent/new': typeof AuthenticatedAgentNewRoute
   '/bank/$id': typeof AuthenticatedBankIdRoute
-  '/interviews/$id': typeof AuthenticatedInterviewsIdRoute
+  '/legacy/$id': typeof AuthenticatedLegacyIdRoute
   '/resumes/$id': typeof AuthenticatedResumesIdRoute
   '/session/$id': typeof AuthenticatedSessionIdRoute
-  '/voice/new': typeof AuthenticatedVoiceNewRoute
   '/bank/': typeof AuthenticatedBankIndexRoute
-  '/interviews/': typeof AuthenticatedInterviewsIndexRoute
   '/resumes/': typeof AuthenticatedResumesIndexRoute
-  '/voice/session/$id': typeof AuthenticatedVoiceSessionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -158,17 +119,12 @@ export interface FileRoutesByTo {
   '/interview-hub': typeof AuthenticatedInterviewHubRoute
   '/new': typeof AuthenticatedNewRoute
   '/settings': typeof AuthenticatedSettingsRoute
-  '/agent/$sessionId': typeof AuthenticatedAgentSessionIdRoute
-  '/agent/new': typeof AuthenticatedAgentNewRoute
   '/bank/$id': typeof AuthenticatedBankIdRoute
-  '/interviews/$id': typeof AuthenticatedInterviewsIdRoute
+  '/legacy/$id': typeof AuthenticatedLegacyIdRoute
   '/resumes/$id': typeof AuthenticatedResumesIdRoute
   '/session/$id': typeof AuthenticatedSessionIdRoute
-  '/voice/new': typeof AuthenticatedVoiceNewRoute
   '/bank': typeof AuthenticatedBankIndexRoute
-  '/interviews': typeof AuthenticatedInterviewsIndexRoute
   '/resumes': typeof AuthenticatedResumesIndexRoute
-  '/voice/session/$id': typeof AuthenticatedVoiceSessionIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -180,17 +136,12 @@ export interface FileRoutesById {
   '/_authenticated/interview-hub': typeof AuthenticatedInterviewHubRoute
   '/_authenticated/new': typeof AuthenticatedNewRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
-  '/_authenticated/agent/$sessionId': typeof AuthenticatedAgentSessionIdRoute
-  '/_authenticated/agent/new': typeof AuthenticatedAgentNewRoute
   '/_authenticated/bank/$id': typeof AuthenticatedBankIdRoute
-  '/_authenticated/interviews/$id': typeof AuthenticatedInterviewsIdRoute
+  '/_authenticated/legacy/$id': typeof AuthenticatedLegacyIdRoute
   '/_authenticated/resumes/$id': typeof AuthenticatedResumesIdRoute
   '/_authenticated/session/$id': typeof AuthenticatedSessionIdRoute
-  '/_authenticated/voice/new': typeof AuthenticatedVoiceNewRoute
   '/_authenticated/bank/': typeof AuthenticatedBankIndexRoute
-  '/_authenticated/interviews/': typeof AuthenticatedInterviewsIndexRoute
   '/_authenticated/resumes/': typeof AuthenticatedResumesIndexRoute
-  '/_authenticated/voice/session/$id': typeof AuthenticatedVoiceSessionIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -202,17 +153,12 @@ export interface FileRouteTypes {
     | '/interview-hub'
     | '/new'
     | '/settings'
-    | '/agent/$sessionId'
-    | '/agent/new'
     | '/bank/$id'
-    | '/interviews/$id'
+    | '/legacy/$id'
     | '/resumes/$id'
     | '/session/$id'
-    | '/voice/new'
     | '/bank/'
-    | '/interviews/'
     | '/resumes/'
-    | '/voice/session/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -222,17 +168,12 @@ export interface FileRouteTypes {
     | '/interview-hub'
     | '/new'
     | '/settings'
-    | '/agent/$sessionId'
-    | '/agent/new'
     | '/bank/$id'
-    | '/interviews/$id'
+    | '/legacy/$id'
     | '/resumes/$id'
     | '/session/$id'
-    | '/voice/new'
     | '/bank'
-    | '/interviews'
     | '/resumes'
-    | '/voice/session/$id'
   id:
     | '__root__'
     | '/'
@@ -243,17 +184,12 @@ export interface FileRouteTypes {
     | '/_authenticated/interview-hub'
     | '/_authenticated/new'
     | '/_authenticated/settings'
-    | '/_authenticated/agent/$sessionId'
-    | '/_authenticated/agent/new'
     | '/_authenticated/bank/$id'
-    | '/_authenticated/interviews/$id'
+    | '/_authenticated/legacy/$id'
     | '/_authenticated/resumes/$id'
     | '/_authenticated/session/$id'
-    | '/_authenticated/voice/new'
     | '/_authenticated/bank/'
-    | '/_authenticated/interviews/'
     | '/_authenticated/resumes/'
-    | '/_authenticated/voice/session/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -327,25 +263,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedResumesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/interviews/': {
-      id: '/_authenticated/interviews/'
-      path: '/interviews'
-      fullPath: '/interviews/'
-      preLoaderRoute: typeof AuthenticatedInterviewsIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/bank/': {
       id: '/_authenticated/bank/'
       path: '/bank'
       fullPath: '/bank/'
       preLoaderRoute: typeof AuthenticatedBankIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/voice/new': {
-      id: '/_authenticated/voice/new'
-      path: '/voice/new'
-      fullPath: '/voice/new'
-      preLoaderRoute: typeof AuthenticatedVoiceNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/session/$id': {
@@ -362,11 +284,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedResumesIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/interviews/$id': {
-      id: '/_authenticated/interviews/$id'
-      path: '/interviews/$id'
-      fullPath: '/interviews/$id'
-      preLoaderRoute: typeof AuthenticatedInterviewsIdRouteImport
+    '/_authenticated/legacy/$id': {
+      id: '/_authenticated/legacy/$id'
+      path: '/legacy/$id'
+      fullPath: '/legacy/$id'
+      preLoaderRoute: typeof AuthenticatedLegacyIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/bank/$id': {
@@ -374,27 +296,6 @@ declare module '@tanstack/react-router' {
       path: '/bank/$id'
       fullPath: '/bank/$id'
       preLoaderRoute: typeof AuthenticatedBankIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/agent/new': {
-      id: '/_authenticated/agent/new'
-      path: '/agent/new'
-      fullPath: '/agent/new'
-      preLoaderRoute: typeof AuthenticatedAgentNewRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/agent/$sessionId': {
-      id: '/_authenticated/agent/$sessionId'
-      path: '/agent/$sessionId'
-      fullPath: '/agent/$sessionId'
-      preLoaderRoute: typeof AuthenticatedAgentSessionIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/voice/session/$id': {
-      id: '/_authenticated/voice/session/$id'
-      path: '/voice/session/$id'
-      fullPath: '/voice/session/$id'
-      preLoaderRoute: typeof AuthenticatedVoiceSessionIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
   }
@@ -406,17 +307,12 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInterviewHubRoute: typeof AuthenticatedInterviewHubRoute
   AuthenticatedNewRoute: typeof AuthenticatedNewRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
-  AuthenticatedAgentSessionIdRoute: typeof AuthenticatedAgentSessionIdRoute
-  AuthenticatedAgentNewRoute: typeof AuthenticatedAgentNewRoute
   AuthenticatedBankIdRoute: typeof AuthenticatedBankIdRoute
-  AuthenticatedInterviewsIdRoute: typeof AuthenticatedInterviewsIdRoute
+  AuthenticatedLegacyIdRoute: typeof AuthenticatedLegacyIdRoute
   AuthenticatedResumesIdRoute: typeof AuthenticatedResumesIdRoute
   AuthenticatedSessionIdRoute: typeof AuthenticatedSessionIdRoute
-  AuthenticatedVoiceNewRoute: typeof AuthenticatedVoiceNewRoute
   AuthenticatedBankIndexRoute: typeof AuthenticatedBankIndexRoute
-  AuthenticatedInterviewsIndexRoute: typeof AuthenticatedInterviewsIndexRoute
   AuthenticatedResumesIndexRoute: typeof AuthenticatedResumesIndexRoute
-  AuthenticatedVoiceSessionIdRoute: typeof AuthenticatedVoiceSessionIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -425,17 +321,12 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInterviewHubRoute: AuthenticatedInterviewHubRoute,
   AuthenticatedNewRoute: AuthenticatedNewRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
-  AuthenticatedAgentSessionIdRoute: AuthenticatedAgentSessionIdRoute,
-  AuthenticatedAgentNewRoute: AuthenticatedAgentNewRoute,
   AuthenticatedBankIdRoute: AuthenticatedBankIdRoute,
-  AuthenticatedInterviewsIdRoute: AuthenticatedInterviewsIdRoute,
+  AuthenticatedLegacyIdRoute: AuthenticatedLegacyIdRoute,
   AuthenticatedResumesIdRoute: AuthenticatedResumesIdRoute,
   AuthenticatedSessionIdRoute: AuthenticatedSessionIdRoute,
-  AuthenticatedVoiceNewRoute: AuthenticatedVoiceNewRoute,
   AuthenticatedBankIndexRoute: AuthenticatedBankIndexRoute,
-  AuthenticatedInterviewsIndexRoute: AuthenticatedInterviewsIndexRoute,
   AuthenticatedResumesIndexRoute: AuthenticatedResumesIndexRoute,
-  AuthenticatedVoiceSessionIdRoute: AuthenticatedVoiceSessionIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

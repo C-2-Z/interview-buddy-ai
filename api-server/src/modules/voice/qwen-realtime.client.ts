@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { WebSocket } from "ws";
 import { getRequiredEnv } from "../../config/env.js";
-import { voiceError, voiceLog } from "./voice-logger.js";
+import { voiceError, voiceLog } from "../../shared/logger/voice-logger.js";
 
 type QwenRealtimeResult = {
   text: string;

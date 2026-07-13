@@ -82,17 +82,11 @@ export function ResumeDetailPage({ resumeId }: { resumeId: string }) {
             上传于 {new Date(resume.createdAt).toLocaleString("zh-CN")}
           </p>
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <Button variant="outline" className="min-h-11" asChild>
+        <div>
+          <Button className="min-h-11" asChild>
             <Link to="/new" search={{ resumeId: resume.id }}>
               <Keyboard />
-              创建文本简历面试
-            </Link>
-          </Button>
-          <Button className="min-h-11" asChild>
-            <Link to="/voice/new" search={{ resumeId: resume.id }}>
-              <Mic2 />
-              创建语音简历面试
+              使用此简历创建 Agent 面试
             </Link>
           </Button>
         </div>

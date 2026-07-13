@@ -7,14 +7,12 @@
   },
   "scripts": {
     "dev": "tsx watch src/serve.ts",
-    "worker:dev": "tsx watch src/modules/generation/generation.worker.ts",
-    "test": "npm run test:legacy && npm run test:agent",
-    "test:legacy": "tsx --test src/modules/sessions/question-generation.service.test.ts src/modules/sessions/agent-compat.service.test.ts src/modules/voice/qwen-realtime.client.test.ts",
-    "test:agent": "tsx --test src/modules/interview-agent/roles/personas.test.ts src/modules/interview-agent/interview-agent.config.test.ts src/modules/interview-agent/events/agent-event-stream.test.ts src/modules/interview-agent/graph/interview-agent.graph.test.ts src/modules/interview-agent/graph/checkpointer.integration.test.ts src/modules/interview-agent/graph/input-guard.test.ts src/modules/interview-agent/graph/answer-sufficiency.test.ts src/modules/interview-agent/input/input.repository.test.ts src/modules/interview-agent/runtime/question-runtime.service.test.ts src/modules/interview-agent/evaluation/evaluation.service.test.ts src/modules/interview-agent/report/report.service.test.ts src/modules/interview-agent/audit/agent-run.service.test.ts src/modules/interview-agent/interview-agent.repository.test.ts src/modules/interview-agent/interview-agent.service.test.ts src/modules/interview-agent/providers/web-search.provider.test.ts src/modules/interview-agent/providers/production-agent-model.provider.test.ts src/modules/interview-agent/tools/capability-blueprint.test.ts src/modules/interview-agent/tools/question-selector.test.ts src/modules/interview-agent/tools/research.service.test.ts src/modules/interview-agent/tools/preparation.service.test.ts src/modules/interview-agent/tools/preparation.repository.test.ts",
+    "test": "npm run test:voice && npm run test:agent",
+    "test:voice": "tsx --test src/modules/voice/qwen-realtime.client.test.ts src/modules/interview-agent/voice-bridge/voice-bridge.service.test.ts",
+    "test:agent": "tsx --test src/modules/interview-agent/roles/personas.test.ts src/modules/interview-agent/interview-agent.config.test.ts src/modules/interview-agent/events/agent-event-stream.test.ts src/modules/interview-agent/graph/interview-agent.graph.test.ts src/modules/interview-agent/graph/checkpointer.integration.test.ts src/modules/interview-agent/graph/input-guard.test.ts src/modules/interview-agent/graph/answer-sufficiency.test.ts src/modules/interview-agent/input/input.repository.test.ts src/modules/interview-agent/runtime/question-runtime.service.test.ts src/modules/interview-agent/evaluation/evaluation.service.test.ts src/modules/interview-agent/report/report.service.test.ts src/modules/interview-agent/audit/agent-run.service.test.ts src/modules/interview-agent/workspace/workspace.repository.test.ts src/modules/interview-agent/interview-agent.repository.test.ts src/modules/interview-agent/interview-agent.service.test.ts src/modules/interview-agent/providers/web-search.provider.test.ts src/modules/interview-agent/providers/production-agent-model.provider.test.ts src/modules/interview-agent/tools/capability-blueprint.test.ts src/modules/interview-agent/tools/question-selector.test.ts src/modules/interview-agent/tools/research.service.test.ts src/modules/interview-agent/tools/preparation.service.test.ts src/modules/interview-agent/tools/preparation.repository.test.ts",
     "agent:checkpoint:setup": "tsx src/modules/interview-agent/graph/setup-checkpoint.ts",
     "build": "tsc && node -e \"require('fs').cpSync('src/lib/skills','dist/lib/skills',{recursive:true,filter:s=>!s.endsWith('.ts')})\"",
-    "start": "node dist/serve.js",
-    "worker:start": "node dist/modules/generation/generation.worker.js"
+    "start": "node dist/serve.js"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.1",
@@ -23,11 +21,9 @@
     "@langchain/langgraph-checkpoint-postgres": "^1.0.4",
     "@langchain/tavily": "^1.2.0",
     "@supabase/supabase-js": "^2.110.0",
-    "bullmq": "^5.80.0",
     "consola": "^3.4.2",
     "dotenv": "^17.4.2",
     "hono": "^4.7.6",
-    "ioredis": "^5.11.1",
     "mammoth": "^1.12.0",
     "pdf-parse": "^2.4.5",
     "pdfjs-dist": "^4.9.155",

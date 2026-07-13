@@ -77,13 +77,5 @@ export function getAgentRuntimeConfig(): AgentRuntimeConfig {
   });
 }
 
-/**
- * 判断是否允许创建新 Agent 会话。
- *
- * 关闭时只禁止创建，不影响已存在 Agent 会话的读取和恢复，也绝不回退到旧写流程。
- *
- * @returns 仅在显式开启时为 true。
- */
-export function agentInterviewEnabled(): boolean {
-  return getAgentRuntimeConfig().enabled;
-}
+/** 判断灰度闸门是否允许创建新 Agent；关闭时绝不回退旧写流程。 */
+export function agentInterviewEnabled():boolean{return getAgentRuntimeConfig().enabled;}

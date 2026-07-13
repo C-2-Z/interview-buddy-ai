@@ -5,7 +5,10 @@ import {
   requireAuth,
   type AuthVariables,
 } from "../../shared/auth/require-auth.js";
-import { createModuleLogger } from "../voice/voice-logger.js";
+import { createModuleLogger } from "../../shared/logger/voice-logger.js";
+import { createVoiceSocketToken } from "../voice/voice-token.service.js";
+import { createAgentWorkspaceRepository } from "./workspace/workspace.repository.js";
+import { AgentWorkspaceService } from "./workspace/workspace.service.js";
 import { streamCommittedAgentEvents } from "./events/agent-event-stream.js";
 import { createInterviewAgentRepository } from "./interview-agent.repository.js";
 import { InterviewAgentRepositoryError } from "./interview-agent.repository.js";
@@ -157,5 +160,52 @@ interviewAgentRoutes.get("/sessions/:sessionId/events", async (context) => {
   await repository.getOwnedSessionProjection(sessionId);
   return streamCommittedAgentEvents(context, repository, sessionId);
 });
+
+/** 返回恢复页面所需的真实题目、消息、研究、证据、评分与报告投影。 */
+interviewAgentRoutes.get("/sessions/:sessionId/workspace", async (context) => {
+  const { sessionId } = AgentSessionParamsSchema.parse(context.req.param());
+  const agentService = createInterviewAgentService(
+    context.var.supabase,
+    context.var.userId,
+  );
+  const workspaceService = new AgentWorkspaceService(
+    agentService,
+    createAgentWorkspaceRepository(context.var.supabase),
+  );
+  return context.json(await workspaceService.load(sessionId));
+});
+
+/** 为 voice 模式 Agent 签发短期 WebSocket token；文本会话不能升级为语音。 */
+interviewAgentRoutes.post(
+  "/sessions/:sessionId/voice/connect",
+  async (context) => {
+    const { sessionId } = AgentSessionParamsSchema.parse(context.req.param());
+    const repository = createInterviewAgentRepository(context.var.supabase);
+    const projection = await repository.getOwnedSessionProjection(sessionId);
+    if (projection.interviewMode !== "voice") {
+      throw new InterviewAgentServiceError(
+        "agent_invalid_phase",
+        "This Agent session is not configured for voice.",
+        409,
+        false,
+      );
+    }
+    const authorization = context.req.header("authorization") ?? "";
+    const accessToken = authorization.replace(/^Bearer\s+/i, "");
+    const { token, expiresAt } = createVoiceSocketToken({
+      sessionId,
+      userId: context.var.userId,
+      accessToken,
+    });
+    const url = new URL(context.req.url);
+    const forwardedProtocol = context.req.header("x-forwarded-proto");
+    url.protocol = (forwardedProtocol ?? url.protocol.replace(":", "")) === "https"
+      ? "wss:"
+      : "ws:";
+    url.pathname = "/api/voice/ws";
+    url.search = `?token=${encodeURIComponent(token)}`;
+    return context.json({ wsUrl: url.toString(), expiresAt });
+  },
+);
 
 export { interviewAgentRoutes };

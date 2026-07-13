@@ -1,6 +1,5 @@
 /** Interview Agent PostgreSQL checkpointer 的运行时工厂与安全配置校验。 */
 import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
-import { MemorySaver } from "@langchain/langgraph";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import {
   BaseCheckpointSaver,
@@ -240,8 +239,7 @@ export function createPostgresCheckpointer(
   const connectionString =
     options.connectionString ?? process.env.DATABASE_URL;
   if (!connectionString?.trim()) {
-    console.warn("[agent-checkpointer] DATABASE_URL not set. Falling back to MemorySaver. Restarts will lose all checkpoints.");
-    return withAgentCheckpointNamespace(new MemorySaver());
+    throw new Error("DATABASE_URL is required for durable Agent checkpoints");
   }
 
   return PostgresSaver.fromConnString(connectionString, {

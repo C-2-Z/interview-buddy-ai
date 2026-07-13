@@ -6,8 +6,6 @@ import {
   BriefcaseBusiness,
   CheckCircle2,
   FileStack,
-  Keyboard,
-  Mic2,
   RotateCw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -15,34 +13,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useInterviewHub } from "../hooks/use-interview-hub";
-import { isVoiceInterview, type RecentInterview } from "../types";
+import type { RecentInterview } from "../types";
 
 const ENTRY_CARDS = [
   {
-    title: "Agent ??",
-    description: "LangGraph ????????????????????????????",
-    to: "/agent/new" as const,
-    action: "?? Agent ??",
+    title: "Agent 面试",
+    description: "LangGraph 多轮面试，AI 自主出题。适合左侧聊天模式面试",
+    to: "/new" as const,
+    action: "开始 Agent 面试",
     icon: Bot,
     className: "bg-indigo-600 text-white",
   },
 
-  {
-    title: "文本面试",
-    description: "逐题文字作答，适合梳理思路、打磨表达和复盘答案。",
-    to: "/new" as const,
-    action: "配置文本面试",
-    icon: Keyboard,
-    className: "bg-primary text-primary-foreground",
-  },
-  {
-    title: "语音面试",
-    description: "AI 主动提问并实时听答，模拟真实线上面试节奏。",
-    to: "/voice/new" as const,
-    action: "进入语音面试",
-    icon: Mic2,
-    className: "bg-foreground text-background",
-  },
+
   {
     title: "简历面试",
     description: "从简历经历出发准备追问，让练习更贴近你的真实背景。",
@@ -60,26 +43,11 @@ const ENTRY_CARDS = [
  * @returns
  */
 function RecentInterviewAction({ session }: { session: RecentInterview }) {
-  if (session.status === "completed") {
-    return (
-      <Button variant="outline" size="sm" className="min-h-10" asChild>
-        <Link to="/interviews/$id" params={{ id: session.id }}>
-          查看报告
-        </Link>
-      </Button>
-    );
-  }
-
-  return isVoiceInterview(session) ? (
-    <Button variant="outline" size="sm" className="min-h-10" asChild>
-      <Link to="/voice/session/$id" params={{ id: session.id }}>
-        继续面试
-      </Link>
-    </Button>
-  ) : (
+  if(!session.agent_version)return <Button variant="outline" size="sm" className="min-h-10" asChild><Link to="/legacy/$id" params={{id:session.id}}>只读查看</Link></Button>;
+  return (
     <Button variant="outline" size="sm" className="min-h-10" asChild>
       <Link to="/session/$id" params={{ id: session.id }}>
-        继续面试
+        {session.status === "completed" ? "查看报告" : "继续面试"}
       </Link>
     </Button>
   );
@@ -101,7 +69,7 @@ export function InterviewHubPage() {
         </div>
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">今天想练习哪一种面试？</h1>
         <p className="mt-3 text-base leading-7 text-muted-foreground">
-          文本与语音是两条独立练习流程。选择最适合当前目标的方式，AI 会根据岗位和难度准备问题。
+          文本与语音共享同一个可恢复 Agent。选择交互通道后，AI 会按岗位研究、角色计划和证据评分完成整场面试。
         </p>
       </header>
 
@@ -153,7 +121,7 @@ export function InterviewHubPage() {
             </p>
           </div>
           <Button variant="ghost" className="min-h-11" asChild>
-            <Link to="/interviews">
+            <Link to="/history">
               查看全部记录
               <ArrowRight />
             </Link>
@@ -185,7 +153,7 @@ export function InterviewHubPage() {
                 完成面试后，这里会保留进度、得分和报告入口。
               </p>
               <Button className="mt-5 min-h-11" asChild>
-                <Link to="/new">创建文本面试</Link>
+                <Link to="/new">开始 Agent 面试</Link>
               </Button>
             </CardContent>
           </Card>
@@ -196,17 +164,13 @@ export function InterviewHubPage() {
                 <CardContent className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center">
                   <div className="flex min-w-0 flex-1 items-start gap-3">
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-secondary-foreground">
-                      {isVoiceInterview(session) ? (
-                        <Mic2 className="size-5" />
-                      ) : (
-                        <Keyboard className="size-5" />
-                      )}
+                      <Bot className="size-5" />
                     </span>
                     <div className="min-w-0">
                       <div className="truncate font-medium">{session.position}</div>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                         <Badge variant="outline">
-                          {isVoiceInterview(session) ? "语音" : "文本"}
+                          "面试"
                         </Badge>
                         <span>{session.difficulty}</span>
                         <span>{new Date(session.created_at).toLocaleString("zh-CN")}</span>

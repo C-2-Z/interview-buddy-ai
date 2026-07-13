@@ -23,41 +23,8 @@ import { isVoiceSession, type InterviewHistoryItem } from "../types";
  * @returns
  */
 function InterviewActions({ item }: { item: InterviewHistoryItem }) {
-  if (item.status === "completed") {
-    return (
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" className="min-h-10" asChild>
-          <Link to="/interviews/$id" params={{ id: item.id }}>
-            查看报告
-          </Link>
-        </Button>
-        <Button size="sm" variant="outline" className="min-h-10" asChild>
-          {isVoiceSession(item) ? (
-            <Link to="/voice/new" search={{ sourceSessionId: item.id }}>
-              再来一次
-            </Link>
-          ) : (
-            <Link to="/new" search={{ sourceSessionId: item.id }}>
-              再来一次
-            </Link>
-          )}
-        </Button>
-      </div>
-    );
-  }
-  return isVoiceSession(item) ? (
-    <Button size="sm" className="min-h-10" asChild>
-      <Link to="/voice/session/$id" params={{ id: item.id }}>
-        继续面试
-      </Link>
-    </Button>
-  ) : (
-    <Button size="sm" className="min-h-10" asChild>
-      <Link to="/session/$id" params={{ id: item.id }}>
-        继续面试
-      </Link>
-    </Button>
-  );
+  if(!item.agent_version)return <Button size="sm" variant="outline" className="min-h-10" asChild><Link to="/legacy/$id" params={{id:item.id}}>只读查看</Link></Button>;
+  return <div className="flex flex-wrap gap-2"><Button size="sm" className="min-h-10" asChild><Link to="/session/$id" params={{id:item.id}}>{item.status==="completed"?"查看报告":"继续面试"}</Link></Button><Button size="sm" variant="outline" className="min-h-10" asChild><Link to="/new">再来一次</Link></Button></div>;
 }
 
 /**
@@ -197,6 +164,7 @@ export function InterviewHistoryPage() {
                     <Badge variant={item.status === "completed" ? "default" : "secondary"}>
                       {item.status === "completed" ? "已完成" : "进行中"}
                     </Badge>
+                    {!item.agent_version&&<Badge variant="secondary">旧会话只读</Badge>}
                     <span>{new Date(item.created_at).toLocaleString("zh-CN")}</span>
                   </div>
                 </div>

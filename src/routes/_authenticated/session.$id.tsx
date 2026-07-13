@@ -1,15 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { InterviewSessionPage } from "@/features/interview-session/components/interview-session-page";
+import { InterviewAgentPage } from "@/features/interview-agent/components/interview-agent-page";
 
 export const Route = createFileRoute("/_authenticated/session/$id")({
-  component: SessionRoute,
+  component: AgentSessionRoute,
 });
 
-/**
- * session 路由
- * @returns
- */
-function SessionRoute() {
+function AgentSessionRoute() {
   const { id } = Route.useParams();
-  return <InterviewSessionPage sessionId={id} />;
+  return <InterviewAgentPage sessionId={id} />;
 }

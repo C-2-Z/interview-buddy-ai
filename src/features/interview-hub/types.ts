@@ -1,5 +1,5 @@
 /** 面试中心：概览仪表盘 - 类型定义 */
-import type { SessionItem } from "@/features/interview-session/types";
+import type { InterviewHistoryItem as SessionItem } from "@/features/interview-history/types";
 
 export type RecentInterview = SessionItem;
 

@@ -1,4 +1,4 @@
-import { createModuleLogger } from "../voice/voice-logger.js";
+import { createModuleLogger } from "../../shared/logger/voice-logger.js";
 
 const logger = createModuleLogger("performance");
 

@@ -1,5 +1,4 @@
-/** 语音面试 WebSocket 事件类型 */
-import type { InterviewMessage } from "../questions/messages.repository.js";
+/** Agent 语音 WebSocket 控制与输出事件类型。 */
 
 export type VoiceClientEvent =
   | {
@@ -10,9 +9,7 @@ export type VoiceClientEvent =
       sampleRate: number;
     }
   | { type: "audio_end"; turnId: string }
-  | { type: "interrupt"; questionId: string; turnId: string }
-  | { type: "end_question"; questionId: string }
-  | { type: "end_session"; sessionId: string };
+  | { type: "interrupt"; questionId: string; turnId: string };
 
 export type VoiceServerEvent =
   | { type: "ready"; sessionId: string }
@@ -74,18 +71,3 @@ export type VoiceServerEvent =
       overallScore: number;
       overallFeedback: string;
     };
-
-export type VoiceDecision =
-  | { action: "follow_up"; response: string }
-  | {
-      action: "finish_question";
-      response: string;
-      score: number;
-      feedback: string;
-    }
-  | { action: "finish_session"; response: string }
-  | { action: "redirect"; response: string };
-
-export type VoiceSessionMessagesResponse = {
-  messages: InterviewMessage[];
-};

@@ -2,7 +2,7 @@
 import { randomUUID } from "node:crypto";
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import { resolveProviderForCreation } from "../model-providers/model-provider.service.js";
-import { createModuleLogger } from "../voice/voice-logger.js";
+import { createModuleLogger } from "../../shared/logger/voice-logger.js";
 import { getAgentRuntimeConfig, type AgentRuntimeConfig } from "./interview-agent.config.js";
 import {
   FrozenAgentConfigSchema,
@@ -305,7 +305,6 @@ export class InterviewAgentService {
         false,
       );
     }
-
     // 在数据库创建前解析 Graph 配置，缺少 DATABASE_URL 时不留下不可恢复的孤儿会话。
     const graph = this.dependencies.getGraph();
     const model = await this.dependencies.resolveModel(input);

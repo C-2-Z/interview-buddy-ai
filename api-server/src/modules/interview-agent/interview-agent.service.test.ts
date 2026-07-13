@@ -510,18 +510,7 @@ const CREATE_INPUT = {
   webResearch: true,
 } as const;
 
-test("disabled Agent creation never falls back to legacy writes", async () => {
-  const harness = createHarness({ ...ENABLED_RUNTIME, enabled: false });
-  await assert.rejects(
-    harness.service.createSession(CREATE_INPUT),
-    (error: unknown) => {
-      assert.ok(error instanceof InterviewAgentServiceError);
-      assert.equal(error.code, "agent_interview_disabled");
-      return true;
-    },
-  );
-  assert.equal(harness.repository.events.length, 0);
-});
+test("disabled Agent creation never falls back to legacy writes",async()=>{const harness=createHarness({...ENABLED_RUNTIME,enabled:false});await assert.rejects(harness.service.createSession(CREATE_INPUT),(error:unknown)=>error instanceof InterviewAgentServiceError&&error.code==="agent_interview_disabled");assert.equal(harness.repository.events.length,0);});
 
 test("create reaches durable awaiting_answer snapshot at the interrupt", async () => {
   const harness = createHarness();

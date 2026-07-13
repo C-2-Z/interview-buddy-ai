@@ -1,4 +1,4 @@
-/** Interview Agent 环境配置解析与默认关闭策略的单元测试。 */
+/** Interview Agent 环境配置解析与默认关闭策略单元测试。 */
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getAgentRuntimeConfig } from "./interview-agent.config.js";
@@ -12,15 +12,7 @@ function restoreEnvironment(
   else process.env[name] = originalValue;
 }
 
-test("Agent creation is disabled by default", () => {
-  const original = process.env.AGENT_INTERVIEW_ENABLED;
-  delete process.env.AGENT_INTERVIEW_ENABLED;
-  try {
-    assert.equal(getAgentRuntimeConfig().enabled, false);
-  } finally {
-    restoreEnvironment("AGENT_INTERVIEW_ENABLED", original);
-  }
-});
+test("Agent creation is disabled by default",()=>{const original=process.env.AGENT_INTERVIEW_ENABLED;delete process.env.AGENT_INTERVIEW_ENABLED;try{assert.equal(getAgentRuntimeConfig().enabled,false);}finally{restoreEnvironment("AGENT_INTERVIEW_ENABLED",original);}});
 
 test("Agent runtime config accepts explicit bounded values", () => {
   const names = [

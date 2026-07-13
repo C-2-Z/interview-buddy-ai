@@ -1,5 +1,5 @@
 /** Qwen voice Provider adapter. */
-import { createModuleLogger } from "../../voice/voice-logger.js";
+import { createModuleLogger } from "../../../shared/logger/voice-logger.js";
 import type { QwenAsrSession, QwenTtsSession } from "../../voice/qwen-realtime.client.js";
 import {
   createStreamingAsrSession,
@@ -61,6 +61,7 @@ export function createQwenVoiceProvider(): VoiceProvider {
   }
 
   return {
+    outputSampleRate: qwenTtsSampleRate(),
     createAsrSession(input: AsrSessionConfig): StreamingAsrSession {
       logger.debug("Creating Qwen ASR session", {
         sampleRate: input.sampleRate,

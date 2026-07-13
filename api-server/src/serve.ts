@@ -2,9 +2,8 @@
 import "./preload.js";
 import { serve } from "@hono/node-server";
 import app, { port } from "./app.js";
-import { runCleanup } from "./modules/cleanup/cleanup.service.js";
 import { installVoiceWebSocket } from "./modules/voice/voice.websocket.js";
-import { createModuleLogger } from "./modules/voice/voice-logger.js";
+import { createModuleLogger } from "./shared/logger/voice-logger.js";
 
 const logger = createModuleLogger("api-server");
 
@@ -13,9 +12,6 @@ const server = serve({
   port,
 });
 
-// Register cleanup timer: check every 30 seconds
-runCleanup();
-setInterval(runCleanup, 30_000);
 
 installVoiceWebSocket(server);
 

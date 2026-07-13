@@ -2,7 +2,7 @@
 import { config as loadEnv } from "dotenv";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createModuleLogger } from "../../voice/voice-logger.js";
+import { createModuleLogger } from "../../../shared/logger/voice-logger.js";
 import {
   createPostgresCheckpointer,
   resolveAgentCheckpointSchema,

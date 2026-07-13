@@ -1,231 +1,55 @@
-/**
- * useAgentSession Hook：管理 Agent 面试会话的完整生命周期。
- * 包括创建、输入提交、SSE 事件流和打断/重连。
- */
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  type AgentInputBody,
-  type AgentPhase,
-  type AgentSnapshot,
-  type CreateAgentSessionBody,
-} from "../types";
-import {
-  connectAgentEventStream,
-  createAgentSession,
-  getAgentSession,
-  interruptAgentSession,
-  submitAgentInput,
-} from "../api";
+/** Agent 会话 Hook：鉴权 SSE、轮询降级、工作台恢复和幂等文本输入。 */
+import {useCallback,useEffect,useRef,useState} from "react";
+import {createAgentSession,getAgentWorkspace,interruptAgentSession,streamAgentEvents,submitAgentInput} from "../api";
+import type {AgentSSEEvent,AgentSnapshot,AgentWorkspace,CreateAgentSessionBody} from "../types";
 
-/** Hook 返回的状态 */
-export type UseAgentSessionState = {
-  /** 当前快照 */
-  snapshot: Readonly<AgentSnapshot> | null;
-  /** 加载中 */
-  loading: boolean;
-  /** 错误信息 */
-  error: string | null;
-  /** SSE 连接状态 */
-  connected: boolean;
-  /** 事件序列 */
-  eventCursor: number;
+const POLL_INTERVAL_MS=3_000;
+const RECONNECT_DELAY_MS=1_500;
+
+/** Hook 对页面暴露的状态与动作。 */
+export type UseAgentSessionResult={
+  /** 最新持久快照。 */ snapshot:AgentSnapshot|null;
+  /** 完整工作台投影。 */ workspace:AgentWorkspace|null;
+  /** 请求进行中。 */ loading:boolean;
+  /** 安全错误文本。 */ error:string|null;
+  /** SSE 是否在线。 */ connected:boolean;
+  /** 最近收到的业务事件。 */ lastEvent:AgentSSEEvent|null;
+  /** 创建会话。 */ create(body:CreateAgentSessionBody):Promise<string>;
+  /** 提交文本回答。 */ submitInput(content:string):Promise<void>;
+  /** 打断输出。 */ interrupt():Promise<void>;
+  /** 立即重新连接。 */ reconnect():void;
+  /** 刷新工作台。 */ refresh():Promise<void>;
 };
 
-/** Hook 返回的方法 */
-export type UseAgentSessionActions = {
-  /** 创建新的 Agent 面试会话 */
-  create: (body: CreateAgentSessionBody) => Promise<string>;
-  /** 提交文本输入 */
-  submitInput: (content: string) => Promise<void>;
-  /** 中断当前操作 */
-  interrupt: () => Promise<void>;
-  /** 重新连接 SSE */
-  reconnect: () => void;
-  /** 重置状态 */
-  reset: () => void;
-};
+/** 管理一个可新建或恢复的 Agent 会话。 */
+export function useAgentSession(initialSessionId?:string):UseAgentSessionResult{
+  const [sessionId,setSessionId]=useState(initialSessionId);
+  const [workspace,setWorkspace]=useState<AgentWorkspace|null>(null);
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState<string|null>(null);
+  const [connected,setConnected]=useState(false);
+  const [lastEvent,setLastEvent]=useState<AgentSSEEvent|null>(null);
+  const cursorRef=useRef(0);const streamRef=useRef<AbortController|null>(null);const pollRef=useRef<ReturnType<typeof setInterval>|null>(null);const reconnectRef=useRef<ReturnType<typeof setTimeout>|null>(null);
 
-const SSE_RECONNECT_DELAY_MS = 2000;
-const POLL_INTERVAL_MS = 3000;
+  /** 清理当前连接与降级定时器。 */
+  const cleanup=useCallback(()=>{streamRef.current?.abort();streamRef.current=null;if(pollRef.current)clearInterval(pollRef.current);pollRef.current=null;if(reconnectRef.current)clearTimeout(reconnectRef.current);reconnectRef.current=null;setConnected(false);},[]);
 
-/**
- * 使用 Agent 面试会话。
- *
- * @param sessionId - 可选的现有会话 ID（用于从历史记录恢复）。
- * @returns 状态和方法。
- */
-export function useAgentSession(sessionId?: string): UseAgentSessionState & UseAgentSessionActions {
-  const [snapshot, setSnapshot] = useState<AgentSnapshot | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [connected, setConnected] = useState(false);
-  const [eventCursor, setEventCursor] = useState(0);
-  const currentSessionId = useRef<string | undefined>(sessionId);
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** 从数据库业务投影恢复完整页面。 */
+  const refresh=useCallback(async()=>{if(!sessionId)return;const next=await getAgentWorkspace(sessionId);cursorRef.current=Math.max(cursorRef.current,next.snapshot.eventCursor);setWorkspace(next);setError(null);},[sessionId]);
 
-  /** 清理 SSE 连接 */
-  const cleanupSSE = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
-    if (pollTimerRef.current) {
-      clearInterval(pollTimerRef.current);
-      pollTimerRef.current = null;
-    }
-    if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
-    }
-    setConnected(false);
-  }, []);
+  /** 应用事件并在会改变题目/报告内容时刷新工作台。 */
+  const applyEvent=useCallback((event:AgentSSEEvent)=>{cursorRef.current=Math.max(cursorRef.current,event.sequence);setLastEvent(event);if(event.type==="agent.snapshot")setWorkspace((current)=>current?{...current,snapshot:event.data}:current);else if(event.type==="agent.phase")setWorkspace((current)=>current?{...current,snapshot:{...current.snapshot,phase:event.data.phase}}:current);if(["agent.question_ready","agent.message_completed","agent.score_completed","agent.session_completed"].includes(event.type))void refresh();},[refresh]);
 
-  /** 连接 SSE 事件流 */
-  const connectSSE = useCallback(
-    (sid: string, cursor?: number) => {
-      cleanupSSE();
-      try {
-        const es = connectAgentEventStream(sid, cursor);
-        eventSourceRef.current = es;
+  /** 建立带 Authorization 的 SSE，并在失败时启用轮询。 */
+  const connect=useCallback((sid:string)=>{cleanup();const controller=new AbortController();streamRef.current=controller;void streamAgentEvents(sid,cursorRef.current,controller.signal,(event)=>{setConnected(true);applyEvent(event);}).then(()=>{if(!controller.signal.aborted)setConnected(false);}).catch(()=>{if(controller.signal.aborted)return;setConnected(false);if(!pollRef.current)pollRef.current=setInterval(()=>{void refresh();},POLL_INTERVAL_MS);reconnectRef.current=setTimeout(()=>connect(sid),RECONNECT_DELAY_MS);});},[applyEvent,cleanup,refresh]);
 
-        es.addEventListener("agent.snapshot", (event: MessageEvent) => {
-          try {
-            const data = JSON.parse(event.data) as AgentSnapshot;
-            setSnapshot(data);
-            setEventCursor(data.eventCursor);
-            if (data.phase === "completed" || data.phase === "failed") {
-              es.close();
-              setConnected(false);
-            }
-          } catch {
-            // 忽略解析错误
-          }
-        });
+  useEffect(()=>{if(!sessionId)return;setLoading(true);getAgentWorkspace(sessionId).then((next)=>{setWorkspace(next);cursorRef.current=next.snapshot.eventCursor;connect(sessionId);setError(null);}).catch((reason)=>setError(reason instanceof Error?reason.message:"会话加载失败")).finally(()=>setLoading(false));return cleanup;},[sessionId,connect,cleanup]);
 
-        es.addEventListener("agent.phase", (event: MessageEvent) => {
-          try {
-            const { phase } = JSON.parse(event.data) as { phase: AgentPhase };
-            // 更新阶段
-            setSnapshot((prev) => (prev ? { ...prev, phase } : prev));
-          } catch {
-            // 忽略
-          }
-        });
+  const create=useCallback(async(body:CreateAgentSessionBody)=>{setLoading(true);setError(null);try{const created=await createAgentSession(body);cursorRef.current=created.eventCursor;setSessionId(created.sessionId);return created.sessionId;}catch(reason){setError(reason instanceof Error?reason.message:"创建面试失败");throw reason;}finally{setLoading(false);}},[]);
 
-        es.onopen = () => {
-          setConnected(true);
-          setError(null);
-        };
+  const submitInput=useCallback(async(content:string)=>{if(!sessionId)return;setLoading(true);setError(null);try{const result=await submitAgentInput(sessionId,{inputId:crypto.randomUUID(),type:"text",content});setWorkspace((current)=>current?{...current,snapshot:result.snapshot}:current);await refresh();}catch(reason){setError(reason instanceof Error?reason.message:"提交回答失败");throw reason;}finally{setLoading(false);}},[sessionId,refresh]);
 
-        es.onerror = () => {
-          setConnected(false);
-          es.close();
-          // 使用轮询作为降级方案
-          pollTimerRef.current = setInterval(async () => {
-            if (!sid) return;
-            try {
-              const view = await getAgentSession(sid);
-              setSnapshot(view.snapshot);
-              setEventCursor(view.snapshot.eventCursor);
-              if (view.snapshot.phase === "completed" || view.snapshot.phase === "failed") {
-                clearInterval(pollTimerRef.current!);
-              }
-            } catch {
-              // 轮询失败，继续重试
-            }
-          }, POLL_INTERVAL_MS);
-        };
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "SSE 连接失败");
-      }
-    },
-    [cleanupSSE],
-  );
-
-  useEffect(() => {
-    if (currentSessionId.current) {
-      connectSSE(currentSessionId.current);
-    }
-    return cleanupSSE;
-  }, [currentSessionId.current, connectSSE, cleanupSSE]);
-
-  const create = useCallback(
-    async (body: CreateAgentSessionBody): Promise<string> => {
-      setLoading(true);
-      setError(null);
-      try {
-        const result = await createAgentSession(body);
-        currentSessionId.current = result.sessionId;
-        setEventCursor(result.eventCursor);
-        connectSSE(result.sessionId);
-        setLoading(false);
-        return result.sessionId;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "创建面试失败";
-        setError(message);
-        setLoading(false);
-        throw err;
-      }
-    },
-    [connectSSE],
-  );
-
-  const submitInput = useCallback(
-    async (content: string) => {
-      if (!currentSessionId.current) return;
-      setLoading(true);
-      try {
-        const inputId = crypto.randomUUID();
-        const body: AgentInputBody = { inputId, type: "text", content };
-        const result = await submitAgentInput(currentSessionId.current, body);
-        if (result.snapshot) {
-          setSnapshot(result.snapshot);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "提交回答失败");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
-
-  const interrupt = useCallback(async () => {
-    if (!currentSessionId.current) return;
-    try {
-      await interruptAgentSession(currentSessionId.current);
-    } catch {
-      // 打断失败可忽略
-    }
-  }, []);
-
-  const reconnect = useCallback(() => {
-    if (currentSessionId.current) {
-      connectSSE(currentSessionId.current, eventCursor);
-    }
-  }, [connectSSE, eventCursor]);
-
-  const reset = useCallback(() => {
-    cleanupSSE();
-    currentSessionId.current = undefined;
-    setSnapshot(null);
-    setEventCursor(0);
-    setError(null);
-    setLoading(false);
-  }, [cleanupSSE]);
-
-  return {
-    snapshot,
-    loading,
-    error,
-    connected,
-    eventCursor,
-    create,
-    submitInput,
-    interrupt,
-    reconnect,
-    reset,
-  };
+  const interrupt=useCallback(async()=>{if(sessionId)await interruptAgentSession(sessionId);},[sessionId]);
+  const reconnect=useCallback(()=>{if(sessionId)connect(sessionId);},[sessionId,connect]);
+  return{snapshot:workspace?.snapshot??null,workspace,loading,error,connected,lastEvent,create,submitInput,interrupt,reconnect,refresh};
 }
