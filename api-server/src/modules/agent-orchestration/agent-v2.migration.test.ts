@@ -54,6 +54,18 @@ test("activity event migration permits the SSE event emitted by the activity RPC
   assert.match(sql, /20260714000004/);
 });
 
+test("current-question migration permits the shared projection for v2 sessions", async () => {
+  const migrationDirectory = new URL("../../../../supabase/migrations/", import.meta.url);
+  const sql = await readFile(
+    new URL("20260714000005_allow_agent_v2_current_question.sql", migrationDirectory),
+    "utf8",
+  );
+
+  assert.match(sql, /interview_sessions_current_question_contract_check/);
+  assert.match(sql, /agent_version IN \('agent-v1', 'agent-v2'\)/);
+  assert.match(sql, /20260714000005/);
+});
+
 test("create-session upgrade anchors still exist in the preceding canonical migration", async () => {
   const migrationDirectory = new URL("../../../../supabase/migrations/", import.meta.url);
   const base = await readFile(new URL("20260711000002_add_interview_agent_foundation.sql", migrationDirectory), "utf8");

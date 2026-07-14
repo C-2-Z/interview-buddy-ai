@@ -12,6 +12,8 @@ import type { AgentOrchestrationRepository } from "./agent-orchestration.reposit
 import type { AgentPlanningContext, AgentReflectionContext, AgentResponseContext, AgentStrategyDraft, AgentStrategyReceipt, AgentToolRequest, AgentOrchestrationRunner } from "./agent-orchestration.types.js";
 import type { AgentResponseDecision } from "../interview-agent/interview-agent.types.js";
 
+const AGENT_V2_WEB_TOOL_TIMEOUT_MS = 5_000;
+
 /** 动态工具执行依赖。 */
 export type AgentOrchestrationDependencies = {
   repository: AgentOrchestrationRepository;
@@ -97,7 +99,10 @@ export class AgentOrchestrationService implements AgentOrchestrationRunner {
       } else if (request.name === "web_search") {
         if (!this.dependencies.webSearch.available) status = "skipped";
         else {
-          const results = await this.dependencies.webSearch.search({ query: `${input.targetCompany ?? ""} ${input.position} ${sanitizeWebText(request.focus, 100)}`.trim(), maxResults: 5 });
+          const results = await this.dependencies.webSearch.search(
+            { query: `${input.targetCompany ?? ""} ${input.position} ${sanitizeWebText(request.focus, 100)}`.trim(), maxResults: 5 },
+            AbortSignal.timeout(AGENT_V2_WEB_TOOL_TIMEOUT_MS),
+          );
           sourceCount = results.length;
           resultReferences.push(...results.map((item) => item.contentHash));
         }
@@ -146,8 +151,9 @@ export class AgentOrchestrationService implements AgentOrchestrationRunner {
     let memoryApplied = false;
     let brainApplied = false;
     const observations: string[] = [];
-    for (const request of requests) {
-      const result = await this.executeTool(input, request);
+    // 白名单工具彼此只读且结果独立，并行执行可把准备耗时收敛到最慢的单个工具。
+    const results = await Promise.all(requests.map((request) => this.executeTool(input, request)));
+    for (const result of results) {
       observations.push(result.id);
       memoryApplied ||= result.memoryApplied;
       brainApplied ||= result.brainApplied;
