@@ -317,12 +317,13 @@ VITE_API_URL=https://api.ezmock.site
 
 ## 8. 检查 CORS
 
-当前 API 允许以下前端来源：
+当前 API 默认允许以下前端来源：
 
 ```text
 https://ezmock.site
 https://www.ezmock.site
 http://localhost:3000
+http://localhost:5173
 ```
 
 配置文件：
@@ -331,7 +332,13 @@ http://localhost:3000
 api-server/src/config/cors.ts
 ```
 
-如果生产前端使用其他域名，必须先加入 CORS 白名单再重新部署。当前 Vercel Preview 随机域名默认不会通过 CORS。
+如果生产前端、Capacitor 或 Tauri 使用其他 origin，在 API 服务设置逗号分隔的精确白名单，例如：
+
+```env
+CORS_ALLOWED_ORIGINS=https://localhost,tauri://localhost
+```
+
+通配符、带路径的地址和未知协议会在 API 启动时被拒绝。当前 Vercel Preview 随机域名默认不会通过 CORS。
 
 ## 9. 首次生产验证
 

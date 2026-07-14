@@ -1,8 +1,6 @@
 /** 知识库模块：API 调用函数 — 文档 CRUD + QA + 图谱 */
 
-import { apiRequest } from "@/shared/api/http-client";
-import { apiBaseUrl } from "@/shared/api/http-client";
-import { getAccessToken } from "@/shared/api/auth-token";
+import { ApiRequestError, apiFetch, apiRequest } from "@/shared/api/http-client";
 import type {
   KnowledgeDocument,
   QaSession,
@@ -148,19 +146,12 @@ export function askQuestionStream(
   const controller = new AbortController();
   void (async () => {
     try {
-      const token = await getAccessToken();
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (token) headers.Authorization = `Bearer ${token}`;
-      const response = await fetch(`${apiBaseUrl}/api/knowledge/qa/sessions/${sessionId}/ask`, {
+      const response = await apiFetch(`/api/knowledge/qa/sessions/${sessionId}/ask`, {
         method: "POST",
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
         signal: controller.signal,
       });
-      if (!response.ok) {
-        callbacks.onError(`请求失败 (${response.status})，请稍后重试。`);
-        return;
-      }
       if (!response.body) {
         callbacks.onError("服务未返回可读取的回答流，请重试。");
         return;
@@ -194,6 +185,10 @@ export function askQuestionStream(
       }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") return;
+      if (error instanceof ApiRequestError && error.status > 0) {
+        callbacks.onError(`请求失败 (${error.status})，请稍后重试。`);
+        return;
+      }
       callbacks.onError("知识问答连接中断，请检查网络后重试。");
     }
   })();

@@ -3,16 +3,11 @@ import type { RoleId } from "../interview-agent.types.js";
 
 /** 有效回答仍缺少的主要证据类型。 */
 export type AnswerEvidenceGap =
-  | "too_brief"
-  | "missing_action"
-  | "missing_result"
-  | "missing_specifics"
-  | "vague";
+  "too_brief" | "missing_action" | "missing_result" | "missing_specifics" | "vague";
 
 /** 代码规则产生的可审计充分度结果。 */
 export type AnswerSufficiency =
-  | { sufficient: true; gap: null }
-  | { sufficient: false; gap: AnswerEvidenceGap };
+  { sufficient: true; gap: null } | { sufficient: false; gap: AnswerEvidenceGap };
 
 /**
  * 用长度、行动、结果和具体细节信号判断是否值得继续追问。
@@ -26,11 +21,20 @@ export type AnswerSufficiency =
 export function assessAnswerSufficiency(content: string): AnswerSufficiency {
   const text = content.trim();
   if (text.length < 40) return { sufficient: false, gap: "too_brief" };
-  const hasAction = /(?:我|we|i)\s*|(?:负责|采取|实现|设计|排查|分析|协调|推动|优化|搭建|使用|通过|首先|然后|随后)/i.test(text);
+  const hasAction =
+    /(?:我|we|i)\s*|(?:负责|采取|实现|设计|排查|分析|协调|推动|优化|搭建|使用|通过|首先|然后|随后)/i.test(
+      text,
+    );
   if (!hasAction) return { sufficient: false, gap: "missing_action" };
-  const hasResult = /(?:结果|最终|因此|使得|提升|降低|减少|增加|达到|改进|落地|上线|result|improv|reduc|increas|achiev)/i.test(text);
+  const hasResult =
+    /(?:结果|最终|因此|使得|提升|降低|减少|增加|达到|改进|落地|上线|result|improv|reduc|increas|achiev)/i.test(
+      text,
+    );
   if (!hasResult) return { sufficient: false, gap: "missing_result" };
-  const hasSpecifics = /\d|%|毫秒|秒|分钟|小时|天|周|月|年|用户|请求|qps|tps|并发|成本|错误率|延迟|吞吐|团队|接口|索引|日志|指标/i.test(text);
+  const hasSpecifics =
+    /\d|%|毫秒|秒|分钟|小时|天|周|月|年|用户|请求|qps|tps|并发|成本|错误率|延迟|吞吐|团队|接口|索引|日志|指标/i.test(
+      text,
+    );
   if (!hasSpecifics) return { sufficient: false, gap: "missing_specifics" };
   return { sufficient: true, gap: null };
 }
@@ -42,17 +46,15 @@ export function assessAnswerSufficiency(content: string): AnswerSufficiency {
  * @param gap - 代码识别的主要证据缺口。
  * @returns 最多一句的中文追问。
  */
-export function buildFocusedFollowUp(
-  roleId: RoleId,
-  gap: AnswerEvidenceGap,
-): string {
-  const rolePrefix = roleId === "technical"
-    ? "从技术实现角度，"
-    : roleId === "manager"
-      ? "从决策和协作角度，"
-      : roleId === "hr"
-        ? "从你的个人经历角度，"
-        : "请进一步说明：";
+export function buildFocusedFollowUp(roleId: RoleId, gap: AnswerEvidenceGap): string {
+  const rolePrefix =
+    roleId === "technical"
+      ? "从技术实现角度，"
+      : roleId === "manager"
+        ? "从决策和协作角度，"
+        : roleId === "hr"
+          ? "从你的个人经历角度，"
+          : "请进一步说明：";
   switch (gap) {
     case "too_brief":
       return `${rolePrefix}能否补充当时的背景、你的具体行动和结果？`;
@@ -66,7 +68,6 @@ export function buildFocusedFollowUp(
       return `${rolePrefix}你的回答比较概括。能否用一个具体的例子，或者对比一下不同方案的差异？`;
   }
 }
-
 
 /* --- 新增：关键词提取、含糊检测、压力追问 --- */
 
@@ -84,6 +85,8 @@ export function extractKeywords(content: string): string[] {
   const found = new Set<string>();
   for (const pattern of TECH_PATTERNS) {
     for (const match of text.matchAll(pattern)) {
+      // P95/P99 是性能指标而非技术选型，不能单独触发关键词深挖。
+      if (/^P\d+$/i.test(match[0])) continue;
       found.add(match[0]);
     }
   }
@@ -105,7 +108,7 @@ export function detectVagueSignal(content: string): boolean {
 }
 
 /** 当 detectVagueSignal 为 true 时生成压力对比追问。 */
-export function buildVagueFollowUp(roleId: RoleId, keywords: string[]): string {
+export function buildVagueFollowUp(_roleId: RoleId, keywords: string[]): string {
   const kw = keywords[0];
   if (!kw) return "能否用一个具体的例子说明当时的情况？";
   const questions = [

@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import app from "../app.js";
+import { DEFAULT_CORS_ORIGINS, resolveAllowedOrigins } from "./cors.js";
 
 /**
  * 发送一次浏览器预检请求并读取允许来源响应头。
@@ -22,17 +23,11 @@ async function preflight(origin: string): Promise<string | null> {
 }
 
 test("Vite default development origin is allowed", async () => {
-  assert.equal(
-    await preflight("http://localhost:5173"),
-    "http://localhost:5173",
-  );
+  assert.equal(await preflight("http://localhost:5173"), "http://localhost:5173");
 });
 
 test("unknown origins are not reflected", async () => {
-  assert.notEqual(
-    await preflight("https://untrusted.example"),
-    "https://untrusted.example",
-  );
+  assert.notEqual(await preflight("https://untrusted.example"), "https://untrusted.example");
 });
 
 test("authorized event streams may resume with Last-Event-ID", async () => {
@@ -44,8 +39,19 @@ test("authorized event streams may resume with Last-Event-ID", async () => {
       "Access-Control-Request-Headers": "authorization,last-event-id",
     },
   });
-  assert.match(
-    response.headers.get("access-control-allow-headers") ?? "",
-    /last-event-id/i,
+  assert.match(response.headers.get("access-control-allow-headers") ?? "", /last-event-id/i);
+});
+
+test("configured Native origins are trimmed, deduplicated, and appended", () => {
+  assert.deepEqual(
+    resolveAllowedOrigins("https://localhost/, tauri://localhost, https://localhost"),
+    [...DEFAULT_CORS_ORIGINS, "https://localhost", "tauri://localhost"],
   );
+});
+
+test("wildcards, paths, credentials, and unsupported schemes are rejected", () => {
+  assert.throws(() => resolveAllowedOrigins("*"), /通配符/);
+  assert.throws(() => resolveAllowedOrigins("https://example.com/path"), /origin/);
+  assert.throws(() => resolveAllowedOrigins("https://user@example.com"), /origin/);
+  assert.throws(() => resolveAllowedOrigins("file://local"), /协议/);
 });

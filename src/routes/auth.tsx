@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { platformAdapter } from "@/shared/platform/platform-adapter";
+import { getAuthRedirectUrl } from "@/shared/runtime/runtime-config";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "登录 · AI 面试模拟器" }] }),
@@ -45,7 +47,7 @@ function AuthPage() {
           email,
           password,
           options: {
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: getAuthRedirectUrl(platformAdapter.getCurrentOrigin()),
             data: { display_name: name || email.split("@")[0] },
           },
         });

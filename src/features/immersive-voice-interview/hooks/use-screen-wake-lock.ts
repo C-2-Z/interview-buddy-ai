@@ -1,12 +1,6 @@
 /** immersive-voice-interview：在支持的浏览器中保持面试期间屏幕唤醒。 */
 import { useCallback, useEffect, useRef, useState } from "react";
-
-/** Wake Lock API 的最小浏览器契约。 */
-type WakeLockSentinelLike = {
-  released: boolean;
-  release(): Promise<void>;
-  addEventListener(type: "release", listener: () => void): void;
-};
+import { platformAdapter, type WakeLockSentinelLike } from "@/shared/platform/platform-adapter";
 
 /** 面试房间可见时请求屏幕唤醒，不支持或被拒绝时静默降级。 */
 export function useScreenWakeLock(enabled: boolean) {
@@ -15,15 +9,11 @@ export function useScreenWakeLock(enabled: boolean) {
 
   /** 尝试获取一次屏幕唤醒锁。 */
   const acquire = useCallback(async () => {
-    if (!enabled || document.visibilityState !== "visible") return;
-    const wakeLock = (
-      navigator as Navigator & {
-        wakeLock?: { request(type: "screen"): Promise<WakeLockSentinelLike> };
-      }
-    ).wakeLock;
-    if (!wakeLock || (sentinelRef.current && !sentinelRef.current.released)) return;
+    if (!enabled || platformAdapter.display.getVisibilityState() !== "visible") return;
+    if (sentinelRef.current && !sentinelRef.current.released) return;
     try {
-      const sentinel = await wakeLock.request("screen");
+      const sentinel = await platformAdapter.display.requestWakeLock();
+      if (!sentinel) return;
       sentinelRef.current = sentinel;
       setActive(true);
       sentinel.addEventListener("release", () => setActive(false));
@@ -36,11 +26,11 @@ export function useScreenWakeLock(enabled: boolean) {
     void acquire();
     /** 从后台返回时浏览器会释放旧锁，需要重新申请。 */
     function onVisibilityChange() {
-      if (document.visibilityState === "visible") void acquire();
+      if (platformAdapter.display.getVisibilityState() === "visible") void acquire();
     }
-    document.addEventListener("visibilitychange", onVisibilityChange);
+    const unsubscribe = platformAdapter.display.onVisibilityChange(onVisibilityChange);
     return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
+      unsubscribe();
       void sentinelRef.current?.release();
       sentinelRef.current = null;
     };
