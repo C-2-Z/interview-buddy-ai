@@ -32,6 +32,7 @@ import { useAgentSession } from "@/features/interview-agent/hooks/use-agent-sess
 import { INITIAL_VOICE_LOBBY_DRAFT } from "../constants";
 import { useFullscreenSession } from "../hooks/use-fullscreen-session";
 import { useVoiceDevicePreflight } from "../hooks/use-voice-device-preflight";
+import { platformAdapter } from "@/shared/platform/platform-adapter";
 import type { VoiceLobbyDraft } from "../types";
 
 const VOICE_LOBBY_DRAFT_KEY = "ezmock:voice-lobby-draft:v1";
@@ -53,8 +54,12 @@ function restoreVoiceDraft(): VoiceLobbyDraft {
 
 /** 在用户手势内唤醒一次 AudioContext，降低进入房间后的自动播放拦截概率。 */
 async function primeAudioPlayback(): Promise<void> {
-  if (!("AudioContext" in window)) return;
-  const context = new AudioContext();
+  let context: AudioContext;
+  try {
+    context = platformAdapter.voice.createAudioContext();
+  } catch {
+    return;
+  }
   try {
     await context.resume();
   } finally {

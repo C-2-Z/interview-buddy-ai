@@ -3,6 +3,7 @@ import { useRouterState } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
+import { getApiOrigin } from "@/shared/runtime/runtime-config";
 
 /**
  * app shell
@@ -19,9 +20,8 @@ export function AppShell({ children, userEmail }: { children: ReactNode; userEma
   }, [pathname]);
 
   useEffect(() => {
-    const apiUrl = import.meta.env.VITE_API_URL;
-    if (!apiUrl) return;
-    const origin = new URL(apiUrl, window.location.href).origin;
+    const origin = getApiOrigin();
+    if (!origin) return;
     if (document.head.querySelector(`link[rel="preconnect"][href="${origin}"]`)) return;
     const link = document.createElement("link");
     link.rel = "preconnect";

@@ -1,6 +1,7 @@
 /** immersive-voice-interview：只检查浏览器设备与麦克风权限。 */
 import { useCallback, useEffect, useState } from "react";
 import type { MicrophonePermissionState, VoiceDevicePreflight } from "../types";
+import { platformAdapter } from "@/shared/platform/platform-adapter";
 
 const INITIAL_PREFLIGHT: VoiceDevicePreflight = {
   secureContext: true,
@@ -22,21 +23,20 @@ export function useVoiceDevicePreflight() {
 
   /** 被动读取能力、设备和权限，不主动弹出授权对话框。 */
   const check = useCallback(async () => {
-    const secureContext = window.isSecureContext;
-    const mediaDevicesSupported = Boolean(navigator.mediaDevices?.getUserMedia);
+    const secureContext = platformAdapter.voice.isSecureContext();
+    const mediaDevicesSupported = platformAdapter.voice.isMicrophoneSupported();
     let microphoneDetected: boolean | null = null;
     let permission: MicrophonePermissionState = "unknown";
 
     if (mediaDevicesSupported) {
       try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
+        const devices = await platformAdapter.voice.enumerateDevices();
         microphoneDetected = devices.some((device) => device.kind === "audioinput");
       } catch {
         microphoneDetected = null;
       }
       try {
-        const status = await navigator.permissions?.query({ name: "microphone" as PermissionName });
-        permission = normalizePermission(status?.state);
+        permission = normalizePermission(await platformAdapter.voice.queryMicrophonePermission());
       } catch {
         permission = "unknown";
       }
@@ -66,14 +66,18 @@ export function useVoiceDevicePreflight() {
 
   /** 在明确用户手势中请求麦克风，并立即释放测试流。 */
   const requestMicrophone = useCallback(async (): Promise<boolean> => {
-    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+    if (
+      !platformAdapter.voice.isSecureContext() ||
+      !platformAdapter.voice.isMicrophoneSupported()
+    ) {
       await check();
       return false;
     }
     setChecking(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
+      const stream = await platformAdapter.voice.requestMicrophone({
+        echoCancellation: true,
+        noiseSuppression: true,
       });
       for (const track of stream.getTracks()) track.stop();
       setPreflight((current) => ({

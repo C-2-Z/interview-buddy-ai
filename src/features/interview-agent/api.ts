@@ -1,6 +1,5 @@
 /** Agent Canonical API、鉴权 SSE 和语音升级客户端。 */
-import { apiRequest } from "@/shared/api/http-client";
-import { getAccessToken } from "@/shared/api/auth-token";
+import { ApiRequestError, apiFetch, apiRequest } from "@/shared/api/http-client";
 import type {
   AgentInputBody,
   AgentSSEEvent,
@@ -8,8 +7,6 @@ import type {
   CreateAgentSessionBody,
   CreateAgentSessionResponse,
 } from "./types";
-
-const API_BASE = import.meta.env.VITE_API_URL || "";
 
 /** 创建 Agent 会话。 */
 export function createAgentSession(
@@ -71,15 +68,21 @@ export async function streamAgentEvents(
   onOpen: () => void,
   onEvent: (event: AgentSSEEvent) => void,
 ): Promise<void> {
-  const token = await getAccessToken();
-  const response = await fetch(`${API_BASE}/api/agent/sessions/${sessionId}/events`, {
-    headers: {
-      Accept: "text/event-stream",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(lastEventId > 0 ? { "Last-Event-ID": String(lastEventId) } : {}),
-    },
-    signal,
-  });
+  let response: Response;
+  try {
+    response = await apiFetch(`/api/agent/sessions/${sessionId}/events`, {
+      headers: {
+        Accept: "text/event-stream",
+        ...(lastEventId > 0 ? { "Last-Event-ID": String(lastEventId) } : {}),
+      },
+      signal,
+    });
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.status > 0) {
+      throw new Error(`事件流连接失败 (${error.status})`);
+    }
+    throw error;
+  }
   if (!response.ok || !response.body) throw new Error(`事件流连接失败 (${response.status})`);
   // 无新业务事件时服务端只发送心跳，因此响应流就绪即代表连接成功。
   onOpen();

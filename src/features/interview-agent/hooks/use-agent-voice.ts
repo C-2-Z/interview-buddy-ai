@@ -1,6 +1,8 @@
 /** Agent 语音 Hook：浏览器 PCM 采集、静音收口、Agent WebSocket、流式播放与打断。 */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { connectAgentVoice } from "../api";
+import { platformAdapter } from "@/shared/platform/platform-adapter";
+import { resolveWebSocketUrl, runtimeConfig } from "@/shared/runtime/runtime-config";
 
 /** 后端语音事件的页面所需子集。 */
 export type AgentVoiceEvent =
@@ -150,7 +152,7 @@ export function useAgentVoice({
   /** 调度一个 Int16 PCM 块，保持服务端顺序且无块间重叠。 */
   const playChunk = useCallback(async (data: ArrayBuffer) => {
     try {
-      const context = playbackContextRef.current ?? new AudioContext();
+      const context = playbackContextRef.current ?? platformAdapter.voice.createAudioContext();
       playbackContextRef.current = context;
       await context.resume();
       const samples = new Int16Array(data);
@@ -186,7 +188,9 @@ export function useAgentVoice({
     setStage("正在连接语音服务");
     try {
       const { wsUrl } = await connectAgentVoice(sessionId);
-      const socket = new WebSocket(wsUrl);
+      const socket = platformAdapter.createWebSocket(
+        resolveWebSocketUrl(runtimeConfig, wsUrl, platformAdapter.getCurrentOrigin() || undefined),
+      );
       socket.binaryType = "arraybuffer";
       socketRef.current = socket;
       socket.onopen = () => {
@@ -279,10 +283,11 @@ export function useAgentVoice({
         );
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
+      const stream = await platformAdapter.voice.requestMicrophone({
+        echoCancellation: true,
+        noiseSuppression: true,
       });
-      const context = new AudioContext();
+      const context = platformAdapter.voice.createAudioContext();
       await context.resume();
       const source = context.createMediaStreamSource(stream);
       const processor = context.createScriptProcessor(4096, 1, 1);

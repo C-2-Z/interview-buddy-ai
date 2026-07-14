@@ -1,9 +1,6 @@
 /** 简历库浏览/上传/删除 - API 调用函数 */
-import { getAccessToken } from "@/shared/api/auth-token";
-import { apiRequest } from "@/shared/api/http-client";
+import { ApiRequestError, apiRequest, apiUpload } from "@/shared/api/http-client";
 import type { ResumeDetail, ResumeListItem, ResumeUploadResult } from "./types";
-
-const baseUrl = import.meta.env.VITE_API_URL || "";
 
 /**
  * 列出 resumes
@@ -40,29 +37,14 @@ export function deleteResume(resumeId: string): Promise<{ success: true }> {
  * @returns Promise<
  */
 export async function uploadResume(file: File): Promise<ResumeUploadResult> {
-  const token = await getAccessToken();
   const body = new FormData();
   body.append("file", file);
-  const response = await fetch(`${baseUrl}/api/resumes`, {
-    method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    body,
-  });
-  if (!response.ok) {
-    let message = `上传失败 (${response.status})`;
-    try {
-      /**
-       * data
-       *
-       * @param await response.json() -
-       * @returns
-       */
-      const data = (await response.json()) as { error?: string };
-      message = data.error ?? message;
-    } catch {
-      // Use the status fallback.
+  try {
+    return await apiUpload<ResumeUploadResult>("/api/resumes", body);
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.code === "request_failed") {
+      throw new Error(`上传失败 (${error.status})`);
     }
-    throw new Error(message);
+    throw error;
   }
-  return response.json() as Promise<ResumeUploadResult>;
 }

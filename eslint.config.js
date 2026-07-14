@@ -11,6 +11,7 @@ export default tseslint.config(
       "node_modules/**",
       "api-server/node_modules/**",
       "dist/**",
+      "dist-native/**",
       "api-server/dist/**",
       ".runtime/**",
       ".tanstack/**",
