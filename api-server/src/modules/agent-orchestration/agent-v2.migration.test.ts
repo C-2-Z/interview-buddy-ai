@@ -5,7 +5,7 @@ import test from "node:test";
 
 test("v2 migration defines dual-version persistence, RLS and atomic write RPCs", async () => {
   const migrationDirectory = new URL("../../../../supabase/migrations/", import.meta.url);
-  const sql = await readFile(new URL("20260714000001_add_controlled_agent_v2.sql", migrationDirectory), "utf8");
+  const sql = await readFile(new URL("20260714000002_add_controlled_agent_v2.sql", migrationDirectory), "utf8");
   for (const table of [
     "agent_strategy_revisions",
     "agent_activities",
