@@ -6,7 +6,8 @@ export type AnswerEvidenceGap =
   | "too_brief"
   | "missing_action"
   | "missing_result"
-  | "missing_specifics";
+  | "missing_specifics"
+  | "vague";
 
 /** 代码规则产生的可审计充分度结果。 */
 export type AnswerSufficiency =
@@ -61,5 +62,57 @@ export function buildFocusedFollowUp(
       return `${rolePrefix}这些行动最终产生了什么可验证的结果，你如何确认效果？`;
     case "missing_specifics":
       return `${rolePrefix}能否用一个具体指标、约束或实例说明关键细节？`;
+    case "vague":
+      return `${rolePrefix}你的回答比较概括。能否用一个具体的例子，或者对比一下不同方案的差异？`;
   }
+}
+
+
+/* --- 新增：关键词提取、含糊检测、压力追问 --- */
+
+const TECH_PATTERNS = [
+  /[A-Z][A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*/g,
+  /\b(?:React|Vue|Angular|Spring|Flask|FastAPI|LangChain|LangGraph|Node)\b/gi,
+  /\b(?:Redis|PostgreSQL|MongoDB|Kafka|Docker|Kubernetes|MySQL|Nginx)\b/gi,
+  /\b(?:Transformer|Embedding|Tokenization|Attention|Fine-tuning|PyTorch|TensorFlow)\b/gi,
+];
+
+/** 从候选人回答中提取技术关键词，最多 5 个。短回答返回空数组。 */
+export function extractKeywords(content: string): string[] {
+  const text = content.trim();
+  if (text.length < 20) return [];
+  const found = new Set<string>();
+  for (const pattern of TECH_PATTERNS) {
+    for (const match of text.matchAll(pattern)) {
+      found.add(match[0]);
+    }
+  }
+  return Array.from(found).slice(0, 5);
+}
+
+const VAGUE_PATTERNS = [
+  /做了[^。，]*(?:优化|改进|调整|升级)/,
+  /效果[^。，]*(?:不错|还好|挺好|满意|可以)/,
+  /用了[^。，]*(?:相关|相应|一些|某些)/,
+  /\b(?:等等|之类的|诸如此类)\b/,
+];
+
+/** 检测候选人回答中的含糊/回避信号。 */
+export function detectVagueSignal(content: string): boolean {
+  const text = content.trim();
+  if (text.length < 30) return true;
+  return VAGUE_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+/** 当 detectVagueSignal 为 true 时生成压力对比追问。 */
+export function buildVagueFollowUp(roleId: RoleId, keywords: string[]): string {
+  const kw = keywords[0];
+  if (!kw) return "能否用一个具体的例子说明当时的情况？";
+  const questions = [
+    `你用了 ${kw}，当初为什么选择它而不是其他方案，你们对比过吗？`,
+    `${kw} 在你们场景下具体表现如何？有没有对比过同类方案？`,
+    `在使用 ${kw} 的过程中遇到过什么坑？当时是怎么解决的？`,
+    `如果现在让你重新选型，你还会选 ${kw} 吗？为什么？`,
+  ];
+  return questions[Math.floor(Math.random() * questions.length)];
 }

@@ -102,6 +102,10 @@ export type RolePersona = {
   rubricOverrides: Record<string, number>;
   /** Persona Prompt 的版本标识。 */
   promptVersion: string;
+  /** 该角色负责的面试内容阶段序列（用于前端阶段指示器）。 */
+  contentPhases?: string[];
+  /** 内容阶段切换时面试官说的过渡文案。 */
+  stageTransitionMessages?: Record<string, string>;
 };
 
 /** 可由 LangGraph Checkpoint 恢复的最小面试状态。 */
@@ -180,6 +184,10 @@ export type AgentMessageView = {
   createdAt: string;
   /** 消息是否在生成或播放过程中被打断。 */
   interrupted: boolean;
+  /** 本轮追问类型；broad_opening / keyword_deep_dive / stress_test */
+  roundType?: string;
+  /** 本轮提取的技术关键词 */
+  keywords?: string[];
 };
 
 /** SSE 中首题或后续题目准备完成后的只读视图。 */

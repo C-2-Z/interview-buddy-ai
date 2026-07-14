@@ -32,6 +32,9 @@ import { buildInputRedirect, guardAgentInput } from "./input-guard.js";
 import {
   assessAnswerSufficiency,
   buildFocusedFollowUp,
+  extractKeywords,
+  detectVagueSignal,
+  buildVagueFollowUp,
 } from "./answer-sufficiency.js";
 import type { QuestionRuntimeService } from "../runtime/question-runtime.service.js";
 import type { QuestionEvaluationRunner } from "../evaluation/evaluation.service.js";
@@ -431,24 +434,48 @@ export function compileInterviewAgentGraph(
     if (guarded.disposition === "redirect") {
       content = buildInputRedirect(guarded.reason);
     } else {
-      const sufficiency = assessAnswerSufficiency(persisted.content);
-      if (sufficiency.sufficient) {
-        throw new Error("Interviewer follow-up requires an evidence gap");
-      }
-      content = options.interviewerModelProvider
-        ? (await options.interviewerModelProvider.generateFollowUp({
+      // 新增：提取关键词 + 检测含糊信号
+      const keywords = extractKeywords(persisted.content);
+      const hasVague = detectVagueSignal(persisted.content);
+
+      if (hasVague) {
+        // 压力测试追问（注重关键词或催促举例）
+        content = buildVagueFollowUp(state.currentRole, keywords);
+      } else if (keywords.length > 0 && options.interviewerModelProvider) {
+        // 关键词深挖：用实时关键词替代固定追问模板
+        content = (await options.interviewerModelProvider.generateFollowUp({
             sessionId: state.sessionId,
             roleId: state.currentRole,
             persona: getRolePersona(state.currentRole),
             question: persisted.question,
             answer: persisted.content,
-            evidenceGap: sufficiency.gap,
+            evidenceGap: "missing_specifics",
             followUpNumber: state.followUpCount + 1,
             modelProvider: state.config.modelProvider,
             modelName: state.config.modelName,
             promptVersion: state.config.promptVersion,
-          })).content
-        : buildFocusedFollowUp(state.currentRole, sufficiency.gap);
+          })).content;
+      } else {
+        // 现有充分度追问逻辑
+        const sufficiency = assessAnswerSufficiency(persisted.content);
+        if (sufficiency.sufficient) {
+          throw new Error("Interviewer follow-up requires an evidence gap");
+        }
+        content = options.interviewerModelProvider
+          ? (await options.interviewerModelProvider.generateFollowUp({
+              sessionId: state.sessionId,
+              roleId: state.currentRole,
+              persona: getRolePersona(state.currentRole),
+              question: persisted.question,
+              answer: persisted.content,
+              evidenceGap: sufficiency.gap,
+              followUpNumber: state.followUpCount + 1,
+              modelProvider: state.config.modelProvider,
+              modelName: state.config.modelName,
+              promptVersion: state.config.promptVersion,
+            })).content
+          : buildFocusedFollowUp(state.currentRole, sufficiency.gap);
+      }
     }
     const receipt = await options.inputRepository.commitInterviewerResponse({
       sessionId: state.sessionId,
@@ -490,6 +517,16 @@ export function compileInterviewAgentGraph(
       state.sessionId,
       state.latestInputId,
     );
+    // 新增：提取关键词 + 检测含糊信号（优先于格式检查）
+    const keywords = extractKeywords(persisted.content);
+    const hasVague = detectVagueSignal(persisted.content);
+
+    // 含糊信号优先触发追问
+    if (hasVague) return { pendingAction: "follow_up" };
+    // 有关键词则追问实现细节
+    if (keywords.length > 0) return { pendingAction: "follow_up" };
+
+    // 现有充分度判定逻辑
     const sufficiency = assessAnswerSufficiency(persisted.content);
     return {
       pendingAction: sufficiency.sufficient ? "score" : "follow_up",
