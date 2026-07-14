@@ -99,9 +99,15 @@ test("planner approves only available distinct read tools within budget", async 
   assert.deepEqual(planning.map((activity) => activity.status), ["running", "completed"]);
   assert.equal(planning[0].id, planning[1].id);
   const tools = fake.activities.filter((activity) => activity.kind === "tool");
-  assert.deepEqual(tools.map((activity) => activity.status), ["running", "completed", "running", "completed"]);
-  assert.equal(tools[0].id, tools[1].id);
-  assert.equal(tools[2].id, tools[3].id);
+  assert.deepEqual(tools.map((activity) => activity.status), ["running", "running", "completed", "completed"]);
+  const toolLifecycles = new Map<string, typeof tools>();
+  for (const activity of tools) {
+    toolLifecycles.set(activity.id, [...(toolLifecycles.get(activity.id) ?? []), activity]);
+  }
+  assert.equal(toolLifecycles.size, 2);
+  for (const lifecycle of toolLifecycles.values()) {
+    assert.deepEqual(lifecycle.map((activity) => activity.status), ["running", "completed"]);
+  }
 });
 
 test("invalid planner output gets one repair then deterministic fallback", async () => {

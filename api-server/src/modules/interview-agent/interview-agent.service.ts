@@ -360,8 +360,8 @@ export class InterviewAgentService {
     const preparationTask = this.prepareSession(graph, created, resolvedInput);
     if (agentVersion === "agent-v2") {
       // v2 先返回可恢复 sessionId，让客户端立即订阅持久化活动；后台任务仍由 operation 保证幂等。
-      void preparationTask.catch(() => {
-        logger.error(new Error("Agent preparation failed"), {
+      void preparationTask.catch((error: unknown) => {
+        logger.error(error instanceof Error ? error : new Error("Agent preparation failed"), {
           event: "agent_preparation_failed",
           sessionId: created.sessionId,
         });
@@ -370,9 +370,9 @@ export class InterviewAgentService {
     }
     try {
       await preparationTask;
-    } catch {
+    } catch (error) {
       // 创建响应必须仍然让客户端获得 sessionId，retry 可在 checkpoint/DB 恢复后继续。
-      logger.error(new Error("Agent preparation failed"), {
+      logger.error(error instanceof Error ? error : new Error("Agent preparation failed"), {
         event: "agent_preparation_failed",
         sessionId: created.sessionId,
       });
@@ -714,6 +714,14 @@ export class InterviewAgentService {
         await this.commitPreparedState(state, created.eventCursor);
       }
     } catch (error) {
+      if (input.agentVersion === "agent-v2" && this.dependencies.orchestrationRepository) {
+        await this.dependencies.orchestrationRepository.recordActivity(created.sessionId, {
+          kind: "planning",
+          status: "failed",
+          label: "首题提交未完成",
+          reasonCode: "first_question_commit_failed",
+        }).catch(() => undefined);
+      }
       await markOperationFailed(
         this.dependencies.repository,
         created.sessionId,
@@ -778,7 +786,12 @@ export class InterviewAgentService {
       }).catch(() => null);
     }
     try {
-      const preparation = await this.preparePlanIfConfigured(sessionId, mode, config);
+      // v2 的联网资料由 Planner 按需选择；旧准备器只负责确定性蓝图、题库和首题候选。
+      const preparation = await this.preparePlanIfConfigured(
+        sessionId,
+        mode,
+        version === "agent-v2" ? { ...config, webResearch: false } : config,
+      );
       if (activityId && activityRepository) {
         await activityRepository.recordActivity(sessionId, {
           kind: "planning",
@@ -944,6 +957,14 @@ export class InterviewAgentService {
       }
       return false;
     } catch (error) {
+      if (projection.version === "agent-v2" && this.dependencies.orchestrationRepository) {
+        await this.dependencies.orchestrationRepository.recordActivity(projection.sessionId, {
+          kind: "planning",
+          status: "failed",
+          label: "首题提交未完成",
+          reasonCode: "first_question_commit_failed",
+        }).catch(() => undefined);
+      }
       await markOperationFailed(
         this.dependencies.repository,
         projection.sessionId,

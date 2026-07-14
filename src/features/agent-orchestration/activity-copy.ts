@@ -11,6 +11,7 @@ const REASON_COPY: Record<string, string> = {
   memory_context: "仅在你授权后读取聚合训练摘要",
   question_context: "从题库筛选与当前能力维度匹配的候选",
   session_context: "读取本场已经产生的安全上下文引用",
+  first_question_commit_failed: "策略与首题候选已经生成，但最终保存未完成，可以安全重试",
 };
 
 /** 返回活动的第二行解释；未知原因码不会原样暴露给用户。 */
