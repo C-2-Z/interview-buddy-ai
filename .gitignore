@@ -42,3 +42,7 @@ dist-ssr
 
 # Supabase CLI local link metadata
 supabase/.temp/
+
+# Reference projects (not part of main codebase)
+/OfferNow/
+/GPTInterviewer-0.1.2/

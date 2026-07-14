@@ -6,6 +6,23 @@ import type {
   RoleStage,
 } from "../interview-agent.types.js";
 
+/** 面试内容阶段：控制当前题目的追问风格和阶段切换。 */
+export type ContentPhase =
+  | "introduction"
+  | "tech_fundamentals"
+  | "project_deep_dive"
+  | "system_design"
+  | "wrap_up";
+
+/** 每个角色各阶段过渡文案的默认值。 */
+const DEFAULT_PHASE_TRANSITIONS: Record<ContentPhase, string> = {
+  introduction: "好的，开场就到这里，接下来我们聊聊专业方面的问题。",
+  tech_fundamentals: "基础知识聊得差不多了，现在来聊聊你的项目经历。",
+  project_deep_dive: "项目部分聊完了，接下来看看系统设计方面的能力。",
+  system_design: "技术问题全部问完了。最后你对这个岗位还有什么想问的吗？",
+  wrap_up: "",
+};
+
 /** 面板模式固定接力顺序。 */
 export const PANEL_ROLE_ORDER = ["technical", "manager", "hr"] as const;
 
@@ -26,6 +43,8 @@ export const ROLE_PERSONAS = {
     allowedTopics: ["岗位技能", "项目经历", "业务场景", "协作沟通", "职业动机"],
     prohibitedBehaviors: ["替候选人作答", "泄露评分或参考答案", "改变题数、追问上限或结束条件"],
     rubricOverrides: {},
+    contentPhases: ["introduction", "tech_fundamentals", "project_deep_dive", "system_design", "wrap_up"],
+    stageTransitionMessages: DEFAULT_PHASE_TRANSITIONS,
     promptVersion: "agent-v1-general",
   },
   technical: {
@@ -36,6 +55,11 @@ export const ROLE_PERSONAS = {
     allowedTopics: ["技术原理", "项目实现", "系统设计", "故障排查", "性能与安全权衡"],
     prohibitedBehaviors: ["询问与岗位无关的私人信息", "直接给出技术答案", "越过固定角色阶段"],
     rubricOverrides: { technical_depth: 1.2 },
+    contentPhases: ["tech_fundamentals", "project_deep_dive", "system_design"],
+    stageTransitionMessages: {
+      project_deep_dive: "基础问题就到这里，我们来深入聊聊你的项目。",
+      system_design: "项目聊完了，来看一个系统设计场景。",
+    },
     promptVersion: "agent-v1-technical",
   },
   manager: {
@@ -46,6 +70,10 @@ export const ROLE_PERSONAS = {
     allowedTopics: ["业务场景", "优先级取舍", "跨团队协作", "项目风险", "复盘与改进"],
     prohibitedBehaviors: ["深入考查超出角色范围的技术细节", "替候选人构造经历", "改变全局流程规则"],
     rubricOverrides: { business_judgment: 1.15 },
+    contentPhases: ["project_deep_dive", "system_design"],
+    stageTransitionMessages: {
+      system_design: "项目部分聊完了，下面我们聊聊系统设计。",
+    },
     promptVersion: "agent-v1-manager",
   },
   hr: {
@@ -56,6 +84,8 @@ export const ROLE_PERSONAS = {
     allowedTopics: ["求职动机", "行为经历", "沟通协作", "职业规划", "工作偏好"],
     prohibitedBehaviors: ["询问受保护的敏感个人信息", "作出录用承诺", "讨论未授权的薪酬结论"],
     rubricOverrides: { communication: 1.1 },
+    contentPhases: ["wrap_up"],
+    stageTransitionMessages: {},
     promptVersion: "agent-v1-hr",
   },
 } satisfies Record<RoleId, RolePersona>;

@@ -18,6 +18,8 @@ import {
   type AgentRoleId,
   type AgentWorkspaceMessage,
 } from "../types";
+import { ContentPhaseIndicator } from "./content-phase-indicator";
+import { RoundIndicator } from "./round-indicator";
 
 /** 页面参数。 */
 export type InterviewAgentPageProps = Readonly<{
@@ -214,6 +216,7 @@ export function InterviewAgentPage({
             </Badge>
           </div>
         </header>
+        <ContentPhaseIndicator workspace={workspace} snapshot={snapshot} />
         <div
           className="flex min-h-10 flex-wrap gap-3 border-b px-4 py-2 text-xs text-muted-foreground"
           aria-live="polite"
@@ -223,6 +226,7 @@ export function InterviewAgentPage({
             {workspace.config.questionCount} 题
           </span>
           <span>追问 {snapshot.followUpCount}/3</span>
+          <RoundIndicator workspace={workspace} snapshot={snapshot} />
           {session.error && (
             <span className="text-destructive" role="alert">
               {session.error}

@@ -90,7 +90,7 @@ export type AgentFollowUpModelInput = Readonly<{
   /** 当前候选人回答；只在调用期间存在。 */
   answer: string;
   /** 确定性规则识别的证据缺口。 */
-  evidenceGap: "too_brief" | "missing_action" | "missing_result" | "missing_specifics";
+  evidenceGap: "too_brief" | "missing_action" | "missing_result" | "missing_specifics" | "vague";
   /** 本题即将发出的追问序号，范围 1–3。 */
   followUpNumber: number;
   /** 冻结供应商。 */
