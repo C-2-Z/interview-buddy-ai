@@ -10,6 +10,8 @@ import { performanceRoutes } from "./modules/performance/performance.routes.js";
 import { interviewAgentRoutes } from "./modules/interview-agent/interview-agent.routes.js";
 import { agentReadinessRoutes } from "./modules/agent-readiness/agent-readiness.routes.js";
 import { interviewLifecycleRoutes } from "./modules/interview-lifecycle/interview-lifecycle.routes.js";
+import { agentMemoryRoutes } from "./modules/agent-memory/agent-memory.routes.js";
+import { agentOrchestrationRoutes } from "./modules/agent-orchestration/agent-orchestration.routes.js";
 import { sessions } from "./modules/sessions/sessions.routes.js";
 import { createModuleLogger } from "./shared/logger/voice-logger.js";
 import { knowledge } from "./modules/knowledge/knowledge.routes.js";
@@ -36,6 +38,8 @@ app.route("/api/performance", performanceRoutes);
 app.route("/api/sessions", sessions);
 app.route("/api/agent/readiness", agentReadinessRoutes);
 app.route("/api/agent", interviewLifecycleRoutes);
+app.route("/api/agent/memory", agentMemoryRoutes);
+app.route("/api/agent", agentOrchestrationRoutes);
 app.route("/api/agent", interviewAgentRoutes);
 app.route("/api/knowledge", knowledge);
 

@@ -21,6 +21,8 @@ export const CreateAgentSessionSchema = z
     targetCompany: z.string().trim().max(100).optional(),
     skillId: z.string().trim().min(1).max(100).optional(),
     resumeId: z.string().uuid().optional(),
+    brainId: z.string().uuid().optional(),
+    useTrainingMemory: z.boolean().optional(),
     modelProvider: z.enum(["deepseek", "openai", "anthropic"]).optional(),
     modelName: z.string().trim().min(1).max(100).optional(),
     webResearch: z.boolean().optional().default(true),
@@ -81,6 +83,8 @@ export const FrozenAgentConfigSchema: z.ZodType<FrozenAgentConfig> = z
     targetCompany: z.string().max(100).nullable(),
     skillId: z.string().min(1).max(100).nullable(),
     resumeId: z.string().uuid().nullable(),
+    brainId: z.string().uuid().nullable().optional().default(null),
+    useTrainingMemory: z.boolean().optional().default(false),
     modelProvider: z.enum(["deepseek", "openai", "anthropic"]),
     modelName: z.string().trim().min(1).max(100),
     webResearch: z.boolean(),
@@ -113,7 +117,7 @@ export const RoleStageSchema: z.ZodType<RoleStage> = z
  */
 export const InterviewAgentStateSchema: z.ZodType<InterviewAgentState> = z
   .object({
-    version: z.literal("agent-v1"),
+    version: z.enum(["agent-v1", "agent-v2"]),
     sessionId: z.string().uuid(),
     userId: z.string().uuid(),
     mode: z.enum(["single", "panel"]),
@@ -138,6 +142,17 @@ export const InterviewAgentStateSchema: z.ZodType<InterviewAgentState> = z
     latestInputId: StableOperationIdSchema.nullable(),
     latestEvidenceIds: z.array(z.string().uuid()).max(100),
     pendingAction: z.enum(["ask", "follow_up", "score", "handoff", "finish"]),
+    strategyRevisionId: z.string().uuid().nullable().optional(),
+    observationIds: z.array(z.string().uuid()).max(100).optional(),
+    remainingToolBudget: z.number().int().min(0).max(3).optional(),
+    currentQuestionIntent: z.string().trim().min(1).max(500).nullable().optional(),
+    latestDecision: z.object({
+      action: z.enum(["follow_up", "score"]),
+      reasonCode: z.string().trim().min(1).max(100),
+      followUpQuestion: z.string().trim().min(5).max(500).nullable(),
+    }).strict().nullable().optional(),
+    memoryApplied: z.boolean().optional(),
+    brainApplied: z.boolean().optional(),
   })
   .refine(
     (state) => state.currentQuestionIndex < state.config.questionCount,

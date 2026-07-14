@@ -1,5 +1,5 @@
 /** Agent 工作台只读投影类型：题目、消息、研究、证据、评分和报告。 */
-import type { AgentSnapshot, RoleId } from "../interview-agent.types.js";
+import type { AgentActivity, AgentSnapshot, AgentStrategyView, RoleId } from "../interview-agent.types.js";
 
 /** 工作台中的一条已持久化消息。 */
 export type AgentWorkspaceMessage = {
@@ -65,4 +65,8 @@ export type AgentWorkspace = {
     /** 综合反馈。 */ overallFeedback: string;
     /** 雷达图兼容汇总。 */ dimensionSummary: unknown;
   };
+  /** v2 最新战术策略；v1 或尚未规划时为 null。 */
+  strategy: AgentStrategyView | null;
+  /** 不含 Prompt、思维链或工具原文的用户可见行动。 */
+  activities: AgentActivity[];
 };

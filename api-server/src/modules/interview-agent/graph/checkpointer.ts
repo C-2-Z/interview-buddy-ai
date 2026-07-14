@@ -14,6 +14,8 @@ import {
 
 /** Agent v1 的固定 LangGraph checkpoint namespace。 */
 export const AGENT_CHECKPOINT_NAMESPACE = "agent-v1" as const;
+/** Agent v2 独立 namespace，防止与既有会话 checkpoint 混读。 */
+export const AGENT_V2_CHECKPOINT_NAMESPACE = "agent-v2" as const;
 
 /** 未配置环境变量时使用的私有 PostgreSQL schema。 */
 export const DEFAULT_AGENT_CHECKPOINT_SCHEMA = "langgraph";
@@ -42,7 +44,10 @@ class AgentNamespaceCheckpointSaver extends BaseCheckpointSaver {
    *
    * @param delegate - 实际保存 checkpoint 的 Memory/PostgreSQL saver。
    */
-  constructor(private readonly delegate: BaseCheckpointSaver) {
+  constructor(
+    private readonly delegate: BaseCheckpointSaver,
+    private readonly namespace: "agent-v1" | "agent-v2",
+  ) {
     super(delegate.serde);
   }
 
@@ -57,7 +62,7 @@ class AgentNamespaceCheckpointSaver extends BaseCheckpointSaver {
       ...config,
       configurable: {
         ...config.configurable,
-        checkpoint_ns: AGENT_CHECKPOINT_NAMESPACE,
+        checkpoint_ns: this.namespace,
       },
     };
   }
@@ -192,8 +197,9 @@ class AgentNamespaceCheckpointSaver extends BaseCheckpointSaver {
  */
 export function withAgentCheckpointNamespace(
   checkpointer: BaseCheckpointSaver,
+  namespace: "agent-v1" | "agent-v2" = AGENT_CHECKPOINT_NAMESPACE,
 ): BaseCheckpointSaver {
-  return new AgentNamespaceCheckpointSaver(checkpointer);
+  return new AgentNamespaceCheckpointSaver(checkpointer, namespace);
 }
 
 /**

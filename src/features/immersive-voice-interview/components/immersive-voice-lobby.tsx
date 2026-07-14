@@ -25,10 +25,12 @@ import {
 import { AgentCreateError } from "@/features/agent-create-recovery/components/agent-create-error";
 import { useAgentCreateRecovery } from "@/features/agent-create-recovery/hooks/use-agent-create-recovery";
 import type { AgentCreateRecoveryAction } from "@/features/agent-create-recovery/types";
+import { AgentMemoryToggle } from "@/features/agent-memory/components/agent-memory-toggle";
 import { AgentReadinessStatus } from "@/features/agent-readiness/components/agent-readiness-status";
 import { useAgentReadiness } from "@/features/agent-readiness/hooks/use-agent-readiness";
 import type { ReadinessRecoveryAction } from "@/features/agent-readiness/types";
 import { useAgentSession } from "@/features/interview-agent/hooks/use-agent-session";
+import { useBrains } from "@/features/knowledge/hooks/use-brains";
 import { INITIAL_VOICE_LOBBY_DRAFT } from "../constants";
 import { useFullscreenSession } from "../hooks/use-fullscreen-session";
 import { useVoiceDevicePreflight } from "../hooks/use-voice-device-preflight";
@@ -71,6 +73,7 @@ async function primeAudioPlayback(): Promise<void> {
 export function ImmersiveVoiceLobby() {
   const navigate = useNavigate();
   const session = useAgentSession();
+  const brains = useBrains();
   const createRecovery = useAgentCreateRecovery();
   const device = useVoiceDevicePreflight();
   const fullscreen = useFullscreenSession();
@@ -130,6 +133,8 @@ export function ImmersiveVoiceLobby() {
         targetCompany: draft.targetCompany.trim() || undefined,
         modelProvider: draft.modelProvider,
         webResearch: true,
+        brainId: readiness.data.agentVersion === "agent-v2" ? draft.brainId || undefined : undefined,
+        useTrainingMemory: readiness.data.agentVersion === "agent-v2" && draft.useTrainingMemory,
       });
       localStorage.removeItem(VOICE_LOBBY_DRAFT_KEY);
       await navigate({ to: "/voice/session/$id", params: { id: sessionId } });
@@ -281,6 +286,33 @@ export function ImmersiveVoiceLobby() {
                     maxLength={100}
                   />
                 </div>
+                {readiness.data?.agentVersion === "agent-v2" && (
+                  <>
+                <div className="space-y-2">
+                  <Label htmlFor="voice-brain">面试知识库 Brain（选填）</Label>
+                  <Select
+                    value={draft.brainId || "none"}
+                    onValueChange={(value) => patch({ brainId: value === "none" ? "" : value })}
+                  >
+                    <SelectTrigger id="voice-brain">
+                      <SelectValue placeholder="不绑定知识库" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">不绑定知识库</SelectItem>
+                      {(brains.data?.brains ?? []).map((brain) => (
+                        <SelectItem key={brain.id} value={brain.id}>
+                          {brain.name}（{brain.documentCount} 篇资料）
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <AgentMemoryToggle
+                  checked={draft.useTrainingMemory}
+                  onCheckedChange={(value) => patch({ useTrainingMemory: value })}
+                />
+                  </>
+                )}
               </CardContent>
             </Card>
           </section>

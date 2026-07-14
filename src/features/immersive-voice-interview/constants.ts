@@ -9,6 +9,8 @@ export const INITIAL_VOICE_LOBBY_DRAFT: VoiceLobbyDraft = {
   questionCount: 5,
   targetCompany: "",
   modelProvider: "deepseek",
+  brainId: "",
+  useTrainingMemory: false,
 };
 
 /** 状态视觉体与 aria-live 共用的短文案。 */

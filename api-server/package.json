@@ -7,13 +7,14 @@
   },
   "scripts": {
     "dev": "tsx watch src/serve.ts",
-    "test": "npm run test:voice && npm run test:config && npm run test:model-provider && npm run test:readiness && npm run test:knowledge && npm run test:agent",
+    "test": "npm run test:voice && npm run test:config && npm run test:model-provider && npm run test:readiness && npm run test:knowledge && npm run test:agent && npm run test:agent-v2",
     "test:config": "tsx --test src/config/cors.test.ts",
     "test:model-provider": "tsx --test src/modules/model-providers/model-provider.service.test.ts",
     "test:readiness": "tsx --test src/modules/agent-readiness/agent-readiness.service.test.ts src/modules/agent-readiness/agent-readiness.routes.test.ts",
     "test:voice": "tsx --test src/modules/voice/qwen-realtime.client.test.ts src/modules/interview-agent/voice-bridge/voice-bridge.service.test.ts",
     "test:knowledge": "tsx --test src/modules/knowledge/knowledge.integration.test.ts",
     "test:agent": "tsx --test src/modules/interview-agent/roles/personas.test.ts src/modules/interview-agent/interview-agent.config.test.ts src/modules/interview-agent/events/agent-event-stream.test.ts src/modules/interview-agent/graph/interview-agent.graph.test.ts src/modules/interview-agent/graph/checkpointer.integration.test.ts src/modules/interview-agent/graph/input-guard.test.ts src/modules/interview-agent/graph/answer-sufficiency.test.ts src/modules/interview-agent/input/input.repository.test.ts src/modules/interview-agent/runtime/question-runtime.service.test.ts src/modules/interview-agent/evaluation/evaluation.service.test.ts src/modules/interview-agent/report/report.service.test.ts src/modules/interview-agent/audit/agent-run.service.test.ts src/modules/interview-agent/workspace/workspace.repository.test.ts src/modules/interview-agent/interview-agent.repository.test.ts src/modules/interview-agent/interview-agent.service.test.ts src/modules/interview-agent/providers/web-search.provider.test.ts src/modules/interview-agent/providers/production-agent-model.provider.test.ts src/modules/interview-agent/tools/capability-blueprint.test.ts src/modules/interview-agent/tools/question-selector.test.ts src/modules/interview-agent/tools/research.service.test.ts src/modules/interview-agent/tools/preparation.service.test.ts src/modules/interview-agent/tools/preparation.repository.test.ts src/modules/interview-lifecycle/interview-lifecycle.service.test.ts",
+    "test:agent-v2": "tsx --test src/modules/agent-memory/agent-memory.service.test.ts src/modules/agent-orchestration/agent-orchestration.service.test.ts src/modules/agent-orchestration/agent-v2.migration.test.ts src/modules/agent-orchestration/agent-v2.scenarios.test.ts src/modules/interview-agent/graph/interview-agent-v2.graph.test.ts",
     "agent:checkpoint:setup": "tsx src/modules/interview-agent/graph/setup-checkpoint.ts",
     "build": "tsc && node -e \"require('fs').cpSync('src/lib/skills','dist/lib/skills',{recursive:true,filter:s=>!s.endsWith('.ts')})\"",
     "start": "node dist/serve.js"

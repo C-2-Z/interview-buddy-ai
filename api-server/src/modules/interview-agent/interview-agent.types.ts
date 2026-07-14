@@ -1,7 +1,7 @@
 /** Interview Agent 模块的状态、事件与 HTTP API 公共契约。 */
 
 /** Agent 状态契约版本。 */
-export type AgentVersion = "agent-v1";
+export type AgentVersion = "agent-v1" | "agent-v2";
 
 /** 面试角色编排模式。 */
 export type AgentMode = "single" | "panel";
@@ -60,6 +60,10 @@ export type FrozenAgentConfig = Readonly<{
   skillId: string | null;
   /** 使用的简历记录标识；未选择则为 null。 */
   resumeId: string | null;
+  /** 用户主动绑定的知识库；未绑定时为 null。 */
+  brainId?: string | null;
+  /** 本场是否请求使用已授权的长期训练记忆。 */
+  useTrainingMemory?: boolean;
   /** 已解析的模型供应商。 */
   modelProvider: AgentModelProvider;
   /** 已解析的模型名称。 */
@@ -140,6 +144,30 @@ export type InterviewAgentState = {
   latestEvidenceIds: string[];
   /** Graph 下一步必须执行的受控动作。 */
   pendingAction: AgentPendingAction;
+  /** v2 最新战术策略修订；v1 和尚未规划时为 null。 */
+  strategyRevisionId?: string | null;
+  /** v2 已持久化工具观察引用，不包含工具原文。 */
+  observationIds?: string[];
+  /** 当前规划周期剩余的白名单工具预算。 */
+  remainingToolBudget?: number;
+  /** 当前题需要验证的用户可读意图。 */
+  currentQuestionIntent?: string | null;
+  /** 最近一次受控回答决策；不包含模型思维链。 */
+  latestDecision?: AgentResponseDecision | null;
+  /** 当前策略是否实际读取了长期训练摘要。 */
+  memoryApplied?: boolean;
+  /** 当前策略是否实际取得了绑定 Brain 的引用。 */
+  brainApplied?: boolean;
+};
+
+/** Agent v2 对有效回答作出的受控下一步决策。 */
+export type AgentResponseDecision = {
+  /** 继续聚焦追问，或结束当前题并评分。 */
+  action: "follow_up" | "score";
+  /** 可展示、可聚合的稳定原因码。 */
+  reasonCode: string;
+  /** 追问分支的单句文本；评分分支为 null。 */
+  followUpQuestion: string | null;
 };
 
 /** 返回给客户端的可恢复 Agent 快照。 */
@@ -168,6 +196,27 @@ export type AgentSnapshot = {
   pendingAction: AgentPendingAction;
   /** 已提交事件的最后序号。 */
   eventCursor: number;
+  /** v2 当前战术策略修订号；v1 不返回。 */
+  strategyRevision?: number;
+};
+
+/** 用户可见但不包含思维链的 Agent 行动记录。 */
+export type AgentActivity = {
+  /** 行动 UUID。 */ id: string;
+  /** 行动所属闭环环节。 */ kind: "planning" | "tool" | "reflection" | "memory";
+  /** 持久化执行状态。 */ status: "running" | "completed" | "skipped" | "failed";
+  /** 面向用户的短标签。 */ label: string;
+  /** 可选稳定原因码。 */ reasonCode?: string;
+  /** 工具产生的安全来源数量。 */ sourceCount?: number;
+};
+
+/** 工作台展示的最新 Agent 战术策略。 */
+export type AgentStrategyView = {
+  /** 从 1 开始递增的修订号。 */ revision: number;
+  /** 一句话训练目标。 */ objective: string;
+  /** 本阶段优先收集证据的冻结维度。 */ focusDimensions: string[];
+  /** 是否实际应用长期训练摘要。 */ memoryApplied: boolean;
+  /** 是否实际应用绑定 Brain 的引用。 */ brainApplied: boolean;
 };
 
 /** SSE 中展示的最小 Agent 消息。 */
@@ -272,6 +321,7 @@ export type AgentEvent =
   | AgentEventEnvelope<"agent.message_completed", AgentMessageView>
   | AgentEventEnvelope<"agent.score_completed", AgentScoreView>
   | AgentEventEnvelope<"agent.session_completed", AgentSessionCompletedData>
+  | AgentEventEnvelope<"agent.activity", AgentActivity>
   | AgentEventEnvelope<"agent.error", AgentError>;
 
 /** Phase 1 支持的 Agent 事件类型。 */

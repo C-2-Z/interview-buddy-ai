@@ -22,6 +22,7 @@ export type ReadinessIssue = {
 
 /** readiness API 响应。 */
 export type AgentReadinessResponse = {
+  /** 新会话实际采用的运行时版本。 */ agentVersion: "agent-v1" | "agent-v2";
   /** 当前所选方案的最终状态。 */ status: ReadinessStatus;
   /** 会话是否可跨服务重启恢复。 */ checkpointMode: "durable" | "ephemeral" | "unavailable";
   /** 可独立降级的能力。 */ capabilities: {

@@ -5,6 +5,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AgentActivityPanel } from "@/features/agent-orchestration/components/agent-activity-panel";
 import { useInterviewReport } from "../hooks/use-interview-report";
 import type { InterviewReportDimension } from "../types";
 
@@ -122,6 +123,7 @@ export function InterviewReportPage({ sessionId }: InterviewReportPageProps) {
           <p className="leading-7">{report.report.overallFeedback}</p>
         </CardContent>
       </Card>
+      <AgentActivityPanel strategy={report.strategy} activities={report.activities} />
       <section aria-labelledby="dimension-heading">
         <h2 id="dimension-heading" className="mb-3 text-xl font-semibold">
           能力维度

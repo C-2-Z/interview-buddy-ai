@@ -218,6 +218,8 @@ function createSessionInput(): CreateAgentSessionRepositoryInput {
     modelName: "deepseek-chat",
     promptVersion: "interview-agent-v1",
     webResearch: true,
+    agentVersion: "agent-v1",
+    useTrainingMemory: false,
   };
 }
 
@@ -258,6 +260,27 @@ test("createSession calls the transactional RPC with a credential-free payload",
       },
     },
   ]);
+});
+
+test("agent-v2 creation sends only the bounded incremental context fields", async () => {
+  const database = new FakeAgentDatabaseClient();
+  database.enqueueRpcData("create_agent_interview_session", {
+    sessionId: SESSION_ID,
+    threadId: SESSION_ID,
+    phase: "preparing",
+    eventCursor: 1,
+  });
+  const repository = new SupabaseInterviewAgentRepository(database);
+  await repository.createSession({
+    ...createSessionInput(),
+    agentVersion: "agent-v2",
+    brainId: "33333333-3333-4333-8333-333333333333",
+    useTrainingMemory: true,
+  });
+  const payload = database.rpcCalls[0]?.args.p_session as Record<string, unknown>;
+  assert.equal(payload.agentVersion, "agent-v2");
+  assert.equal(payload.brainId, "33333333-3333-4333-8333-333333333333");
+  assert.equal(payload.useTrainingMemory, true);
 });
 
 /** 验证 completed claim 返回第一次提交结果而不会被误判为新执行权。 */

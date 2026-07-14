@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { AgentActivityPanel } from "@/features/agent-orchestration/components/agent-activity-panel";
 import { InterviewLifecycleActions } from "@/features/interview-lifecycle/components/interview-lifecycle-actions";
 import { useInterviewLifecycle } from "@/features/interview-lifecycle/hooks/use-interview-lifecycle";
 import type { InterviewLifecycleAction } from "@/features/interview-lifecycle/types";
@@ -313,6 +314,7 @@ export function InterviewAgentPage({
       </section>
 
       <aside className="space-y-4">
+        <AgentActivityPanel strategy={workspace.strategy} activities={workspace.activities} />
         {workspace.report && (
           <ReportCard
             score={workspace.report.overallScore}

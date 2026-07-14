@@ -63,6 +63,7 @@ export class DefaultQuestionRuntimeService implements QuestionRuntimeService {
         modelProvider: context.config.modelProvider,
         modelName: context.config.modelName,
         dimensionKey,
+        strategyIntent: input.questionIntent,
       });
       return {
         id: generated.questionId, question: generated.content, position: context.config.position,

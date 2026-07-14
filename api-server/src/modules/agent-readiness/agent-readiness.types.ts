@@ -22,6 +22,7 @@ export type ReadinessIssue = {
 
 /** readiness API 的完整脱敏响应。 */
 export type AgentReadinessResponse = {
+  /** 新会话实际采用的受控 Agent 运行时版本。 */ agentVersion: "agent-v1" | "agent-v2";
   /** 当前所选创建方案的最终状态。 */ status: ReadinessStatus;
   /** checkpoint 的恢复保证。 */ checkpointMode: "durable" | "ephemeral" | "unavailable";
   /** 文本、语音与联网研究的独立状态。 */ capabilities: {
@@ -39,5 +40,6 @@ export type AgentReadinessResponse = {
 /** repository 只读基础设施检查结果。 */
 export type AgentReadinessInfrastructure = {
   /** Agent 业务迁移及只读 RPC 是否可访问。 */ agentDatabaseReady: boolean;
+  /** Agent 2.0 增量迁移和原子审计 RPC 是否已部署。 */ agentV2DatabaseReady: boolean;
   /** PostgreSQL checkpoint 表是否已经显式初始化。 */ checkpointSchemaReady: boolean;
 };

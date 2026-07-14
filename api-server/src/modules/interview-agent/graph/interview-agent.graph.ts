@@ -23,7 +23,7 @@ import {
   type AgentInterviewerModelProvider,
 } from "../providers/agent-model.provider.js";
 import { buildRolePlan, getRolePersona } from "../roles/personas.js";
-import { AGENT_CHECKPOINT_NAMESPACE, withAgentCheckpointNamespace } from "./checkpointer.js";
+import { AGENT_CHECKPOINT_NAMESPACE, AGENT_V2_CHECKPOINT_NAMESPACE, withAgentCheckpointNamespace } from "./checkpointer.js";
 import type { AgentInputRepository } from "../input/input.repository.js";
 import { buildInputRedirect, guardAgentInput } from "./input-guard.js";
 import {
@@ -36,6 +36,7 @@ import {
 import type { QuestionRuntimeService } from "../runtime/question-runtime.service.js";
 import type { QuestionEvaluationRunner } from "../evaluation/evaluation.service.js";
 import type { AgentReportFinalizer } from "../report/report.service.js";
+import type { AgentOrchestrationRunner } from "../../agent-orchestration/agent-orchestration.types.js";
 
 /** Graph 等待业务消息持久化后发出的安全 interrupt 数据。 */
 export type AgentInputRequiredInterrupt = Readonly<{
@@ -71,6 +72,10 @@ export type CompileInterviewAgentGraphOptions = Readonly<{
   evaluationService?: QuestionEvaluationRunner;
   /** Phase 4 只读取冻结评分的报告服务。 */
   reportService?: AgentReportFinalizer;
+  /** v2 规划、工具、回答决策、反思和记忆闭环。 */
+  orchestrationService?: AgentOrchestrationRunner;
+  /** 编译版本；v1 保持原有节点路由。 */
+  version?: InterviewAgentState["version"];
 }>;
 
 /** 创建初始 Agent State 所需的业务参数。 */
@@ -87,6 +92,10 @@ export type CreateInitialAgentStateParams = Readonly<{
   webResearchEnabled?: boolean;
   /** Phase 2 已原子规划的业务首题 UUID；存在时 ask 节点不再次生成。 */
   preparedQuestionId?: string;
+  /** 双版本运行时选择；服务端创建路径负责决定，客户端不可覆盖。 */
+  version?: InterviewAgentState["version"];
+  /** 准备阶段冻结的能力维度键，供 v2 Planner 白名单校验。 */
+  capabilityDimensions?: string[];
 }>;
 
 /**
@@ -111,6 +120,13 @@ export const AgentStateAnnotation = Annotation.Root({
   latestInputId: Annotation<string | null>(),
   latestEvidenceIds: Annotation<string[]>(),
   pendingAction: Annotation<InterviewAgentState["pendingAction"]>(),
+  strategyRevisionId: Annotation<string | null>(),
+  observationIds: Annotation<string[]>(),
+  remainingToolBudget: Annotation<number>(),
+  currentQuestionIntent: Annotation<string | null>(),
+  latestDecision: Annotation<InterviewAgentState["latestDecision"]>(),
+  memoryApplied: Annotation<boolean>(),
+  brainApplied: Annotation<boolean>(),
 });
 
 /** 与公共契约结构一致的 LangGraph 推断状态。 */
@@ -133,10 +149,39 @@ export type AgentGraphNodeName =
   | "interviewer_respond"
   | "score_question"
   | "advance_stage"
-  | "finalize_report";
+  | "finalize_report"
+  | "load_training_memory"
+  | "plan_session"
+  | "authorize_tools"
+  | "execute_tools"
+  | "reflect_and_replan"
+  | "update_training_memory";
+
+/** LangGraph 运行时版本分支使用的最小 fluent 端口。 */
+type VersionedGraphBuilder = {
+  addNode(
+    name: AgentGraphNodeName,
+    node: (state: AgentGraphState) => Partial<AgentGraphState> | Promise<Partial<AgentGraphState>>,
+  ): VersionedGraphBuilder;
+  addEdge(
+    from: AgentGraphNodeName | typeof START | typeof END,
+    to: AgentGraphNodeName | typeof START | typeof END,
+  ): VersionedGraphBuilder;
+};
+
+/** 恢复命令不携带 goto；使用共同节点联合以兼容两个已编译图的输入类型。 */
+type AgentResumeTarget = "__start__" | Exclude<
+  AgentGraphNodeName,
+  | "load_training_memory"
+  | "plan_session"
+  | "authorize_tools"
+  | "execute_tools"
+  | "reflect_and_replan"
+  | "update_training_memory"
+>;
 
 /** 与 Phase 1 compiled graph invoke 输入严格兼容的恢复 Command。 */
-export type AgentResumeCommand = Command<unknown, Partial<AgentGraphState>, AgentGraphNodeName>;
+export type AgentResumeCommand = Command<unknown, Partial<AgentGraphState>, AgentResumeTarget>;
 
 /**
  * 为指定会话构建固定 LangGraph 运行配置。
@@ -144,14 +189,17 @@ export type AgentResumeCommand = Command<unknown, Partial<AgentGraphState>, Agen
  * @param sessionId - 业务会话标识；v1 中不可替换为用户 ID 或随机线程 ID。
  * @returns 固定使用 `thread_id=sessionId` 与 `checkpoint_ns=agent-v1` 的配置。
  */
-export function createAgentGraphConfig(sessionId: string): RunnableConfig {
+export function createAgentGraphConfig(
+  sessionId: string,
+  version: InterviewAgentState["version"] = "agent-v1",
+): RunnableConfig {
   if (!sessionId.trim()) {
     throw new Error("sessionId is required for the Agent graph");
   }
   return {
     configurable: {
       thread_id: sessionId,
-      checkpoint_ns: AGENT_CHECKPOINT_NAMESPACE,
+      checkpoint_ns: version === "agent-v2" ? AGENT_V2_CHECKPOINT_NAMESPACE : AGENT_CHECKPOINT_NAMESPACE,
     },
   };
 }
@@ -178,6 +226,8 @@ export function createInitialAgentState(
     targetCompany: params.input.targetCompany ?? null,
     skillId: params.input.skillId ?? null,
     resumeId: params.input.resumeId ?? null,
+    brainId: params.input.brainId ?? null,
+    useTrainingMemory: params.input.useTrainingMemory ?? false,
     modelProvider,
     modelName: params.input.modelName ?? PROVIDER_CONFIGS[modelProvider].defaultModel,
     webResearch: (params.input.webResearch ?? true) && globalWebResearchEnabled,
@@ -186,7 +236,7 @@ export function createInitialAgentState(
   });
 
   return {
-    version: "agent-v1",
+    version: params.version ?? "agent-v1",
     sessionId: params.sessionId,
     userId: params.userId,
     mode: params.input.mode,
@@ -197,10 +247,17 @@ export function createInitialAgentState(
     currentQuestionId: params.preparedQuestionId ?? null,
     currentQuestionIndex: 0,
     followUpCount: 0,
-    coveredDimensions: [],
+    coveredDimensions: params.capabilityDimensions ?? [],
     latestInputId: null,
     latestEvidenceIds: [],
     pendingAction: "ask",
+    strategyRevisionId: null,
+    observationIds: [],
+    remainingToolBudget: 0,
+    currentQuestionIntent: null,
+    latestDecision: null,
+    memoryApplied: false,
+    brainApplied: false,
   };
 }
 
@@ -228,6 +285,9 @@ export function createAgentSnapshot(state: InterviewAgentState, eventCursor = 0)
     followUpCount: state.followUpCount,
     pendingAction: state.pendingAction,
     eventCursor,
+    ...(state.version === "agent-v2"
+      ? { strategyRevision: state.strategyRevisionId ? state.currentQuestionIndex + 1 : 0 }
+      : {}),
   };
 }
 
@@ -245,7 +305,7 @@ export function createAgentResumeCommand(inputId: string): AgentResumeCommand {
   if (!normalizedInputId || normalizedInputId.length > 200) {
     throw new Error("inputId must contain between 1 and 200 characters");
   }
-  return new Command<unknown, Partial<AgentGraphState>, AgentGraphNodeName>({
+  return new Command<unknown, Partial<AgentGraphState>, AgentResumeTarget>({
     resume: { inputId: normalizedInputId },
   });
 }
@@ -284,6 +344,53 @@ function parseAgentResumeInput(value: unknown): AgentResumeInput {
  */
 export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOptions) {
   const modelProvider = options.modelProvider ?? createDeterministicMockAgentModelProvider();
+  const version = options.version ?? "agent-v1";
+  const isV2 = version === "agent-v2";
+  if (isV2 && !options.orchestrationService) {
+    throw new Error("Agent v2 requires an orchestration service");
+  }
+
+  /** 将 checkpoint 安全字段投影成 Planner 输入，不携带回答正文或凭据。 */
+  const planningContext = (state: AgentGraphState) => ({
+    sessionId: state.sessionId,
+    userId: state.userId,
+    position: state.config.position,
+    difficulty: state.config.difficulty,
+    targetCompany: state.config.targetCompany,
+    brainId: state.config.brainId ?? null,
+    useTrainingMemory: state.config.useTrainingMemory ?? false,
+    webResearch: state.config.webResearch,
+    modelProvider: state.config.modelProvider,
+    modelName: state.config.modelName,
+    promptVersion: state.config.promptVersion,
+    allowedDimensions: state.coveredDimensions.length > 0
+      ? state.coveredDimensions
+      : ["COMMUNICATION", "LOGICAL_THINKING", "PROBLEM_SOLVING", "TECHNICAL_DEPTH", "BUSINESS_JUDGMENT", "MOTIVATION_FIT"],
+  });
+
+  /** v2 显式记忆边界；真实授权由动态工具读取时再次检查。 */
+  const loadTrainingMemory = (): Partial<AgentGraphState> => ({ phase: "preparing" });
+
+  /** v2 生成首版策略并执行最多三个经审批的只读工具。 */
+  const planSession = async (state: AgentGraphState): Promise<Partial<AgentGraphState>> => {
+    const receipt = await options.orchestrationService!.planSession(planningContext(state));
+    return {
+      strategyRevisionId: receipt.strategyRevisionId,
+      observationIds: receipt.observationIds,
+      remainingToolBudget: 3,
+      currentQuestionIntent: receipt.questionIntent,
+      memoryApplied: receipt.memoryApplied,
+      brainApplied: receipt.brainApplied,
+    };
+  };
+
+  /** 冻结策略服务已经审批过的本周期预算。 */
+  const authorizeTools = (state: AgentGraphState): Partial<AgentGraphState> => ({
+    remainingToolBudget: Math.max(0, Math.min(3, state.remainingToolBudget)),
+  });
+
+  /** 工具结果已持久化为引用，Graph 不保存外部原文。 */
+  const executeTools = (): Partial<AgentGraphState> => ({ remainingToolBudget: 0 });
 
   /** 加载恢复状态中的冻结配置并补齐确定性角色计划。 */
   const hydrateContext = (state: AgentGraphState): Partial<AgentGraphState> => {
@@ -395,6 +502,13 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
     let content: string;
     if (guarded.disposition === "redirect") {
       content = buildInputRedirect(guarded.reason);
+    } else if (
+      isV2 &&
+      state.latestDecision?.action === "follow_up" &&
+      state.latestDecision.followUpQuestion
+    ) {
+      // v2 决策调用同时生成追问，避免为同一回答重复调用模型。
+      content = state.latestDecision.followUpQuestion;
     } else {
       // 新增：提取关键词 + 检测含糊信号
       const keywords = extractKeywords(persisted.content);
@@ -478,6 +592,19 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
     }
     if (state.followUpCount >= 3) return { pendingAction: "score" };
     const persisted = await options.inputRepository.loadInput(state.sessionId, state.latestInputId);
+    if (isV2 && options.orchestrationService) {
+      const decision = await options.orchestrationService.decideResponse({
+        sessionId: state.sessionId,
+        question: persisted.question,
+        answer: persisted.content,
+        roleId: state.currentRole,
+        followUpCount: state.followUpCount,
+        modelProvider: state.config.modelProvider,
+        modelName: state.config.modelName,
+        promptVersion: state.config.promptVersion,
+      });
+      return { pendingAction: decision.action, latestDecision: decision };
+    }
     // 新增：提取关键词 + 检测含糊信号（优先于格式检查）
     const keywords = extractKeywords(persisted.content);
     const hasVague = detectVagueSignal(persisted.content);
@@ -538,6 +665,28 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
       latestInputId: null,
       latestEvidenceIds: [],
       pendingAction: roleChanged ? "handoff" : "ask",
+      latestDecision: null,
+    };
+  };
+
+  /** 每道非末题评分后基于冻结分数修订策略，最多执行一个可选工具。 */
+  const reflectAndReplan = async (state: AgentGraphState): Promise<Partial<AgentGraphState>> => {
+    if (!options.orchestrationService || state.currentQuestionIndex + 1 >= state.config.questionCount) {
+      return {};
+    }
+    const receipt = await options.orchestrationService.reflect({
+      ...planningContext(state),
+      currentQuestionIndex: state.currentQuestionIndex,
+      currentRole: state.currentRole,
+      previousStrategyRevisionId: state.strategyRevisionId,
+    });
+    return {
+      strategyRevisionId: receipt.strategyRevisionId,
+      observationIds: [...state.observationIds, ...receipt.observationIds].slice(-100),
+      remainingToolBudget: 0,
+      currentQuestionIntent: receipt.questionIntent,
+      memoryApplied: state.memoryApplied || receipt.memoryApplied,
+      brainApplied: state.brainApplied || receipt.brainApplied,
     };
   };
 
@@ -558,6 +707,7 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
       sessionId: state.sessionId,
       questionIndex: state.currentQuestionIndex,
       roleId: state.currentRole,
+      questionIntent: isV2 ? state.currentQuestionIntent : null,
     });
     return {
       phase: "awaiting_answer",
@@ -577,7 +727,15 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
     return { phase: "completed", pendingAction: "finish" };
   };
 
-  return new StateGraph(AgentStateAnnotation)
+  /** 报告完成后再次检查实时授权，仅保存聚合分而不保存回答正文。 */
+  const updateTrainingMemory = async (state: AgentGraphState): Promise<Partial<AgentGraphState>> => {
+    if (state.config.useTrainingMemory && options.orchestrationService) {
+      await options.orchestrationService.updateTrainingMemory(state.sessionId, state.userId);
+    }
+    return { phase: "completed", pendingAction: "finish" };
+  };
+
+  const graph = new StateGraph(AgentStateAnnotation)
     .addNode("hydrate_context", hydrateContext)
     .addNode("research_context", researchContext)
     .addNode("build_interview_plan", buildInterviewPlan)
@@ -590,8 +748,28 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
     .addNode("advance_stage", advanceStage)
     .addNode("select_question", selectQuestion)
     .addNode("finalize_report", finalizeReport)
-    .addEdge(START, "hydrate_context")
-    .addEdge("hydrate_context", "research_context")
+    .addEdge(START, "hydrate_context");
+  // LangGraph 的 fluent 泛型不会从运行时版本分支扩展节点联合；动态节点仍由本文件的显式白名单约束。
+  const versionedGraph = graph as unknown as VersionedGraphBuilder;
+
+  if (isV2) {
+    versionedGraph
+      .addNode("load_training_memory", loadTrainingMemory)
+      .addNode("plan_session", planSession)
+      .addNode("authorize_tools", authorizeTools)
+      .addNode("execute_tools", executeTools)
+      .addNode("reflect_and_replan", reflectAndReplan)
+      .addNode("update_training_memory", updateTrainingMemory)
+      .addEdge("hydrate_context", "load_training_memory")
+      .addEdge("load_training_memory", "plan_session")
+      .addEdge("plan_session", "authorize_tools")
+      .addEdge("authorize_tools", "execute_tools")
+      .addEdge("execute_tools", "research_context");
+  } else {
+    graph.addEdge("hydrate_context", "research_context");
+  }
+
+  graph
     .addEdge("research_context", "build_interview_plan")
     .addEdge("build_interview_plan", "select_question")
     .addEdge("wait_for_input", "guard_input")
@@ -604,16 +782,42 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
       "interviewer_respond",
       "score_question",
     ])
-    .addEdge("interviewer_respond", "wait_for_input")
-    .addEdge("score_question", "advance_stage")
+    .addEdge("interviewer_respond", "wait_for_input");
+
+  if (isV2) {
+    versionedGraph
+      .addEdge("score_question", "reflect_and_replan")
+      .addEdge("reflect_and_replan", "advance_stage");
+  } else {
+    graph.addEdge("score_question", "advance_stage");
+  }
+
+  graph
     .addConditionalEdges("advance_stage", routeAdvancedStage, [
       "select_question",
       "finalize_report",
     ])
-    .addEdge("select_question", "wait_for_input")
-    .addEdge("finalize_report", END)
-    .compile({
-      checkpointer: withAgentCheckpointNamespace(options.checkpointer),
-      name: "interview-agent-v1",
-    });
+    .addEdge("select_question", "wait_for_input");
+
+  if (isV2) {
+    versionedGraph
+      .addEdge("finalize_report", "update_training_memory")
+      .addEdge("update_training_memory", END);
+  } else {
+    graph.addEdge("finalize_report", END);
+  }
+
+  return graph.compile({
+    checkpointer: withAgentCheckpointNamespace(options.checkpointer, version),
+    name: version === "agent-v2" ? "interview-agent-v2" : "interview-agent-v1",
+  });
+}
+
+/** 明确编译 Agent v2，调用方必须注入 Orchestration Service。 */
+export function compileInterviewAgentV2Graph(
+  options: Omit<CompileInterviewAgentGraphOptions, "version"> & {
+    orchestrationService: AgentOrchestrationRunner;
+  },
+) {
+  return compileInterviewAgentGraph({ ...options, version: "agent-v2" });
 }

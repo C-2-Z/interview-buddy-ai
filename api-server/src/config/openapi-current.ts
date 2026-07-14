@@ -65,6 +65,15 @@ const CURRENT_ENDPOINTS: readonly EndpointDefinition[] = [
     summary: "读取完整工作台",
   },
   {
+    path: "/api/agent/sessions/{sessionId}/activities",
+    method: "get",
+    tag: "Agent 面试",
+    summary: "读取脱敏的 Agent 行动时间线",
+  },
+  { path: "/api/agent/memory", method: "get", tag: "Agent 面试", summary: "读取训练记忆授权与摘要" },
+  { path: "/api/agent/memory", method: "patch", tag: "Agent 面试", summary: "更新训练记忆授权" },
+  { path: "/api/agent/memory", method: "delete", tag: "Agent 面试", summary: "清除聚合训练记忆" },
+  {
     path: "/api/agent/sessions/{sessionId}/voice/connect",
     method: "post",
     tag: "Agent 面试",
