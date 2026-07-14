@@ -78,6 +78,8 @@ export type SelectRuntimeQuestionInput = {
   questionIndex: number;
   /** advance_stage 计算出的角色。 */
   roleId: RoleId;
+  /** v2 Reflection 给出的下一题战术意图；v1 缺省。 */
+  questionIntent?: string | null;
 };
 
 /** Graph select_question 节点的结果。 */

@@ -18,9 +18,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { AgentCreateError } from "@/features/agent-create-recovery/components/agent-create-error";
 import { useAgentCreateRecovery } from "@/features/agent-create-recovery/hooks/use-agent-create-recovery";
 import type { AgentCreateRecoveryAction } from "@/features/agent-create-recovery/types";
+import { AgentMemoryToggle } from "@/features/agent-memory/components/agent-memory-toggle";
 import { AgentReadinessStatus } from "@/features/agent-readiness/components/agent-readiness-status";
 import { useAgentReadiness } from "@/features/agent-readiness/hooks/use-agent-readiness";
 import type { ReadinessRecoveryAction } from "@/features/agent-readiness/types";
+import { useBrains } from "@/features/knowledge/hooks/use-brains";
 import { useAgentSession } from "../hooks/use-agent-session";
 import type { AgentMode, CreateAgentSessionBody } from "../types";
 
@@ -36,6 +38,8 @@ type SetupDraft = {
   /** 岗位需求描述。 */ jobDescription: string;
   /** 模型供应商。 */ modelProvider: "deepseek" | "openai" | "anthropic";
   /** 是否启用准备阶段联网研究。 */ webResearch: boolean;
+  /** 用户主动绑定的单个知识库。 */ brainId: string;
+  /** 本场是否使用已授权的长期训练摘要。 */ useTrainingMemory: boolean;
 };
 
 const INITIAL_DRAFT: SetupDraft = {
@@ -47,6 +51,8 @@ const INITIAL_DRAFT: SetupDraft = {
   jobDescription: "",
   modelProvider: "deepseek",
   webResearch: true,
+  brainId: "",
+  useTrainingMemory: false,
 };
 
 /** 从浏览器恢复文字配置；无效旧值静默回退为安全默认值。 */
@@ -70,6 +76,7 @@ export function InterviewAgentSetupPage({
 }) {
   const navigate = useNavigate();
   const session = useAgentSession();
+  const brains = useBrains();
   const [draft, setDraft] = useState<SetupDraft>(restoreDraft);
   const readiness = useAgentReadiness({
     interviewMode: "text",
@@ -111,6 +118,8 @@ export function InterviewAgentSetupPage({
       resumeId: initialResumeId,
       modelProvider: draft.modelProvider,
       webResearch: draft.webResearch,
+      brainId: readiness.data.agentVersion === "agent-v2" ? draft.brainId || undefined : undefined,
+      useTrainingMemory: readiness.data.agentVersion === "agent-v2" && draft.useTrainingMemory,
     };
     try {
       const sessionId = await session.create(body);
@@ -279,6 +288,38 @@ export function InterviewAgentSetupPage({
                 className="min-h-32"
               />
             </div>
+
+            {readiness.data?.agentVersion === "agent-v2" && (
+              <>
+            <div className="space-y-2">
+              <Label htmlFor="brain">面试知识库 Brain（选填）</Label>
+              <Select
+                value={draft.brainId || "none"}
+                onValueChange={(value) => patch({ brainId: value === "none" ? "" : value })}
+              >
+                <SelectTrigger id="brain">
+                  <SelectValue placeholder="不绑定知识库" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">不绑定知识库</SelectItem>
+                  {(brains.data?.brains ?? []).map((brain) => (
+                    <SelectItem key={brain.id} value={brain.id}>
+                      {brain.name}（{brain.documentCount} 篇资料）
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                仅检索本次明确选择的 Brain；未选择时不会搜索任何知识库。
+              </p>
+            </div>
+
+            <AgentMemoryToggle
+              checked={draft.useTrainingMemory}
+              onCheckedChange={(value) => patch({ useTrainingMemory: value })}
+            />
+              </>
+            )}
 
             <div className="flex items-center justify-between gap-4 rounded-xl border p-4">
               <div className="flex gap-3">

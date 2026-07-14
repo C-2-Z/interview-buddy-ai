@@ -35,6 +35,8 @@ export type VoiceLobbyDraft = Readonly<{
   /** 题目数量。 */ questionCount: number;
   /** 可选目标公司。 */ targetCompany: string;
   /** 模型供应商。 */ modelProvider: "deepseek" | "openai" | "anthropic";
+  /** 用户主动绑定的单个 Brain。 */ brainId: string;
+  /** 本场是否使用已授权的长期训练摘要。 */ useTrainingMemory: boolean;
 }>;
 
 /** 沉浸房间显示的单条字幕。 */

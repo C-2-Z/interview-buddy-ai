@@ -29,6 +29,8 @@ export type AgentQuestionModelInput = Readonly<{
   modelName?: string;
   /** 当前题目必须覆盖的能力维度键。 */
   dimensionKey?: string;
+  /** Agent v2 最新策略给出的战术提问意图。 */
+  strategyIntent?: string | null;
   /** 可信业务上下文；完整简历文件不会进入。 */
   trustedContext?: Readonly<{
     /** 用户提交的有限岗位描述。 */
@@ -155,9 +157,10 @@ export class DeterministicMockAgentModelProvider implements AgentModelProvider {
     const dimensionHint = input.dimensionKey
       ? `，重点考察 ${input.dimensionKey}`
       : "";
+    const strategyHint = input.strategyIntent ? `，并验证：${input.strategyIntent}` : "";
     return {
       questionId: `mock:${input.sessionId}:${input.roleId}:${ordinal}`,
-      content: `${input.persona.displayName}第 ${ordinal} 题：请结合具体经历，说明你如何胜任${input.difficulty}${input.position}岗位${dimensionHint}。`,
+      content: `${input.persona.displayName}第 ${ordinal} 题：请结合具体经历，说明你如何胜任${input.difficulty}${input.position}岗位${dimensionHint}${strategyHint}。`,
       modelProvider: this.modelProvider,
       modelName: this.modelName,
       promptVersion: input.promptVersion,

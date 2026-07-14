@@ -59,3 +59,18 @@ test("out-of-range numeric configuration is rejected", () => {
     restoreEnvironment("AGENT_MAX_NODE_RETRIES", original);
   }
 });
+
+test("Agent v2 requires an explicit rollout gate and keeps v1 as the safe default", () => {
+  const enabled = process.env.AGENT_V2_ENABLED;
+  const version = process.env.AGENT_DEFAULT_VERSION;
+  try {
+    process.env.AGENT_V2_ENABLED = "0";
+    process.env.AGENT_DEFAULT_VERSION = "agent-v2";
+    assert.equal(getAgentRuntimeConfig().defaultVersion, "agent-v1");
+    process.env.AGENT_V2_ENABLED = "1";
+    assert.equal(getAgentRuntimeConfig().defaultVersion, "agent-v2");
+  } finally {
+    restoreEnvironment("AGENT_V2_ENABLED", enabled);
+    restoreEnvironment("AGENT_DEFAULT_VERSION", version);
+  }
+});

@@ -2,6 +2,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {AgentWorkspaceRepository,type WorkspaceDatabaseClient,type WorkspaceQuery} from "./workspace.repository.js";
+import type { AgentOrchestrationRepository } from "../../agent-orchestration/agent-orchestration.repository.js";
+import { AgentWorkspaceService } from "./workspace.service.js";
 
 const SESSION_ID="11111111-1111-4111-8111-111111111111";const QUESTION_ID="22222222-2222-4222-8222-222222222222";
 
@@ -27,4 +29,43 @@ test("workspace restores grounded evidence, evaluation, research, and report",as
   assert.equal(workspace.questions[0].evaluation?.overallScore,91);
   assert.equal(workspace.research.sources[0].title,"公司工程博客");
   assert.equal(workspace.report?.overallScore,91);
+});
+
+test("v1 workspace never queries Agent v2 strategy tables", async () => {
+  let orchestrationReads = 0;
+  const snapshot = {
+    sessionId: SESSION_ID,
+    threadId: SESSION_ID,
+    version: "agent-v1" as const,
+    mode: "single" as const,
+    interviewMode: "text" as const,
+    phase: "awaiting_answer" as const,
+    currentRole: "general" as const,
+    currentQuestionId: QUESTION_ID,
+    currentQuestionIndex: 0,
+    followUpCount: 0,
+    pendingAction: "ask" as const,
+    eventCursor: 2,
+  };
+  const orchestration = {
+    async getLatestStrategy() { orchestrationReads += 1; return null; },
+    async listActivities() { orchestrationReads += 1; return []; },
+  } as unknown as AgentOrchestrationRepository;
+  const service = new AgentWorkspaceService(
+    { async getSession() { return { snapshot }; } },
+    { async load() {
+      return {
+        productStatus: "in_progress" as const,
+        config: { position: "后端工程师", difficulty: "中级", questionCount: 3, targetCompany: null },
+        research: { status: "skipped" as const, sources: [] },
+        questions: [],
+        report: null,
+      };
+    } },
+    orchestration,
+  );
+  const workspace = await service.load(SESSION_ID);
+  assert.equal(orchestrationReads, 0);
+  assert.equal(workspace.strategy, null);
+  assert.deepEqual(workspace.activities, []);
 });

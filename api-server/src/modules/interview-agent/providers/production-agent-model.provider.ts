@@ -84,6 +84,7 @@ export class ProductionAgentModelProvider
           `难度：${input.difficulty}`,
           `题号：${input.questionIndex + 1}`,
           `主维度：${input.dimensionKey ?? "综合能力"}`,
+          `策略意图：${input.strategyIntent ?? "按主维度收集具体证据"}`,
           `岗位描述：${input.trustedContext?.jobDescription ?? "未提供"}`,
           input.untrustedResearchContext ?? "",
         ].filter(Boolean).join("\n"),

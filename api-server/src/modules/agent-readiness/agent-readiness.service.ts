@@ -48,14 +48,10 @@ export class AgentReadinessService {
       : ephemeral
         ? "ephemeral"
         : "unavailable";
+    const inspectedInfrastructure = await this.repository.inspectInfrastructure();
     const infrastructure = ephemeral
-      ? {
-          agentDatabaseReady: await this.repository
-            .inspectInfrastructure()
-            .then((value) => value.agentDatabaseReady),
-          checkpointSchemaReady: true,
-        }
-      : await this.repository.inspectInfrastructure();
+      ? { ...inspectedInfrastructure, checkpointSchemaReady: true }
+      : inspectedInfrastructure;
 
     if (!this.dependencies.runtimeConfig.enabled)
       blockers.push({
@@ -81,6 +77,14 @@ export class AgentReadinessService {
         message: "面试数据服务尚未完成升级，请联系管理员。",
         recoveryAction: "contact_admin",
       });
+    if (
+      (this.dependencies.runtimeConfig.defaultVersion ?? "agent-v1") === "agent-v2" &&
+      !infrastructure.agentV2DatabaseReady
+    ) blockers.push({
+      code: "agent_v2_database_unavailable",
+      message: "受控面试策略服务尚未完成升级，请联系管理员。",
+      recoveryAction: "contact_admin",
+    });
     if (ephemeral)
       warnings.push({
         code: "checkpoint_ephemeral",
@@ -128,6 +132,7 @@ export class AgentReadinessService {
       });
 
     return {
+      agentVersion: this.dependencies.runtimeConfig.defaultVersion ?? "agent-v1",
       status: blockers.length ? "blocked" : warnings.length ? "degraded" : "ready",
       checkpointMode,
       capabilities: {

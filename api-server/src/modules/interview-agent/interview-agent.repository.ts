@@ -38,7 +38,7 @@ export type AgentSessionProjection = {
   /** LangGraph thread_id。 */
   threadId: string;
   /** 当前持久化契约版本。 */
-  version: "agent-v1";
+  version: "agent-v1" | "agent-v2";
   /** 单角色或固定阶段面板模式。 */
   mode: "single" | "panel";
   /** 文本或语音交互通道。 */
@@ -181,6 +181,8 @@ export type FailAgentOperationInput = {
 export type CreateAgentSessionRepositoryInput = CreateAgentSessionInput & {
   /** 服务端当前启用的 Prompt 契约版本。 */
   promptVersion: string;
+  /** 服务端按灰度开关选择的持久化与 Graph 版本。 */
+  agentVersion?: "agent-v1" | "agent-v2";
 };
 
 /** Repository 对外暴露的稳定、安全错误码。 */
@@ -291,6 +293,7 @@ const AgentEventTypeSchema = z.enum([
   "agent.message_completed",
   "agent.score_completed",
   "agent.session_completed",
+  "agent.activity",
   "agent.error",
 ]);
 const IsoTimestampSchema = z.string().datetime({ offset: true });
@@ -331,7 +334,7 @@ const SessionProjectionRowSchema = z
     id: SessionIdSchema,
     user_id: SessionIdSchema,
     thread_id: z.string().trim().min(1).max(200),
-    agent_version: z.literal("agent-v1"),
+    agent_version: z.enum(["agent-v1", "agent-v2"]),
     agent_mode: z.enum(["single", "panel"]),
     interview_mode: z.enum(["text", "voice"]),
     agent_phase: AgentPhaseSchema,
@@ -420,7 +423,7 @@ const EventDraftSchema = z
 const AgentSnapshotDataSchema: ZodType<AgentSnapshot> = z.object({
   sessionId: SessionIdSchema,
   threadId: z.string().trim().min(1).max(200),
-  version: z.literal("agent-v1"),
+  version: z.enum(["agent-v1", "agent-v2"]),
   mode: z.enum(["single", "panel"]),
   interviewMode: z.enum(["text", "voice"]),
   phase: AgentPhaseSchema,
@@ -506,6 +509,21 @@ const AgentErrorDataSchema = z
     retryable: z.boolean(),
   })
   .strict();
+const AgentActivityDataSchema = z.object({
+  id: SessionIdSchema,
+  kind: z.enum(["planning", "tool", "reflection", "memory"]),
+  status: z.enum(["running", "completed", "skipped", "failed"]),
+  label: z.string().trim().min(2).max(100),
+  reasonCode: z.string().trim().min(1).max(100).nullable().optional(),
+  sourceCount: z.number().int().min(0).max(1000).nullable().optional(),
+}).strict().transform((value) => ({
+  id: value.id,
+  kind: value.kind,
+  status: value.status,
+  label: value.label,
+  ...(value.reasonCode ? { reasonCode: value.reasonCode } : {}),
+  ...(value.sourceCount !== null && value.sourceCount !== undefined ? { sourceCount: value.sourceCount } : {}),
+}));
 
 const ClaimInputSchema = z
   .object({
@@ -527,6 +545,7 @@ const FailInputSchema = z
   .strict();
 const CreateSessionRepositoryInputSchema = CreateAgentSessionSchema.extend({
   promptVersion: z.string().trim().min(1).max(100),
+  agentVersion: z.enum(["agent-v1", "agent-v2"]).optional(),
 });
 
 const MAX_SAFE_JSON_DEPTH = 32;
@@ -815,6 +834,8 @@ function parseEventData(
         return ScoreCompletedDataSchema;
       case "agent.session_completed":
         return SessionCompletedDataSchema;
+      case "agent.activity":
+        return AgentActivityDataSchema;
       case "agent.error":
         return AgentErrorDataSchema;
     }
@@ -886,6 +907,13 @@ function parseEventRow(value: unknown): AgentEvent {
         data: parseDatabaseOutput(SessionCompletedDataSchema, safePayload),
         createdAt,
       };
+    case "agent.activity":
+      return {
+        sequence: row.sequence,
+        type: row.type,
+        data: parseDatabaseOutput(AgentActivityDataSchema, safePayload),
+        createdAt,
+      };
     case "agent.error":
       return {
         sequence: row.sequence,
@@ -934,6 +962,12 @@ function serializeCreateSessionInput(
   if (input.targetCompany !== undefined) payload.targetCompany = input.targetCompany;
   if (input.skillId !== undefined) payload.skillId = input.skillId;
   if (input.resumeId !== undefined) payload.resumeId = input.resumeId;
+  // v1 必须保持旧 RPC 的严格字段集合；只有 v2 才发送增量迁移认识的新上下文字段。
+  if (input.agentVersion === "agent-v2") {
+    payload.agentVersion = input.agentVersion;
+    if (input.brainId !== undefined) payload.brainId = input.brainId;
+    if (input.useTrainingMemory !== undefined) payload.useTrainingMemory = input.useTrainingMemory;
+  }
   if (input.modelProvider !== undefined) payload.modelProvider = input.modelProvider;
   if (input.modelName !== undefined) payload.modelName = input.modelName;
   return cloneSafeJsonObject(payload, "input");
@@ -1074,7 +1108,6 @@ export class SupabaseInterviewAgentRepository
           "id, user_id, thread_id, agent_version, agent_mode, interview_mode, agent_phase, status, current_role, agent_config, research_status, last_event_seq",
         )
         .eq("id", parsedSessionId)
-        .eq("agent_version", "agent-v1")
         .single(),
     );
     const row = parseDatabaseOutput(SessionProjectionRowSchema, data);

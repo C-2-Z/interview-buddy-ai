@@ -40,6 +40,7 @@ function dependencies(
 function service(
   input: {
     agentDatabaseReady?: boolean;
+    agentV2DatabaseReady?: boolean;
     checkpointSchemaReady?: boolean;
     dependencies?: Partial<AgentReadinessServiceDependencies>;
   } = {},
@@ -47,6 +48,9 @@ function service(
   const repository = new AgentReadinessRepository({
     async checkAgentDatabase() {
       return input.agentDatabaseReady ?? true;
+    },
+    async checkAgentV2Database() {
+      return input.agentV2DatabaseReady ?? true;
     },
     async checkCheckpointSchema() {
       return input.checkpointSchemaReady ?? true;
@@ -151,4 +155,19 @@ test("legacy OpenAPI fallback requires every Canonical Agent RPC", () => {
   delete complete.paths["/rpc/record_agent_run"];
   assert.equal(hasRequiredAgentRpcs(complete), false);
   assert.equal(hasRequiredAgentRpcs({ error: "raw database error" }), false);
+});
+
+test("v2 rollout is blocked until the incremental database migration is visible", async () => {
+  const result = await service({
+    agentV2DatabaseReady: false,
+    dependencies: {
+      runtimeConfig: {
+        ...dependencies().runtimeConfig,
+        v2Enabled: true,
+        defaultVersion: "agent-v2",
+      },
+    },
+  }).check({ interviewMode: "text", modelProvider: "deepseek", webResearch: false });
+  assert.equal(result.status, "blocked");
+  assert.equal(result.blockers.some((item) => item.code === "agent_v2_database_unavailable"), true);
 });

@@ -3,12 +3,33 @@ export type AgentMode="single"|"panel";
 export type AgentPhase="preparing"|"awaiting_answer"|"reasoning"|"speaking"|"scoring"|"role_handoff"|"reporting"|"completed"|"failed";
 export type AgentRoleId="general"|"technical"|"manager"|"hr";
 export type AgentPendingAction="ask"|"follow_up"|"score"|"handoff"|"finish";
+export type AgentVersion="agent-v1"|"agent-v2";
+
+/** Agent 对用户公开的行动记录，不包含模型推理或原始工具结果。 */
+export type AgentActivity=Readonly<{
+  id:string;
+  kind:"planning"|"tool"|"reflection"|"memory";
+  status:"running"|"completed"|"skipped"|"failed";
+  label:string;
+  reasonCode?:string;
+  sourceCount?:number;
+}>;
+
+/** 当前生效策略的脱敏视图。 */
+export type AgentStrategyView=Readonly<{
+  revision:number;
+  objective:string;
+  focusDimensions:string[];
+  memoryApplied:boolean;
+  brainApplied:boolean;
+}>;
 
 /** 可恢复 Agent 快照。 */
 export type AgentSnapshot=Readonly<{
   /** 会话 UUID。 */ sessionId:string;
   /** LangGraph thread ID。 */ threadId:string;
-  /** 状态版本。 */ version:string;
+  /** 状态机版本，用于恢复时选择兼容运行时。 */ version:AgentVersion;
+  /** v2 当前策略修订号；v1 不返回。 */ strategyRevision?:number;
   /** 单角色或面板。 */ mode:AgentMode;
   /** 文本或语音。 */ interviewMode:"text"|"voice";
   /** 当前阶段。 */ phase:AgentPhase;
@@ -34,6 +55,8 @@ export type CreateAgentSessionBody=Readonly<{
   /** 模型供应商。 */ modelProvider?:"deepseek"|"openai"|"anthropic";
   /** 模型名。 */ modelName?:string;
   /** 是否联网研究。 */ webResearch?:boolean;
+  /** 用户主动绑定的单个 Brain；未选择时不搜索知识库。 */ brainId?:string;
+  /** 是否在本场读取并更新已授权的长期训练摘要。 */ useTrainingMemory?:boolean;
 }>;
 
 /** 创建响应。 */
@@ -59,6 +82,8 @@ export type AgentWorkspace={
   snapshot:AgentSnapshot;
   config:{position:string;difficulty:string;questionCount:number;targetCompany:string|null};
   research:{status:"pending"|"running"|"completed"|"skipped"|"failed";sources:Array<{id:string;category:"company"|"role"|"industry";title:string;url:string}>};
+  strategy:AgentStrategyView|null;
+  activities:AgentActivity[];
   questions:AgentWorkspaceQuestion[];
   report:null|{overallScore:number;overallFeedback:string;dimensionSummary:unknown};
 };
@@ -72,6 +97,7 @@ export type AgentSSEEvent=
   |{sequence:number;type:"agent.message_completed";data:{id:string;role:"assistant";content:string;roleId:AgentRoleId;createdAt:string;interrupted:boolean}}
   |{sequence:number;type:"agent.score_completed";data:{questionId:string;overallScore:number;dimensions:Record<string,{score:number;rationale:string;evidenceIds:string[]}>}}
   |{sequence:number;type:"agent.session_completed";data:{sessionId:string;completedAt:string;overallScore?:number;overallFeedback?:string;dimensionSummary?:unknown}}
+  |{sequence:number;type:"agent.activity";data:AgentActivity}
   |{sequence:number;type:"agent.error";data:{code:string;message:string;retryable:boolean}};
 
 /** 角色展示。 */

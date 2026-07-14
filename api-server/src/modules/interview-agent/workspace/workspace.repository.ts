@@ -53,7 +53,7 @@ export class AgentWorkspaceRepository {
    * @param sessionId - Agent 会话 UUID。
    * @returns 不含 Prompt、Key 或 checkpoint 的页面投影。
    */
-  async load(sessionId: string): Promise<Omit<AgentWorkspace, "snapshot">> {
+  async load(sessionId: string): Promise<Omit<AgentWorkspace, "snapshot" | "strategy" | "activities">> {
     const [sessionRaw, questionsRaw, sourcesRaw] = await Promise.all([
       execute(this.database.from("interview_sessions").select("position, difficulty, status, research_status, agent_config, overall_score, overall_feedback, dimension_summary, report_status").eq("id",sessionId).single()),
       execute(this.database.from("interview_questions").select("id, question, order_index, role_id, dimension_key, selection_source, score, feedback").eq("session_id",sessionId).order("order_index",{ascending:true})),
