@@ -9,7 +9,6 @@ import { createModuleLogger } from "../../shared/logger/voice-logger.js";
 import { createVoiceSocketToken } from "../voice/voice-token.service.js";
 import { createAgentWorkspaceRepository } from "./workspace/workspace.repository.js";
 import { AgentWorkspaceService } from "./workspace/workspace.service.js";
-import { createAgentOrchestrationRepository } from "../agent-orchestration/agent-orchestration.repository.js";
 import { streamCommittedAgentEvents } from "./events/agent-event-stream.js";
 import { createInterviewAgentRepository } from "./interview-agent.repository.js";
 import { InterviewAgentRepositoryError } from "./interview-agent.repository.js";
@@ -165,14 +164,8 @@ interviewAgentRoutes.get("/sessions/:sessionId/events", async (context) => {
 /** 返回恢复页面所需的真实题目、消息、研究、证据、评分与报告投影。 */
 interviewAgentRoutes.get("/sessions/:sessionId/workspace", async (context) => {
   const { sessionId } = AgentSessionParamsSchema.parse(context.req.param());
-  const agentService = createInterviewAgentService(
-    context.var.supabase,
-    context.var.userId,
-  );
   const workspaceService = new AgentWorkspaceService(
-    agentService,
     createAgentWorkspaceRepository(context.var.supabase),
-    createAgentOrchestrationRepository(context.var.supabase),
   );
   return context.json(await workspaceService.load(sessionId));
 });

@@ -66,6 +66,19 @@ test("current-question migration permits the shared projection for v2 sessions",
   assert.match(sql, /20260714000005/);
 });
 
+test("workspace projection migration provides one ownership-checked read RPC", async () => {
+  const migrationDirectory = new URL("../../../../supabase/migrations/", import.meta.url);
+  const sql = await readFile(
+    new URL("20260714000006_add_agent_workspace_projection.sql", migrationDirectory),
+    "utf8",
+  );
+
+  assert.match(sql, /FUNCTION public\.get_agent_workspace/);
+  assert.match(sql, /session\.user_id = v_user_id/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.get_agent_workspace\(UUID\) FROM PUBLIC, anon/);
+  assert.match(sql, /20260714000006/);
+});
+
 test("create-session upgrade anchors still exist in the preceding canonical migration", async () => {
   const migrationDirectory = new URL("../../../../supabase/migrations/", import.meta.url);
   const base = await readFile(new URL("20260711000002_add_interview_agent_foundation.sql", migrationDirectory), "utf8");

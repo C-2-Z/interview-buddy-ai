@@ -1,32 +1,21 @@
-/** Agent 工作台 Service：把最新事件快照与只读业务投影合并。 */
-import type { InterviewAgentService } from "../interview-agent.service.js";
+/** Agent 工作台 Service：提供单次恢复页面所需的安全只读投影。 */
 import type { AgentWorkspaceRepository } from "./workspace.repository.js";
 import type { AgentWorkspace } from "./workspace.types.js";
-import type { AgentOrchestrationRepository } from "../../agent-orchestration/agent-orchestration.repository.js";
 
 /** 页面恢复业务服务。 */
 export class AgentWorkspaceService {
-  /** @param agentService - 快照真相源。 @param repository - 业务投影真相源。 */
+  /** @param repository - 已在数据库内校验会话所有权的投影 Repository。 */
   constructor(
-    private readonly agentService: Pick<InterviewAgentService,"getSession">,
     private readonly repository: Pick<AgentWorkspaceRepository, "load">,
-    private readonly orchestrationRepository?: AgentOrchestrationRepository,
   ) {}
 
-  /** 加载同一用户拥有的完整 Agent 工作台。 */
-  async load(sessionId:string):Promise<AgentWorkspace>{
-    const [view,workspace]=await Promise.all([
-      this.agentService.getSession(sessionId),
-      this.repository.load(sessionId),
-    ]);
-    // v1 部署不要求存在 v2 增量表，必须完全跳过策略与活动查询以保持旧会话可用。
-    if (view.snapshot.version === "agent-v1" || !this.orchestrationRepository) {
-      return {snapshot:view.snapshot,...workspace,strategy:null,activities:[]};
-    }
-    const [strategy,activities]=await Promise.all([
-      this.orchestrationRepository.getLatestStrategy(sessionId),
-      this.orchestrationRepository.listActivities(sessionId),
-    ]);
-    return {snapshot:view.snapshot,...workspace,strategy,activities};
+  /**
+   * 加载完整 Agent 工作台；Repository 以一次 RPC 返回一致水位的数据。
+   *
+   * @param sessionId - 当前用户拥有的 Agent 会话 UUID。
+   * @returns 可直接交给前端恢复页面的完整投影。
+   */
+  async load(sessionId: string): Promise<AgentWorkspace> {
+    return this.repository.load(sessionId);
   }
 }

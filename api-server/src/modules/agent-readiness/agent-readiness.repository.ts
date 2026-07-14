@@ -96,7 +96,7 @@ export function createAgentReadinessRepository(
         rpc(name: "check_agent_readiness"): PromiseLike<{ data: string | null; error: unknown }>;
       };
       const { data, error } = await client.rpc("check_agent_readiness");
-      if (!error && (data === "20260713000001" || data === "20260714000001" || data === "20260714000002" || data === "20260714000003" || data === "20260714000004" || data === "20260714000005")) return true;
+      if (!error && (data === "20260713000001" || data === "20260714000001" || data === "20260714000002" || data === "20260714000003" || data === "20260714000004" || data === "20260714000005" || data === "20260714000006")) return true;
       // 老环境在应用新探测迁移前仍可通过既有只读元数据证明主链路完整，避免无谓阻断用户。
       return inspectLegacyAgentRpcMetadata();
     },
@@ -105,7 +105,7 @@ export function createAgentReadinessRepository(
         rpc(name: "check_agent_readiness"): PromiseLike<{ data: string | null; error: unknown }>;
       };
       const { data, error } = await client.rpc("check_agent_readiness");
-      return !error && data === "20260714000005";
+      return !error && data === "20260714000006";
     },
     async checkCheckpointSchema() {
       const connectionString = process.env.DATABASE_URL?.trim();
