@@ -28,13 +28,17 @@ const CONTEXT: AgentPlanningContext = {
 
 /** 构造只记录行为的编排依赖，避免测试接触网络和数据库。 */
 function harness(model: AgentOrchestrationModel) {
-  const activities: Array<{ kind: string; label: string }> = [];
+  const activities: Array<{ id: string; kind: string; status: string; label: string }> = [];
   const strategies: AgentStrategyDraft[] = [];
   let questionSearches = 0;
   let messageLoads = 0;
   const repository: AgentOrchestrationRepository = {
     async commitStrategy(input) { strategies.push(input.draft); return { id: crypto.randomUUID(), revision: strategies.length }; },
-    async recordActivity(_sessionId, activity) { activities.push(activity); return crypto.randomUUID(); },
+    async recordActivity(_sessionId, activity, activityId) {
+      const id = activityId ?? crypto.randomUUID();
+      activities.push({ id, kind: activity.kind, status: activity.status, label: activity.label });
+      return id;
+    },
     async listActivities() { return []; },
     async getLatestStrategy() { return null; },
     async getLatestEvaluation() { return { communication: { score: 58 } }; },
@@ -91,6 +95,13 @@ test("planner approves only available distinct read tools within budget", async 
   assert.deepEqual(fake.strategies[0].toolRequests.map((item) => item.name), ["search_question_bank", "load_session_messages"]);
   assert.deepEqual(fake.counts(), { questionSearches: 1, messageLoads: 1 });
   assert.equal(receipt.observationIds.length, 2);
+  const planning = fake.activities.filter((activity) => activity.kind === "planning");
+  assert.deepEqual(planning.map((activity) => activity.status), ["running", "completed"]);
+  assert.equal(planning[0].id, planning[1].id);
+  const tools = fake.activities.filter((activity) => activity.kind === "tool");
+  assert.deepEqual(tools.map((activity) => activity.status), ["running", "completed", "running", "completed"]);
+  assert.equal(tools[0].id, tools[1].id);
+  assert.equal(tools[2].id, tools[3].id);
 });
 
 test("invalid planner output gets one repair then deterministic fallback", async () => {

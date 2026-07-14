@@ -37,7 +37,11 @@ export type AgentActivityWrite = Omit<AgentActivity, "id"> & {
 /** Agent Orchestration 持久化端口。 */
 export interface AgentOrchestrationRepository {
   commitStrategy(input: CommitStrategyInput): Promise<{ id: string; revision: number }>;
-  recordActivity(sessionId: string, activity: AgentActivityWrite): Promise<string>;
+  recordActivity(
+    sessionId: string,
+    activity: AgentActivityWrite,
+    activityId?: string,
+  ): Promise<string>;
   listActivities(sessionId: string): Promise<AgentActivity[]>;
   getLatestStrategy(sessionId: string): Promise<AgentStrategyView | null>;
   getLatestEvaluation(sessionId: string): Promise<Record<string, { score: number }> | null>;
@@ -72,14 +76,17 @@ export class SupabaseAgentOrchestrationRepository implements AgentOrchestrationR
   }
 
   /** @inheritdoc */
-  async recordActivity(sessionId: string, activity: AgentActivityWrite): Promise<string> {
-    const id = randomUUID();
+  async recordActivity(
+    sessionId: string,
+    activity: AgentActivityWrite,
+    activityId = randomUUID(),
+  ): Promise<string> {
     const { error } = await this.supabase.rpc("record_agent_activity", {
       p_session_id: sessionId,
-      p_activity: { id, ...activity },
+      p_activity: { id: activityId, ...activity },
     });
     if (error) throw new Error("Agent activity persistence is unavailable");
-    return id;
+    return activityId;
   }
 
   /** @inheritdoc */

@@ -68,7 +68,10 @@ import { AgentMemoryService } from "../agent-memory/agent-memory.service.js";
 import { createAgentMemoryRepository } from "../agent-memory/agent-memory.repository.js";
 import { AgentOrchestrationService } from "../agent-orchestration/agent-orchestration.service.js";
 import { ProductionAgentOrchestrationModel } from "../agent-orchestration/agent-orchestration.provider.js";
-import { createAgentOrchestrationRepository } from "../agent-orchestration/agent-orchestration.repository.js";
+import {
+  createAgentOrchestrationRepository,
+  type AgentOrchestrationRepository,
+} from "../agent-orchestration/agent-orchestration.repository.js";
 import type { AgentOrchestrationRunner } from "../agent-orchestration/agent-orchestration.types.js";
 import { getBrainDetail } from "../knowledge/brain/brain.service.js";
 
@@ -106,6 +109,8 @@ export type InterviewAgentServiceDependencies = {
   preparationService?: InterviewPreparationService;
   /** Phase 2 原子准备持久化；必须与 preparationService 同时提供。 */
   preparationRepository?: PreparationCommitRepository;
+  /** v2 准备过程的用户可见活动真相源；v1 和最小测试图可以省略。 */
+  orchestrationRepository?: AgentOrchestrationRepository;
   /** Phase 3 在恢复 Graph 前原子保存回答正文；测试最小图可省略。 */
   inputRepository?: AgentInputRepository;
   /** true 表示 Graph finalize_report 已提交完整 session_completed 报告事件。 */
@@ -352,8 +357,19 @@ export class InterviewAgentService {
     };
     const created = await this.dependencies.repository.createSession(resolvedInput);
 
+    const preparationTask = this.prepareSession(graph, created, resolvedInput);
+    if (agentVersion === "agent-v2") {
+      // v2 先返回可恢复 sessionId，让客户端立即订阅持久化活动；后台任务仍由 operation 保证幂等。
+      void preparationTask.catch(() => {
+        logger.error(new Error("Agent preparation failed"), {
+          event: "agent_preparation_failed",
+          sessionId: created.sessionId,
+        });
+      });
+      return created;
+    }
     try {
-      await this.prepareSession(graph, created, resolvedInput);
+      await preparationTask;
     } catch {
       // 创建响应必须仍然让客户端获得 sessionId，retry 可在 checkpoint/DB 恢复后继续。
       logger.error(new Error("Agent preparation failed"), {
@@ -671,10 +687,11 @@ export class InterviewAgentService {
         webResearchEnabled: this.dependencies.runtimeConfig.webResearchEnabled,
         version: input.agentVersion,
       });
-      const preparation = await this.preparePlanIfConfigured(
+      const preparation = await this.preparePlanWithActivity(
         created.sessionId,
         input.mode,
         initialState.config,
+        input.agentVersion,
       );
       const preparedQuestionId = preparation ? randomUUID() : undefined;
       const invoked = await graph.invoke(
@@ -732,6 +749,57 @@ export class InterviewAgentService {
       );
     }
     return service.prepare({ sessionId, mode, config });
+  }
+
+  /**
+   * 为可能耗时的 Skill、简历、联网研究和候选题整理写入可更新活动。
+   *
+   * @param sessionId - 当前 Agent 会话 UUID。
+   * @param mode - 冻结的角色模式。
+   * @param config - 不含凭据的冻结配置。
+   * @param version - 仅 v2 写入活动；v1 保持原有行为。
+   * @returns 与旧准备服务相同的冻结计划或空值。
+   */
+  private async preparePlanWithActivity(
+    sessionId: string,
+    mode: AgentSessionProjection["mode"],
+    config: FrozenAgentConfig,
+    version: InterviewAgentState["version"],
+  ) {
+    const activityRepository = this.dependencies.orchestrationRepository;
+    let activityId: string | null = null;
+    if (version === "agent-v2" && activityRepository) {
+      // 可观测性降级不应阻断首题生成，数据库活动短暂不可用时仍继续原有准备流程。
+      activityId = await activityRepository.recordActivity(sessionId, {
+        kind: "planning",
+        status: "running",
+        label: "正在读取岗位资料并筛选首题",
+        reasonCode: "prepare_context",
+      }).catch(() => null);
+    }
+    try {
+      const preparation = await this.preparePlanIfConfigured(sessionId, mode, config);
+      if (activityId && activityRepository) {
+        await activityRepository.recordActivity(sessionId, {
+          kind: "planning",
+          status: "completed",
+          label: "已整理岗位资料与首题候选",
+          reasonCode: "context_prepared",
+          sourceCount: preparation?.researchSources.length ?? 0,
+        }, activityId);
+      }
+      return preparation;
+    } catch (error) {
+      if (activityId && activityRepository) {
+        await activityRepository.recordActivity(sessionId, {
+          kind: "planning",
+          status: "failed",
+          label: "岗位资料整理未完成",
+          reasonCode: "prepare_context_failed",
+        }, activityId).catch(() => undefined);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -830,10 +898,11 @@ export class InterviewAgentService {
 
     try {
       const restoredConfig = FrozenAgentConfigSchema.parse(projection.agentConfig);
-      const preparation = await this.preparePlanIfConfigured(
+      const preparation = await this.preparePlanWithActivity(
         projection.sessionId,
         projection.mode,
         restoredConfig,
+        projection.version,
       );
       const fallbackQuestionId = preparation ? randomUUID() : null;
       const config = createAgentGraphConfig(projection.sessionId, projection.version);
@@ -958,8 +1027,9 @@ export function createInterviewAgentService(
   const defaultTools = createDefaultInterviewAgentTools(preparationRepository);
   const webSearchProvider = createWebSearchProviderFromEnv();
   const memoryService = new AgentMemoryService(createAgentMemoryRepository(supabase));
+  const orchestrationRepository = createAgentOrchestrationRepository(supabase);
   const orchestrationService = new AgentOrchestrationService({
-    repository: createAgentOrchestrationRepository(supabase),
+    repository: orchestrationRepository,
     model: new ProductionAgentOrchestrationModel(supabase, userId, agentRunAuditor),
     tools: defaultTools,
     webSearch: webSearchProvider,
@@ -1018,6 +1088,7 @@ export function createInterviewAgentService(
       }
     },
     preparationRepository,
+    orchestrationRepository,
     inputRepository,
     reportFinalizedInGraph: true,
     preparationService: new InterviewPreparationService({

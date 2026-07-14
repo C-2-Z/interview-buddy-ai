@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getAgentActivityDetail } from "../activity-copy";
 import type { AgentActivity, AgentStrategyView } from "../types";
 
 /** 将活动状态映射为可辨识且无技术术语的图标。 */
@@ -16,7 +17,7 @@ function StatusIcon({ status }: { status: AgentActivity["status"] }) {
   if (status === "completed") return <CheckCircle2 className="size-4 text-emerald-600" />;
   if (status === "failed") return <XCircle className="size-4 text-destructive" />;
   if (status === "running")
-    return <CircleDashed className="size-4 animate-spin text-primary" />;
+    return <CircleDashed className="size-4 animate-spin text-primary motion-reduce:animate-none" />;
   return <CircleDashed className="size-4 text-muted-foreground" />;
 }
 
@@ -63,9 +64,7 @@ export function AgentActivityPanel({
               <div className="min-w-0 flex-1">
                 <p>{activity.label}</p>
                 <p className="text-xs text-muted-foreground">
-                  {activity.sourceCount !== undefined
-                    ? `采用 ${activity.sourceCount} 条来源`
-                    : activity.reasonCode ?? "按本场目标执行"}
+                  {getAgentActivityDetail(activity)}
                 </p>
               </div>
             </li>

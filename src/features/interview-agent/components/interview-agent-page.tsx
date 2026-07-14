@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { AgentActivityPanel } from "@/features/agent-orchestration/components/agent-activity-panel";
+import { AgentPreparationProgress } from "@/features/agent-orchestration/components/agent-preparation-progress";
 import { InterviewLifecycleActions } from "@/features/interview-lifecycle/components/interview-lifecycle-actions";
 import { useInterviewLifecycle } from "@/features/interview-lifecycle/hooks/use-interview-lifecycle";
 import type { InterviewLifecycleAction } from "@/features/interview-lifecycle/types";
@@ -272,9 +273,19 @@ export function InterviewAgentPage({
               </div>
             ))}
             {timeline.length === 0 && (
-              <div className="py-16 text-center text-sm text-muted-foreground">
-                Agent 正在研究岗位并准备题目…
-              </div>
+              snapshot.phase === "preparing" ? (
+                <div className="py-6 sm:py-10">
+                  <AgentPreparationProgress
+                    position={workspace.config.position}
+                    activities={workspace.activities}
+                    strategy={workspace.strategy}
+                  />
+                </div>
+              ) : (
+                <div className="py-16 text-center text-sm text-muted-foreground">
+                  正在恢复面试内容…
+                </div>
+              )
             )}
           </div>
         </ScrollArea>
@@ -314,7 +325,9 @@ export function InterviewAgentPage({
       </section>
 
       <aside className="space-y-4">
-        <AgentActivityPanel strategy={workspace.strategy} activities={workspace.activities} />
+        {snapshot.phase !== "preparing" && (
+          <AgentActivityPanel strategy={workspace.strategy} activities={workspace.activities} />
+        )}
         {workspace.report && (
           <ReportCard
             score={workspace.report.overallScore}
