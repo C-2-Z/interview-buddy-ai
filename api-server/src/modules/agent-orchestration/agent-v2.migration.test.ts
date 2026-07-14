@@ -42,6 +42,18 @@ test("activity progress migration updates one audit row from running to its term
   assert.match(sql, /20260714000003/);
 });
 
+test("activity event migration permits the SSE event emitted by the activity RPC", async () => {
+  const migrationDirectory = new URL("../../../../supabase/migrations/", import.meta.url);
+  const sql = await readFile(
+    new URL("20260714000004_allow_agent_activity_events.sql", migrationDirectory),
+    "utf8",
+  );
+
+  assert.match(sql, /DROP CONSTRAINT IF EXISTS agent_events_type_check/);
+  assert.match(sql, /'agent\.activity'/);
+  assert.match(sql, /20260714000004/);
+});
+
 test("create-session upgrade anchors still exist in the preceding canonical migration", async () => {
   const migrationDirectory = new URL("../../../../supabase/migrations/", import.meta.url);
   const base = await readFile(new URL("20260711000002_add_interview_agent_foundation.sql", migrationDirectory), "utf8");

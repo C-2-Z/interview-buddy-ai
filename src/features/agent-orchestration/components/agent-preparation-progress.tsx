@@ -1,6 +1,8 @@
 /** Agent 准备进度：在首题生成前展示真实活动事件和受控边界。 */
-import { Bot, CheckCircle2, Circle, CircleDashed, ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bot, CheckCircle2, Circle, CircleDashed, RefreshCw, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AgentActivity, AgentStrategyView } from "../types";
 import { getAgentActivityDetail } from "../activity-copy";
@@ -20,6 +22,8 @@ export function AgentPreparationProgress({
   position,
   activities,
   strategy,
+  retrying,
+  onRetry,
 }: {
   /** 当前目标岗位。 */
   position: string;
@@ -27,9 +31,22 @@ export function AgentPreparationProgress({
   activities: AgentActivity[];
   /** 已提交后才展示的策略摘要。 */
   strategy: AgentStrategyView | null;
+  /** 准备重试请求是否正在执行。 */
+  retrying: boolean;
+  /** 用户确认长时间无进展后重新 claim 失败的准备 operation。 */
+  onRetry: () => void;
 }) {
+  const [showRecovery, setShowRecovery] = useState(false);
   const visibleActivities = activities.slice(-8);
   const hasRunningActivity = visibleActivities.some((activity) => activity.status === "running");
+  const hasFailedActivity = visibleActivities.some((activity) => activity.status === "failed");
+
+  useEffect(() => {
+    if (hasRunningActivity || visibleActivities.length > 0) return;
+    const timer = window.setTimeout(() => setShowRecovery(true), 8_000);
+    return () => window.clearTimeout(timer);
+  }, [hasRunningActivity, visibleActivities.length]);
+
   return (
     <Card className="mx-auto w-full max-w-2xl border-primary/20 bg-primary/[0.025]">
       <CardHeader className="space-y-3">
@@ -94,6 +111,17 @@ export function AgentPreparationProgress({
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
           页面只展示行动、来源数量和结果，不展示模型原始推理、Prompt 或工具原文。
         </div>
+        {(hasFailedActivity || (showRecovery && visibleActivities.length === 0)) && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+            <p className="text-xs leading-5 text-muted-foreground">
+              长时间没有新进展时，可以从已保存的会话安全地重新准备。
+            </p>
+            <Button type="button" variant="outline" size="sm" disabled={retrying} onClick={onRetry}>
+              <RefreshCw className={retrying ? "animate-spin motion-reduce:animate-none" : ""} />
+              重新尝试准备
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

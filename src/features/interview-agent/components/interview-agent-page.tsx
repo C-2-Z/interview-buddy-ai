@@ -279,6 +279,8 @@ export function InterviewAgentPage({
                     position={workspace.config.position}
                     activities={workspace.activities}
                     strategy={workspace.strategy}
+                    retrying={session.loading}
+                    onRetry={() => void session.retryPreparation().catch(() => undefined)}
                   />
                 </div>
               ) : (

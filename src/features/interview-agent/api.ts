@@ -29,6 +29,12 @@ export function submitAgentInput(
 export function interruptAgentSession(sessionId: string): Promise<{ accepted: boolean }> {
   return apiRequest("POST", `/api/agent/sessions/${sessionId}/interrupt`, {});
 }
+/** 重试尚未完成的准备 operation，并返回数据库最新快照。 */
+export function retryAgentSession(
+  sessionId: string,
+): Promise<{ duplicate: boolean; snapshot: import("./types").AgentSnapshot }> {
+  return apiRequest("POST", `/api/agent/sessions/${sessionId}/retry`, {});
+}
 /** 获取语音 WebSocket URL。 */
 export function connectAgentVoice(
   sessionId: string,

@@ -1,6 +1,6 @@
 /** Agent 会话 Hook：鉴权 SSE、轮询降级、工作台恢复和幂等文本输入。 */
 import {useCallback,useEffect,useRef,useState} from "react";
-import {createAgentSession,getAgentWorkspace,interruptAgentSession,streamAgentEvents,submitAgentInput} from "../api";
+import {createAgentSession,getAgentWorkspace,interruptAgentSession,retryAgentSession,streamAgentEvents,submitAgentInput} from "../api";
 import type {AgentSSEEvent,AgentSnapshot,AgentWorkspace,CreateAgentSessionBody} from "../types";
 
 const POLL_INTERVAL_MS=3_000;
@@ -17,6 +17,7 @@ export type UseAgentSessionResult={
   /** 创建会话。 */ create(body:CreateAgentSessionBody):Promise<string>;
   /** 提交文本回答。 */ submitInput(content:string):Promise<void>;
   /** 打断输出。 */ interrupt():Promise<void>;
+  /** 重新执行失败或中断的准备 operation。 */ retryPreparation():Promise<void>;
   /** 立即重新连接。 */ reconnect():void;
   /** 刷新工作台。 */ refresh():Promise<void>;
 };
@@ -50,6 +51,7 @@ export function useAgentSession(initialSessionId?:string):UseAgentSessionResult{
   const submitInput=useCallback(async(content:string)=>{if(!sessionId)return;setLoading(true);setError(null);try{const result=await submitAgentInput(sessionId,{inputId:crypto.randomUUID(),type:"text",content});setWorkspace((current)=>current?{...current,snapshot:result.snapshot}:current);await refresh();}catch(reason){setError(reason instanceof Error?reason.message:"提交回答失败");throw reason;}finally{setLoading(false);}},[sessionId,refresh]);
 
   const interrupt=useCallback(async()=>{if(sessionId)await interruptAgentSession(sessionId);},[sessionId]);
+  const retryPreparation=useCallback(async()=>{if(!sessionId)return;setLoading(true);setError(null);try{const result=await retryAgentSession(sessionId);setWorkspace((current)=>current?{...current,snapshot:result.snapshot}:current);await refresh();}catch(reason){setError(reason instanceof Error?reason.message:"重新准备失败");throw reason;}finally{setLoading(false);}},[sessionId,refresh]);
   const reconnect=useCallback(()=>{if(sessionId)connect(sessionId);},[sessionId,connect]);
-  return{snapshot:workspace?.snapshot??null,workspace,loading,error,connected,lastEvent,create,submitInput,interrupt,reconnect,refresh};
+  return{snapshot:workspace?.snapshot??null,workspace,loading,error,connected,lastEvent,create,submitInput,interrupt,retryPreparation,reconnect,refresh};
 }
