@@ -29,6 +29,19 @@ test("v2 migration defines dual-version persistence, RLS and atomic write RPCs",
   assert.match(sql, /duration_ms INTEGER NOT NULL/);
 });
 
+test("activity progress migration updates one audit row from running to its terminal state", async () => {
+  const migrationDirectory = new URL("../../../../supabase/migrations/", import.meta.url);
+  const sql = await readFile(
+    new URL("20260714000003_update_agent_activity_progress.sql", migrationDirectory),
+    "utf8",
+  );
+
+  assert.match(sql, /FUNCTION public\.record_agent_activity/);
+  assert.match(sql, /ON CONFLICT \(id\) DO UPDATE SET/);
+  assert.match(sql, /'agent\.activity'/);
+  assert.match(sql, /20260714000003/);
+});
+
 test("create-session upgrade anchors still exist in the preceding canonical migration", async () => {
   const migrationDirectory = new URL("../../../../supabase/migrations/", import.meta.url);
   const base = await readFile(new URL("20260711000002_add_interview_agent_foundation.sql", migrationDirectory), "utf8");

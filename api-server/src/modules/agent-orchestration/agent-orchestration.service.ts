@@ -35,6 +35,16 @@ function authorizeRequests(input: AgentPlanningContext, requests: AgentToolReque
   }).slice(0, budget);
 }
 
+/** 把白名单工具映射为稳定、非技术化的用户可见行动说明。 */
+function toolActivityLabel(name: AgentToolRequest["name"], running: boolean): string {
+  const prefix = running ? "正在" : "已";
+  if (name === "search_knowledge") return `${prefix}检索所选知识库`;
+  if (name === "web_search") return `${prefix}检索岗位与公司资料`;
+  if (name === "load_training_profile") return `${prefix}读取历史训练摘要`;
+  if (name === "search_question_bank") return `${prefix}筛选匹配的题库候选`;
+  return `${prefix}读取本场面试上下文`;
+}
+
 /** 受控 Agent v2 编排服务。 */
 export class AgentOrchestrationService implements AgentOrchestrationRunner {
   /** @param dependencies - 模型、持久化、白名单工具和用户作用域数据源。 */
@@ -67,6 +77,13 @@ export class AgentOrchestrationService implements AgentOrchestrationRunner {
   /** 执行一个只读工具并只返回引用数量与安全观察 ID。 */
   private async executeTool(input: AgentPlanningContext, request: AgentToolRequest): Promise<{ id: string; sourceCount: number; memoryApplied: boolean; brainApplied: boolean }> {
     const started = performance.now();
+    const activityId = await this.dependencies.repository.recordActivity(input.sessionId, {
+      kind: "tool",
+      status: "running",
+      label: toolActivityLabel(request.name, true),
+      reasonCode: request.reasonCode,
+      toolName: request.name,
+    });
     const resultReferences: string[] = [];
     let sourceCount = 0;
     let memoryApplied = false;
@@ -112,19 +129,19 @@ export class AgentOrchestrationService implements AgentOrchestrationRunner {
     } catch {
       status = "failed";
     }
-    const id = await this.dependencies.repository.recordActivity(input.sessionId, {
-      kind: "tool", status, label: request.name === "search_knowledge" ? "检索已绑定知识库" : request.name === "web_search" ? "检索岗位与公司资料" : request.name === "load_training_profile" ? "读取历史训练摘要" : "读取面试参考上下文",
+    await this.dependencies.repository.recordActivity(input.sessionId, {
+      kind: "tool", status, label: toolActivityLabel(request.name, false),
       reasonCode: request.reasonCode, sourceCount,
       toolName: request.name,
       durationMs: Math.max(0, Math.round(performance.now() - started)),
       resultHash: createHash("sha256").update(JSON.stringify(resultReferences.sort())).digest("hex"),
       resultSummary: `${status}:${sourceCount}`,
-    });
-    return { id, sourceCount, memoryApplied, brainApplied };
+    }, activityId);
+    return { id: activityId, sourceCount, memoryApplied, brainApplied };
   }
 
   /** 持久化策略，执行审批后的工具并返回仅含引用的回执。 */
-  private async commitAndExecute(input: AgentPlanningContext, draft: AgentStrategyDraft, kind: "planning" | "reflection", budget: number): Promise<AgentStrategyReceipt> {
+  private async commitAndExecute(input: AgentPlanningContext, draft: AgentStrategyDraft, kind: "planning" | "reflection", budget: number, activityId: string): Promise<AgentStrategyReceipt> {
     const requests = authorizeRequests(input, draft.toolRequests, budget);
     let memoryApplied = false;
     let brainApplied = false;
@@ -139,20 +156,44 @@ export class AgentOrchestrationService implements AgentOrchestrationRunner {
     await this.dependencies.repository.recordActivity(input.sessionId, {
       kind, status: "completed", label: draft.activityLabel,
       reasonCode: kind === "planning" ? "initial_strategy" : "score_gap_replan",
-    });
+    }, activityId);
     return { strategyRevisionId: committed.id, revision: committed.revision, questionIntent: draft.questionIntent, observationIds: observations, memoryApplied, brainApplied };
   }
 
   /** @inheritdoc */
   async planSession(input: AgentPlanningContext): Promise<AgentStrategyReceipt> {
-    return this.commitAndExecute(input, await this.draftPlan(input), "planning", 3);
+    const activityId = await this.dependencies.repository.recordActivity(input.sessionId, {
+      kind: "planning", status: "running", label: "正在分析岗位目标并制定面试策略",
+      reasonCode: "initial_strategy",
+    });
+    try {
+      return await this.commitAndExecute(input, await this.draftPlan(input), "planning", 3, activityId);
+    } catch (error) {
+      await this.dependencies.repository.recordActivity(input.sessionId, {
+        kind: "planning", status: "failed", label: "面试策略制定未完成",
+        reasonCode: "initial_strategy_failed",
+      }, activityId).catch(() => undefined);
+      throw error;
+    }
   }
 
   /** @inheritdoc */
   async reflect(input: AgentReflectionContext): Promise<AgentStrategyReceipt> {
-    const scores = await this.dependencies.repository.getLatestEvaluation(input.sessionId) ?? {};
-    const draft = await this.draftPlan(input, { input, scores });
-    return this.commitAndExecute(input, draft, "reflection", 1);
+    const activityId = await this.dependencies.repository.recordActivity(input.sessionId, {
+      kind: "reflection", status: "running", label: "正在根据本题证据调整后续策略",
+      reasonCode: "score_gap_replan",
+    });
+    try {
+      const scores = await this.dependencies.repository.getLatestEvaluation(input.sessionId) ?? {};
+      const draft = await this.draftPlan(input, { input, scores });
+      return await this.commitAndExecute(input, draft, "reflection", 1, activityId);
+    } catch (error) {
+      await this.dependencies.repository.recordActivity(input.sessionId, {
+        kind: "reflection", status: "failed", label: "后续策略调整未完成",
+        reasonCode: "score_gap_replan_failed",
+      }, activityId).catch(() => undefined);
+      throw error;
+    }
   }
 
   /** @inheritdoc */

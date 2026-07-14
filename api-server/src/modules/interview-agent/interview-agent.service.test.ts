@@ -27,6 +27,7 @@ import {
   createAgentGraphConfig,
 } from "./graph/interview-agent.graph.js";
 import { DisabledWebSearchProvider } from "./providers/web-search.provider.js";
+import type { AgentOrchestrationRunner } from "../agent-orchestration/agent-orchestration.types.js";
 import type { InterviewAgentTools } from "./tools/interview-agent.tools.js";
 import type {
   CommitPreparationInput,
@@ -90,7 +91,7 @@ class MemoryInterviewAgentRepository implements InterviewAgentRepository {
       sessionId: SESSION_ID,
       userId: USER_ID,
       threadId: SESSION_ID,
-      version: "agent-v1",
+      version: input.agentVersion ?? "agent-v1",
       mode: input.mode,
       interviewMode: input.interviewMode,
       phase: "preparing",
@@ -116,7 +117,7 @@ class MemoryInterviewAgentRepository implements InterviewAgentRepository {
     const snapshot: AgentSnapshot = {
       sessionId: SESSION_ID,
       threadId: SESSION_ID,
-      version: "agent-v1",
+      version: input.agentVersion ?? "agent-v1",
       mode: input.mode,
       interviewMode: input.interviewMode,
       phase: "preparing",
@@ -464,6 +465,7 @@ function createHarness(
   persistInputs = false,
   progressQuestions = false,
   assertCreationReady?: () => Promise<void>,
+  orchestrationService?: AgentOrchestrationRunner,
 ) {
   const checkpointer = new MemorySaver();
   const repository = new MemoryInterviewAgentRepository();
@@ -478,6 +480,8 @@ function createHarness(
     checkpointer,
     inputRepository: persistInputs ? repository : undefined,
     questionRuntimeService,
+    version: runtime.defaultVersion ?? "agent-v1",
+    orchestrationService,
   });
   const service = new InterviewAgentService({
     repository,
@@ -543,6 +547,60 @@ test("create reaches durable awaiting_answer snapshot at the interrupt", async (
   assert.deepEqual((await harness.graph.getState(createAgentGraphConfig(SESSION_ID))).next, [
     "wait_for_input",
   ]);
+});
+
+test("v2 creation returns immediately while preparation continues in the background", async () => {
+  let releasePlanner: (() => void) | undefined;
+  const plannerGate = new Promise<void>((resolve) => {
+    releasePlanner = resolve;
+  });
+  const orchestrationService: AgentOrchestrationRunner = {
+    async planSession() {
+      await plannerGate;
+      return {
+        strategyRevisionId: "44444444-4444-4444-8444-444444444444",
+        revision: 1,
+        questionIntent: "验证候选人的后端故障诊断能力",
+        observationIds: [],
+        memoryApplied: false,
+        brainApplied: false,
+      };
+    },
+    async reflect() {
+      throw new Error("reflection must not run during preparation");
+    },
+    async decideResponse() {
+      return { action: "score", reasonCode: "enough_evidence", followUpQuestion: null };
+    },
+    async updateTrainingMemory() {
+      return false;
+    },
+  };
+  const runtime: AgentRuntimeConfig = {
+    ...ENABLED_RUNTIME,
+    promptVersion: "agent-v2-test",
+    v2Enabled: true,
+    defaultVersion: "agent-v2",
+  };
+  const harness = createHarness(runtime, false, false, undefined, orchestrationService);
+
+  const created = await harness.service.createSession(CREATE_INPUT);
+  const preparingView = await harness.service.getSession(created.sessionId);
+  assert.equal(preparingView.snapshot.version, "agent-v2");
+  assert.equal(preparingView.snapshot.phase, "preparing");
+
+  releasePlanner?.();
+  let completedView = preparingView;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    completedView = await harness.service.getSession(created.sessionId);
+    if (completedView.snapshot.phase === "awaiting_answer") break;
+  }
+  assert.equal(completedView.snapshot.phase, "awaiting_answer");
+  assert.equal(
+    (await harness.graph.getState(createAgentGraphConfig(SESSION_ID, "agent-v2"))).next[0],
+    "wait_for_input",
+  );
 });
 
 test("Phase 2 preparation commits the bank-first question and snapshot atomically", async () => {
