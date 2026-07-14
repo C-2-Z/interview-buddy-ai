@@ -1,4 +1,5 @@
 /** Skill 历史出题记录 DB 访问 */
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 
 /**
@@ -10,7 +11,9 @@ export async function queryHistoricalTopics(
   skillId: string,
   userId?: string,
 ): Promise<string[]> {
-  let query = (supabase as any)
+  // 关系查询尚未写入生成类型，转换仅限当前仓储并保持认证实例不变。
+  const database = supabase as unknown as SupabaseClient;
+  let query = database
     .from("interview_questions")
     .select("topic_summary, interview_sessions!inner(user_id)")
     .eq("skill_id", skillId)
@@ -22,6 +25,9 @@ export async function queryHistoricalTopics(
   const { data, error } = await query;
 
   if (error || !data) return [];
-  return [...new Set(data.map((row: { topic_summary: string | null }) => row.topic_summary).filter(Boolean))] as string[];
+  return [
+    ...new Set(
+      data.map((row: { topic_summary: string | null }) => row.topic_summary).filter(Boolean),
+    ),
+  ] as string[];
 }
-

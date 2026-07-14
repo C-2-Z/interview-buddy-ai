@@ -34,15 +34,6 @@ export function DocumentListPanel({
     });
   }
 
-  function toggleSelectAll() {
-    if (!documents) return;
-    if (selectedIds.size === documents.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(documents.map((d) => d.id)));
-    }
-  }
-
   async function handleBatchDelete() {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;

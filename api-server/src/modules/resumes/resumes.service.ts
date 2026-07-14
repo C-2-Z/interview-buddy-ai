@@ -1,4 +1,5 @@
 /** 简历业务：上传、解析、AI 分析 */
+import type { UserSupabaseClient } from "../../shared/db/supabase.js";
 import { parseResume, isSupportedType } from "../../lib/resume-parser.js";
 import { analyzeResume } from "../../lib/resume-analyzer.js";
 import {
@@ -30,15 +31,13 @@ export interface ResumeListItem {
 
 /** 上传并处理简历：验证 → 去重 → 解析 → AI 分析 → 入库 */
 export async function uploadResume(
-  supabase: any,
+  supabase: UserSupabaseClient,
   userId: string,
   file: { buffer: Buffer; originalname: string; mimetype: string },
 ): Promise<UploadResult> {
   // 1. 检查文件类型
   if (!isSupportedType(file.mimetype, file.originalname)) {
-    throw new Error(
-      `不支持的文件类型: ${file.mimetype}。支持的格式：PDF、DOCX、TXT、MD`,
-    );
+    throw new Error(`不支持的文件类型: ${file.mimetype}。支持的格式：PDF、DOCX、TXT、MD`);
   }
 
   // 2. 计算哈希
@@ -59,11 +58,7 @@ export async function uploadResume(
   }
 
   // 4. 解析文档为纯文本
-  const { text: parsedText } = await parseResume(
-    file.buffer,
-    file.mimetype,
-    file.originalname,
-  );
+  const { text: parsedText } = await parseResume(file.buffer, file.mimetype, file.originalname);
 
   // 5. AI 结构化分析
   const analysis = await analyzeResume(parsedText);
@@ -94,7 +89,7 @@ export async function uploadResume(
 
 /** 获取用户的所有简历 */
 export async function getUserResumes(
-  supabase: any,
+  supabase: UserSupabaseClient,
   userId: string,
 ): Promise<ResumeListItem[]> {
   const rows = await listResumes(supabase, userId);
@@ -109,7 +104,7 @@ export async function getUserResumes(
 
 /** 获取单份简历详情 */
 export async function getResume(
-  supabase: any,
+  supabase: UserSupabaseClient,
   id: string,
 ): Promise<UploadResult | null> {
   const row = await getResumeById(supabase, id);
@@ -126,6 +121,6 @@ export async function getResume(
 }
 
 /** 删除简历 */
-export async function deleteResume(supabase: any, id: string): Promise<void> {
+export async function deleteResume(supabase: UserSupabaseClient, id: string): Promise<void> {
   await deleteResumeById(supabase, id);
 }

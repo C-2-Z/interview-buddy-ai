@@ -1,5 +1,5 @@
 /** 简历 AI 分析：提取技能、经验结构化 */
-﻿import { callAI } from "../shared/ai/ai-client.js";
+import { callAI } from "../shared/ai/ai-client.js";
 import { parseJsonFromAI } from "../shared/ai/json-parser.js";
 import { createModuleLogger } from "../shared/logger/voice-logger.js";
 

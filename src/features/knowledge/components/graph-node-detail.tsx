@@ -1,6 +1,6 @@
 /** 知识图谱模块：点击节点后的详情侧面板 */
 
-import { X, ExternalLink, Loader2 } from "lucide-react";
+import { X, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";

@@ -27,7 +27,6 @@ import {
   updateQaSession,
   deleteQaSession,
   getQaMessages,
-  askQuestion,
   askQuestionStream as qaAskQuestionStream,
 } from "./qa.service.js";
 import { getGraphData, getBacklinksForChunk, rebuildAllGraphEdges } from "./graph.service.js";

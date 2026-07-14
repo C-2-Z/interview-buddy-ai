@@ -1,9 +1,8 @@
 /** 知识图谱模块：图谱控制栏（缩放/聚焦/筛选/阈值） */
 
-import { RefreshCw, ZoomIn, ZoomOut, RotateCcw, SlidersHorizontal } from "lucide-react";
+import { RefreshCw, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -12,8 +11,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useKnowledgeList } from "../hooks/use-knowledge-list";
-import { useState } from "react";
-import type { KnowledgeDocument } from "../types";
 
 /** 图谱控制栏属性 */
 interface GraphControlsProps {

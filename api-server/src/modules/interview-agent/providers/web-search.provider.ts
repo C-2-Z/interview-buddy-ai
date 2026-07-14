@@ -7,6 +7,22 @@ import type { WebSearchQuery, WebSearchResult } from "../tools/preparation.types
 const MAX_SEARCH_RESULTS = 5;
 const MAX_RESULT_TEXT_LENGTH = 2_000;
 
+/** 将正文中的 ASCII 控制字符替换为空格，同时保留换行和制表符。 */
+function replaceControlCharacters(value: string): string {
+  return [...value]
+    .map((character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      const isBlocked =
+        codePoint <= 8 ||
+        codePoint === 11 ||
+        codePoint === 12 ||
+        (codePoint >= 14 && codePoint <= 31) ||
+        codePoint === 127;
+      return isBlocked ? " " : character;
+    })
+    .join("");
+}
+
 /** 图节点仅依赖该接口，禁止直接引用 Tavily 类型。 */
 export interface WebSearchProvider {
   /** 是否配置了可调用的外部搜索实现。 */
@@ -214,18 +230,15 @@ export function sanitizeWebText(value: string, maxLength = MAX_RESULT_TEXT_LENGT
       " ",
     )
     .replace(/<[^>]+>/g, " ");
-  return (
-    decodeHtmlEntities(withoutExecutableBlocks)
-      // Entity 解码可能重新生成标签边界，因此必须再次移除所有标签。
-      .replace(/<[^>]+>/g, " ")
-      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, " ")
-      .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
-      .replace(/\r\n?/g, "\n")
-      .replace(/[ \t]+/g, " ")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim()
-      .slice(0, maxLength)
-  );
+  // Entity 解码可能重新生成标签边界，因此必须再次移除所有标签。
+  const decodedText = decodeHtmlEntities(withoutExecutableBlocks).replace(/<[^>]+>/g, " ");
+  return replaceControlCharacters(decodedText)
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .slice(0, maxLength);
 }
 
 /**

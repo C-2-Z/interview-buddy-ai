@@ -6,16 +6,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   listBrains,
   createBrain,
-  updateBrain,
   deleteBrain,
   getDefaultBrain,
   getBrainDetail,
   addDocumentsToBrain,
-  removeDocumentFromBrain,
 } from "../api";
-import type { CreateBrainParams, UpdateBrainParams, AddDocumentsToBrainParams } from "../types";
+import type { CreateBrainParams, AddDocumentsToBrainParams } from "../types";
 
-export const BRAINS_KEY = ["knowledge", "brains"];
+const BRAINS_KEY = ["knowledge", "brains"];
 
 /** 获取用户的所有知识库 */
 export function useBrains() {
@@ -55,19 +53,6 @@ export function useCreateBrain() {
   });
 }
 
-/** 更新知识库 */
-export function useUpdateBrain() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (params: { id: string } & UpdateBrainParams) =>
-      updateBrain(params.id, { name: params.name, description: params.description }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: BRAINS_KEY });
-    },
-  });
-}
-
 /** 删除知识库 */
 export function useDeleteBrain() {
   const queryClient = useQueryClient();
@@ -87,19 +72,6 @@ export function useAddDocumentsToBrain() {
   return useMutation({
     mutationFn: (params: { brainId: string } & AddDocumentsToBrainParams) =>
       addDocumentsToBrain(params.brainId, { documentIds: params.documentIds }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: BRAINS_KEY });
-    },
-  });
-}
-
-/** 从知识库移除文档 */
-export function useRemoveDocumentFromBrain() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (params: { brainId: string; documentId: string }) =>
-      removeDocumentFromBrain(params.brainId, params.documentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: BRAINS_KEY });
     },

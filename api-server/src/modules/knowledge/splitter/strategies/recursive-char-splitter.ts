@@ -1,11 +1,11 @@
 /**
  * 知识库 Splitter 策略：递归字符分块 — 按段落 → 句子 → 字符递归切分，支持 overlap
- * 相当于当前 chunking.service.ts 的逻辑，但配置化且精确估算 token
+ * 延续旧版递归分块算法，并通过配置化策略精确估算 token
  */
 
 import { SplitterBase, type TextChunk, type SplitterConfig } from "../splitter-base.js";
 
-/** 递归字符分块器：基于当前 chunking.service.ts 逻辑重构，支持自定义分块配置 */
+/** 递归字符分块器：基于旧版递归分块逻辑重构，支持自定义分块配置 */
 export class RecursiveCharSplitter extends SplitterBase {
   readonly name = "recursive" as const;
 

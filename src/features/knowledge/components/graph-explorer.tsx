@@ -1,11 +1,11 @@
 /** 知识图谱模块：Canvas 力导向图谱渲染器（d3-force） */
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useKnowledgeGraph, useBacklinks, useRebuildGraph } from "../hooks/use-knowledge-graph";
 import { GraphControls } from "./graph-controls";
 import { GraphNodeDetail } from "./graph-node-detail";
-import type { GraphNode as GNode, GraphLink as GLink } from "../types";
+import type { GraphNode as GNode } from "../types";
 import type { Simulation, SimulationNodeDatum, SimulationLinkDatum } from "d3-force";
 
 // 模拟 d3-force 的 ForceNode/ForceLink 类型
@@ -45,7 +45,6 @@ export function GraphExplorer() {
   const nodesRef = useRef<ForceNode[]>([]);
   const linksRef = useRef<ForceLink[]>([]);
   const transformRef = useRef({ x: 0, y: 0, scale: 1 });
-  const animFrameRef = useRef<number>(0);
   const [d3Ready, setD3Ready] = useState(false);
   const [d3Force, setD3Force] = useState<typeof import("d3-force") | null>(null);
   const hoveredNodeRef = useRef<string | null>(null);

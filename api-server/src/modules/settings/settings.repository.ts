@@ -1,9 +1,7 @@
 /** 用户设置 DB 访问 */
-export const KEY_COLUMNS = [
-  "deepseek_api_key",
-  "openai_api_key",
-  "anthropic_api_key",
-] as const;
+import type { UserSupabaseClient } from "../../shared/db/supabase.js";
+
+export const KEY_COLUMNS = ["deepseek_api_key", "openai_api_key", "anthropic_api_key"] as const;
 
 export type ApiKeyColumn = (typeof KEY_COLUMNS)[number];
 
@@ -20,13 +18,16 @@ export type UserSettingsRow = {
  * @returns
  */
 export async function getUserSettings(
-  supabase: any,
-  userId: string,
+  supabase: UserSupabaseClient,
+  _userId: string,
 ): Promise<UserSettingsRow | null> {
   // Read settings from auth user_metadata instead of DB table
   // This avoids schema migration headaches and uses the built-in auth storage
   try {
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
     if (error || !user) return null;
     /**
      * meta
@@ -53,7 +54,7 @@ export async function getUserSettings(
  * @returns
  */
 export async function upsertUserSettings(
-  supabase: any,
+  supabase: UserSupabaseClient,
   userId: string,
   update: Record<string, string | null>,
 ): Promise<void> {

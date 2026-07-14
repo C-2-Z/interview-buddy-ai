@@ -1,16 +1,11 @@
 /** 知识库：QA 问答服务 — 基于选定文档提问，AI 检索 chunks 后作答 */
 
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";
-import { createModuleLogger } from "../../shared/logger/voice-logger.js";
 import { callAI, streamAI, type ChatMessage } from "../../shared/ai/ai-client.js";
-import { searchKnowledge, buildCitedChunks } from "./search.service.js";
+import { searchKnowledge } from "./search.service.js";
 import { rewriteQuery } from "./rag/query-rewriter.js";
 import { compressResults, buildCompressedCitedChunks } from "./rag/context-compressor.js";
-import {
-  buildContextFromResults,
-  buildQaSystemPrompt,
-  buildSessionTitlePrompt,
-} from "./rag/prompts.js";
+import { buildQaSystemPrompt, buildSessionTitlePrompt } from "./rag/prompts.js";
 import {
   createQaSession as repoCreateSession,
   getQaSession as repoGetSession,
@@ -19,9 +14,7 @@ import {
   insertQaMessage,
   incrementQaMessageCount,
 } from "./knowledge.repository.js";
-import type { QaSession, QaMessage, CitedChunk } from "./knowledge.types.js";
-
-const logger = createModuleLogger("knowledge-qa");
+import type { QaSession, QaMessage } from "./knowledge.types.js";
 
 /** 创建 QA 会话 */
 export async function createQaSession(
@@ -71,92 +64,6 @@ export async function getQaMessages(
   sessionId: string,
 ): Promise<QaMessage[]> {
   return listQaMessages(supabase, sessionId);
-}
-
-/** 提问：检索相关 chunks → 构建 prompt → 调用 AI → 保存消息
- *  返回 AI 回答全文和引用的 chunks */
-export async function askQuestion(
-  supabase: UserSupabaseClient,
-  userId: string,
-  sessionId: string,
-  question: string,
-): Promise<{
-  answer: string;
-  citedChunks: CitedChunk[];
-  tokenUsage: { prompt?: number; completion?: number; total?: number };
-}> {
-  // 1. 获取会话信息
-  const session = await repoGetSession(supabase, sessionId);
-  if (!session) throw new Error("问答会话不存在");
-
-  // 2. 获取历史消息
-  const history = await listQaMessages(supabase, sessionId);
-
-  // 3. Query Rewrite（根据历史改写问题，消歧）
-  const searchQuery = history.length >= 2 ? await rewriteQuery(question, history) : question;
-
-  // 4. 检索相关知识（召回更多候选，供后续压缩裁剪）
-  const results = await searchKnowledge(supabase, userId, searchQuery, {
-    documentIds: session.documentIds.length > 0 ? session.documentIds : undefined,
-    topK: 10,
-  });
-
-  // 5. Context Compression：按相似度排序 + Token 预算裁剪
-  const { context: contextText, compressedResults } = compressResults(results, { maxChars: 4000 });
-  const citedChunks = buildCompressedCitedChunks(compressedResults);
-
-  // 4. 构建 AI prompt
-  const messages: ChatMessage[] = [
-    {
-      role: "system",
-      content: buildQaSystemPrompt(contextText),
-    },
-  ];
-
-  // 添加历史消息（最多保留最近 10 轮，防止超长上下文）
-  const recentHistory = history.slice(-20);
-  for (const msg of recentHistory) {
-    messages.push({ role: msg.role, content: msg.content });
-  }
-
-  messages.push({ role: "user", content: question });
-
-  // 5. 调用 AI
-  const answer = await callAI(messages);
-
-  // 6. 估算 token 用量
-  const totalText = [...messages.map((m) => m.content), answer].join("");
-  const estimatedTokens = Math.ceil(totalText.length / 4);
-  const tokenUsage = {
-    prompt: estimatedTokens,
-    completion: Math.ceil(answer.length / 4),
-    total: estimatedTokens + Math.ceil(answer.length / 4),
-  };
-
-  // 7. 保存消息
-  await insertQaMessage(supabase, {
-    sessionId,
-    role: "user",
-    content: question,
-  });
-  await insertQaMessage(supabase, {
-    sessionId,
-    role: "assistant",
-    content: answer,
-    citedChunks: citedChunks as unknown as Array<Record<string, unknown>>,
-    tokenUsage: tokenUsage as unknown as Record<string, unknown>,
-  });
-
-  // 8. 更新消息计数
-  await incrementQaMessageCount(supabase, sessionId);
-
-  // 9. 首条消息自动生成标题
-  if (history.length === 0) {
-    const title = await generateSessionTitle(question, answer);
-    await repoUpdateSession(supabase, sessionId, { title });
-  }
-
-  return { answer, citedChunks, tokenUsage };
 }
 
 /** 根据首条问答内容自动生成会话标题 */
@@ -254,18 +161,4 @@ async function* callAIStream(messages: ChatMessage[]): AsyncIterable<string> {
   for await (const delta of streamAI(messages)) {
     yield delta;
   }
-}
-
-// Re-export non-stream version
-export async function askQuestionNonStream(
-  supabase: UserSupabaseClient,
-  userId: string,
-  sessionId: string,
-  question: string,
-): Promise<{
-  answer: string;
-  citedChunks: CitedChunk[];
-  tokenUsage: { prompt?: number; completion?: number; total?: number };
-}> {
-  return askQuestion(supabase, userId, sessionId, question);
 }

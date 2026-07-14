@@ -3,7 +3,7 @@
  */
 
 import { useState } from "react";
-import { BookOpen, Plus, Check, ChevronDown, Pencil, Trash2 } from "lucide-react";
+import { BookOpen, Plus, Check, ChevronDown, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,

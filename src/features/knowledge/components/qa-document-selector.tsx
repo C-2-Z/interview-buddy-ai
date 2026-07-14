@@ -6,7 +6,6 @@ import { useState } from "react";
 import { FileText, CheckSquare, Square, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import type { KnowledgeDocument } from "../types";
 
 /** 文档选择器属性 */

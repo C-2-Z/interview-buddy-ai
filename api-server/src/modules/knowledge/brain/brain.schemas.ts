@@ -26,10 +26,3 @@ export const AddDocumentsToBrainSchema = z.object({
   documentIds: z.array(z.string().uuid()).min(1, "至少选择一个文档").max(100),
 });
 export type AddDocumentsToBrainInput = z.infer<typeof AddDocumentsToBrainSchema>;
-
-/** 创建 QA 会话（扩展：支持指定 brainId）*/
-export const CreateBrainQaSessionSchema = z.object({
-  title: z.string().trim().min(1).max(200).optional(),
-  documentIds: z.array(z.string().uuid()).max(50).optional(),
-});
-export type CreateBrainQaSessionInput = z.infer<typeof CreateBrainQaSessionSchema>;

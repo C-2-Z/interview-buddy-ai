@@ -32,17 +32,6 @@ export function getBankQuestion(id: string): Promise<BankQuestion> {
  * 切换 favorite
  * @returns
  */
-export function toggleFavorite(
-  questionId: string,
-): Promise<{ is_favorited: boolean }> {
+export function toggleFavorite(questionId: string): Promise<{ is_favorited: boolean }> {
   return apiRequest("POST", `/api/bank/${questionId}/favorite`);
 }
-
-/**
- * 列出 favorite questions
- * @returns
- */
-export function listFavoriteQuestions(): Promise<BankQuestion[]> {
-  return apiRequest("GET", "/api/bank/favorites");
-}
-

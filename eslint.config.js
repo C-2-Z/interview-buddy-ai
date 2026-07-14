@@ -1,12 +1,24 @@
 import js from "@eslint/js";
-import eslintPluginPrettier from "eslint-plugin-prettier/recommended";
+import eslintConfigPrettier from "eslint-config-prettier";
 import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", ".output", ".vinxi"] },
+  {
+    ignores: [
+      "node_modules/**",
+      "api-server/node_modules/**",
+      "dist/**",
+      "api-server/dist/**",
+      ".runtime/**",
+      ".tanstack/**",
+      ".output/**",
+      ".vinxi/**",
+      "src/routeTree.gen.ts",
+    ],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
@@ -34,7 +46,15 @@ export default tseslint.config(
       ],
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/ban-ts-comment": ["error", { "ts-nocheck": "allow-with-description" }],
     },
   },
-  eslintPluginPrettier,
+  {
+    files: ["**/*.test.ts", "**/*.test.tsx"],
+    rules: {
+      // Test doubles occasionally need to model deliberately incomplete third-party objects.
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
+  eslintConfigPrettier,
 );
