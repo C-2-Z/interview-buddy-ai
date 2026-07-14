@@ -360,7 +360,7 @@ LANGUAGE sql
 STABLE
 SECURITY INVOKER
 SET search_path = public
-AS $$ SELECT '20260714000001'::TEXT $$;
+AS $$ SELECT '20260714000002'::TEXT $$;
 
 COMMENT ON FUNCTION public.check_agent_readiness() IS
   'Returns the installed controlled Agent 2.0 migration version without reading or writing user data.';
