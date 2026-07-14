@@ -1,9 +1,7 @@
 /** Qwen voice Provider adapter. */
 import { createModuleLogger } from "../../../shared/logger/voice-logger.js";
 import type { QwenAsrSession, QwenTtsSession } from "../../voice/qwen-realtime.client.js";
-import {
-  createStreamingAsrSession,
-} from "../../voice/qwen-asr.service.js";
+import { createStreamingAsrSession } from "../../voice/qwen-asr.service.js";
 import {
   createReusableSpeechSession,
   qwenTtsSampleRate,
@@ -31,7 +29,9 @@ function adaptQwenAsrSession(session: QwenAsrSession): StreamingAsrSession {
 
 function adaptQwenTtsSession(session: QwenTtsSession): StreamingTtsSession {
   return {
-    get closed() { return session.closed; },
+    get closed() {
+      return session.closed;
+    },
     speak: (text: string, signal?: AbortSignal) => session.speak(text, signal),
     close: () => session.close(),
   };
@@ -39,10 +39,6 @@ function adaptQwenTtsSession(session: QwenTtsSession): StreamingTtsSession {
 
 function resolveAsrModel(): string {
   return process.env.QWEN_ASR_MODEL?.trim() || "qwen3-asr-flash-realtime";
-}
-
-function resolveTtsModel(): string {
-  return process.env.QWEN_TTS_MODEL?.trim() || "qwen3-tts-flash-realtime";
 }
 
 function resolveVoice(): string {

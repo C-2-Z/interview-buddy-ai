@@ -18,7 +18,7 @@ import {
   type VoiceSessionQuestion,
 } from "./voice.repository.js";
 import { verifyVoiceSocketToken } from "./voice-token.service.js";
-import { voiceError, voiceLog } from "../../shared/logger/voice-logger.js";
+import { voiceError } from "../../shared/logger/voice-logger.js";
 import type { VoiceClientEvent, VoiceServerEvent } from "./voice.types.js";
 
 /** 当前正在接收的候选人音频轮次。 */

@@ -1,6 +1,6 @@
 /** 知识库主页面：Tab 容器 — 文档管理 / 知识问答 / 知识图谱 */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import { useQaSession } from "../hooks/use-qa-session";
 import { useQaAsk } from "../hooks/use-qa-ask";
 import { useDeleteQaSession } from "../hooks/use-qa-session";
 import { useDefaultBrain, useBrainDetail, useAddDocumentsToBrain } from "../hooks/use-brains";
-import type { KnowledgeTab, KnowledgeDocument, QaSession, Brain } from "../types";
+import type { KnowledgeTab, Brain } from "../types";
 
 /** 知识库主页面组件 */
 export function KnowledgeBasePage() {

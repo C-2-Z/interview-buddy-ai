@@ -27,7 +27,7 @@ export function QaMessageBubble({ message }: QaMessageBubbleProps) {
           isUser ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
         )}
       >
-        <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
+        <p className="whitespace-pre-wrap text-sm leading-relaxed">{content}</p>
 
         {/* 引用标注 */}
         {hasCitations && !isUser && (

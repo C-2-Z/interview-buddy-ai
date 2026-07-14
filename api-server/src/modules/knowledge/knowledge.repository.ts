@@ -201,15 +201,6 @@ export async function vectorSearch(
 > {
   const { topK = 5, documentIds } = options;
 
-  // pgvector cosine distance: 1 - cosine_similarity
-  // 用 <= 阈值筛选，ORDER BY 距离升序
-  let query = supabase.rpc("match_knowledge_chunks", {
-    query_embedding: embedding,
-    match_threshold: 0.0, // 不设下限，由外部过滤
-    match_count: topK,
-    filter_user_id: userId,
-  });
-
   // 如果 RPC 不存在，用原始 SQL 方式；这里用 select with order
   // 获取所有 chunks 的 embedding，在 JS 侧计算余弦相似度并排序
   let manualQuery = supabase
@@ -243,7 +234,7 @@ export async function vectorSearch(
       documentId: r.document_id as string,
       content: r.content as string,
       similarity: sim,
-      documentTitle: ((r as any).document_title ?? "") as string,
+      documentTitle: (r.document_title ?? "") as string,
     };
   });
 

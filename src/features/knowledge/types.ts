@@ -126,13 +126,6 @@ export interface CreateBrainParams {
   systemPrompt?: string | null;
 }
 
-/** 更新知识库请求 */
-export interface UpdateBrainParams {
-  name?: string;
-  description?: string;
-  systemPrompt?: string | null;
-}
-
 /** 关联文档到知识库请求 */
 export interface AddDocumentsToBrainParams {
   documentIds: string[];

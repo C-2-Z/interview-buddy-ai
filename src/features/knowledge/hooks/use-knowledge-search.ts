@@ -4,7 +4,6 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { searchKnowledgeAPI } from "../api";
-import type { SearchResult } from "../types";
 
 /** 搜索知识库 Mutation */
 export function useKnowledgeSearch() {
@@ -13,5 +12,3 @@ export function useKnowledgeSearch() {
       searchKnowledgeAPI(params),
   });
 }
-
-export type { SearchResult };

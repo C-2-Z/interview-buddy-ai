@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useKnowledgeSearch } from "../hooks/use-knowledge-search";
-import type { SearchResult } from "../types";
 
 /** 搜索条组件属性 */
 interface KnowledgeSearchBarProps {

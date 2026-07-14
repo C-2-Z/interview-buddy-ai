@@ -1,13 +1,8 @@
 /** Interview session read-only routes */
 import { Hono } from "hono";
-import {
-  requireAuth,
-  type AuthVariables,
-} from "../../shared/auth/require-auth.js";
-import {
-  getSession,
-  listSessions,
-} from "./sessions.service.js";
+import { requireAuth, type AuthVariables } from "../../shared/auth/require-auth.js";
+import { getSession, listSessions } from "./sessions.service.js";
+import { SessionParamsSchema } from "./sessions.schemas.js";
 
 const sessions = new Hono<{ Variables: AuthVariables }>();
 
@@ -19,7 +14,8 @@ sessions.get("/", async (c) => {
 });
 
 sessions.get("/:id", async (c) => {
-  const result = await getSession(c.var.supabase, c.req.param("id"));
+  const { id } = SessionParamsSchema.parse(c.req.param());
+  const result = await getSession(c.var.supabase, id);
   return c.json(result);
 });
 

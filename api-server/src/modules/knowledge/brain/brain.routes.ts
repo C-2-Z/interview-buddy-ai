@@ -4,7 +4,6 @@
 
 import { Hono } from "hono";
 import { requireAuth, type AuthVariables } from "../../../shared/auth/require-auth.js";
-import { createModuleLogger } from "../../../shared/logger/voice-logger.js";
 import {
   getBrains,
   createBrain,
@@ -20,8 +19,6 @@ import {
   UpdateBrainSchema,
   AddDocumentsToBrainSchema,
 } from "./brain.schemas.js";
-
-const logger = createModuleLogger("brain-routes");
 
 const brain = new Hono<{ Variables: AuthVariables }>();
 

@@ -23,14 +23,10 @@ function isNewSupabaseApiKey(value: string): boolean {
 function createSupabaseFetch(supabaseKey: string): typeof fetch {
   return (input, init) => {
     const headers = new Headers(
-      typeof Request !== "undefined" && input instanceof Request
-        ? input.headers
-        : undefined,
+      typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined,
     );
     if (init?.headers) {
-      new Headers(init.headers).forEach((value, key) =>
-        headers.set(key, value),
-      );
+      new Headers(init.headers).forEach((value, key) => headers.set(key, value));
     }
     if (
       isNewSupabaseApiKey(supabaseKey) &&
@@ -64,6 +60,8 @@ export function createUserClient(token: string) {
       autoRefreshToken: false,
     },
     realtime: {
+      // ws 满足 Realtime 运行时接口，但其事件声明与 DOM WebSocket 不完全一致。
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 第三方构造器仅声明层不兼容
       transport: WebSocket as any,
     },
   });
@@ -83,4 +81,3 @@ export function createServiceClient() {
 
 export type UserSupabaseClient = ReturnType<typeof createUserClient>;
 export type ServiceSupabaseClient = ReturnType<typeof createServiceClient>;
-

@@ -9,11 +9,9 @@ import type {
   QaMessage,
   GraphData,
   BacklinkDetail,
-  GraphNode,
   DocFileType,
   Brain,
   CreateBrainParams,
-  UpdateBrainParams,
   AddDocumentsToBrainParams,
   SearchResult,
 } from "./types";
@@ -55,11 +53,6 @@ export function getBrainDetail(id: string): Promise<{ brain: Brain; documentIds:
   return apiRequest("GET", `/api/knowledge/brains/${id}`);
 }
 
-/** 更新知识库 */
-export function updateBrain(id: string, params: UpdateBrainParams): Promise<{ success: boolean }> {
-  return apiRequest("PATCH", `/api/knowledge/brains/${id}`, params);
-}
-
 /** 删除知识库 */
 export function deleteBrain(id: string): Promise<{ success: boolean }> {
   return apiRequest("DELETE", `/api/knowledge/brains/${id}`);
@@ -71,14 +64,6 @@ export function addDocumentsToBrain(
   params: AddDocumentsToBrainParams,
 ): Promise<{ success: boolean }> {
   return apiRequest("POST", `/api/knowledge/brains/${id}/documents`, params);
-}
-
-/** 从知识库移除文档 */
-export function removeDocumentFromBrain(
-  brainId: string,
-  documentId: string,
-): Promise<{ success: boolean }> {
-  return apiRequest("DELETE", `/api/knowledge/brains/${brainId}/documents/${documentId}`);
 }
 
 // ============================================================
@@ -95,14 +80,6 @@ export function uploadDocument(params: {
   fileHash?: string;
 }): Promise<{ id: string }> {
   return apiRequest("POST", "/api/knowledge/documents", params);
-}
-
-/** 通过纯文本创建文档 */
-export function createDocumentFromText(params: {
-  title: string;
-  content: string;
-}): Promise<{ id: string }> {
-  return apiRequest("POST", "/api/knowledge/documents/text", params);
 }
 
 /** 获取文档列表 */
@@ -144,29 +121,9 @@ export function getQaSession(id: string): Promise<{ session: QaSession; messages
   return apiRequest("GET", `/api/knowledge/qa/sessions/${id}`);
 }
 
-/** 更新 QA 会话 */
-export function updateQaSession(
-  id: string,
-  params: { title?: string; documentIds?: string[] },
-): Promise<{ success: boolean }> {
-  return apiRequest("PATCH", `/api/knowledge/qa/sessions/${id}`, params);
-}
-
 /** 删除 QA 会话 */
 export function deleteQaSession(id: string): Promise<{ success: boolean }> {
   return apiRequest("DELETE", `/api/knowledge/qa/sessions/${id}`);
-}
-
-/** 提问 */
-export function askQuestion(
-  sessionId: string,
-  question: string,
-): Promise<{
-  answer: string;
-  citedChunks: Array<{ chunkId: string; documentId: string; content: string; similarity: number }>;
-  tokenUsage: { prompt?: number; completion?: number; total?: number };
-}> {
-  return apiRequest("POST", `/api/knowledge/qa/sessions/${sessionId}/ask`, { question });
 }
 
 /** 流式提问（SSE），通过回调逐块接收增量内容

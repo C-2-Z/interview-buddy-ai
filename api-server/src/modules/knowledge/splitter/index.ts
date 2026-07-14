@@ -1,6 +1,6 @@
 /**
  * 知识库 Splitter 模块：注册所有内置的分块策略到全局注册表
- * 提供便捷的 splitText() 函数作为默认入口，兼容旧 chunking.service.ts 的调用方式
+ * 提供便捷的 splitText() 函数作为默认入口，兼容旧版分块调用方式
  */
 
 import { splitterRegistry } from "./splitter-registry.js";

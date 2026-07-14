@@ -7,7 +7,6 @@ import {
   GraduationCap,
   Keyboard,
   Lightbulb,
-  Mic2,
   RotateCw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

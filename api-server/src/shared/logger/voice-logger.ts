@@ -1,5 +1,5 @@
 /** 全后端共享的 consola 模块日志、流量降噪与敏感元数据脱敏。 */
-import { createConsola } from "consola";
+import { createConsola, type ConsolaReporter, type LogObject } from "consola";
 
 const HIGH_VOLUME_EVENTS = new Set([
   "ws_audio_received",
@@ -22,8 +22,8 @@ function sanitize(meta: Record<string, unknown>): Record<string, unknown> {
   return clean;
 }
 
-const SANITIZE_REPORTER = {
-  log(logObj: Record<string, unknown>) {
+const SANITIZE_REPORTER: ConsolaReporter = {
+  log(logObj: LogObject) {
     if (logObj.args && Array.isArray(logObj.args)) {
       logObj.args = logObj.args.map((arg: unknown) =>
         arg && typeof arg === "object" && !(arg instanceof Error)
@@ -35,7 +35,7 @@ const SANITIZE_REPORTER = {
 };
 
 export const voiceLogger = createConsola({
-  reporters: [SANITIZE_REPORTER as any],
+  reporters: [SANITIZE_REPORTER],
 }).withTag("voice");
 
 /** 记录语音事件；高频事件仅在 verbose 模式输出。 */
@@ -50,13 +50,20 @@ export function voiceWarn(event: string, meta: Record<string, unknown> = {}): vo
 }
 
 /** 以 Error 为首参数记录失败和安全元数据。 */
-export function voiceError(event: string, error: unknown, meta: Record<string, unknown> = {}): void {
-  voiceLogger.error(error instanceof Error?error:new Error(String(error)), { event, ...meta });
+export function voiceError(
+  event: string,
+  error: unknown,
+  meta: Record<string, unknown> = {},
+): void {
+  voiceLogger.error(error instanceof Error ? error : new Error(String(error)), {
+    event,
+    ...meta,
+  });
 }
 
 /** 创建带固定 tag 且共享脱敏 reporter 的模块 logger。 */
 export function createModuleLogger(tag: string) {
   return createConsola({
-    reporters: [SANITIZE_REPORTER as any],
+    reporters: [SANITIZE_REPORTER],
   }).withTag(tag);
 }

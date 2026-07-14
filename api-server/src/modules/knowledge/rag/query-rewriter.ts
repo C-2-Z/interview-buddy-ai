@@ -7,7 +7,7 @@
  */
 
 import { createModuleLogger } from "../../../shared/logger/voice-logger.js";
-import { callAI, type ChatMessage } from "../../../shared/ai/ai-client.js";
+import { callAI } from "../../../shared/ai/ai-client.js";
 import type { QaMessage } from "../knowledge.types.js";
 
 const logger = createModuleLogger("rag-query-rewriter");
