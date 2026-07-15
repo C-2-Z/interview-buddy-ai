@@ -14,7 +14,6 @@ export const CreateAgentSessionSchema = z
   .object({
     mode: z.enum(["single", "panel"]),
     interviewMode: z.enum(["text", "voice"]),
-    experienceMode: z.enum(["simulation", "coaching"]),
     position: z.string().trim().min(1).max(100),
     difficulty: z.enum(["初级", "中级", "高级"]),
     questionCount: z.number().int().min(3).max(10),

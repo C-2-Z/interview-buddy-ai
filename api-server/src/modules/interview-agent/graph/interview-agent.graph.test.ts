@@ -56,16 +56,30 @@ test("web research uses the available safe provider by default", () => {
   const state = createInitialAgentState({
     sessionId: SESSION_ID,
     userId: USER_ID,
-    input: CreateAgentSessionSchema.parse({
-      mode: "single",
-    interviewMode: "text",
-    experienceMode: "coaching",
-      position: "后端工程师",
-      difficulty: "中级",
-      questionCount: 3,
-    }),
+    input: {
+      ...CreateAgentSessionSchema.parse({
+        mode: "single",
+        interviewMode: "text",
+        position: "后端工程师",
+        difficulty: "中级",
+        questionCount: 3,
+      }),
+      experienceMode: "coaching",
+    },
   });
   assert.equal(state.config.webResearch, true);
+});
+
+test("public creation schema derives experience from the interview channel", () => {
+  const base = {
+    mode: "single",
+    interviewMode: "text",
+    position: "后端工程师",
+    difficulty: "中级",
+    questionCount: 3,
+  } as const;
+  assert.equal(CreateAgentSessionSchema.parse(base).interviewMode, "text");
+  assert.throws(() => CreateAgentSessionSchema.parse({ ...base, experienceMode: "simulation" }));
 });
 
 /**

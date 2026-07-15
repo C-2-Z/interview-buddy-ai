@@ -183,7 +183,7 @@ export function InterviewAgentPage({
   const canAnswer =
     snapshot.phase === "awaiting_answer" && workspace.productStatus === "in_progress";
   const completed = snapshot.phase === "completed";
-  const showProcessDetails = workspace.config.experienceMode === "coaching" || completed;
+  const showProcessDetails = snapshot.interviewMode === "text" || completed;
   const interviewFinished = completed || ["abandoned", "failed"].includes(workspace.productStatus);
 
   return (
@@ -285,7 +285,7 @@ export function InterviewAgentPage({
                       onRetry={() => void session.retryPreparation().catch(() => undefined)}
                     />
                   ) : (
-                    <p className="text-center text-sm text-muted-foreground">正在准备真实模拟面试…</p>
+                    <p className="text-center text-sm text-muted-foreground">正在准备语音面试…</p>
                   )}
                 </div>
               ) : (

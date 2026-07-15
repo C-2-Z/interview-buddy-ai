@@ -6,7 +6,7 @@ import type { InterviewHomeMode } from "./types";
 export const INTERVIEW_HOME_MODES: Record<"text" | "voice", InterviewHomeMode> = {
   text: {
     id: "text",
-    eyebrow: "练习模式",
+    eyebrow: "文字面试",
     title: "文字练习面试",
     description: "保留思考与修改空间，适合围绕岗位、简历和专项能力深入练习。",
     benefits: ["多轮追问与逐题作答", "回答草稿自动保留", "证据评分与完整复盘"],
@@ -16,7 +16,7 @@ export const INTERVIEW_HOME_MODES: Record<"text" | "voice", InterviewHomeMode> =
   },
   voice: {
     id: "voice",
-    eyebrow: "模拟模式",
+    eyebrow: "语音面试",
     title: "沉浸式语音面试",
     description: "自动播报、聆听和追问，把注意力留给表达本身，还原真实面试节奏。",
     benefits: ["开始前设备与服务检查", "自动收音与语音追问", "断线恢复与文字降级"],

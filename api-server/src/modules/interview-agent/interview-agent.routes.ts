@@ -20,7 +20,6 @@ import {
   AgentRetrySchema,
   AgentSessionParamsSchema,
   CreateAgentSessionSchema,
-  FrozenAgentConfigSchema,
 } from "./interview-agent.schemas.js";
 import {
   createInterviewAgentService,
@@ -170,9 +169,10 @@ interviewAgentRoutes.get("/sessions/:sessionId/events", async (context) => {
       false,
     );
   }
-  const config = FrozenAgentConfigSchema.parse(projection.agentConfig);
+  const experienceMode =
+    projection.interviewMode === "voice" ? "simulation" : "coaching";
   return streamCommittedAgentEvents(context, repository, sessionId, (event) =>
-    shouldExposeAgentEvent(event, config.experienceMode, projection.productStatus),
+    shouldExposeAgentEvent(event, experienceMode, projection.productStatus),
   );
 });
 

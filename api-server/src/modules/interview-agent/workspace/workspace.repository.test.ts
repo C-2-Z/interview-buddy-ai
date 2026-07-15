@@ -122,11 +122,13 @@ test("workspace restores the full projection with one database RPC", async () =>
   assert.equal(workspace.activities[0].kind, "planning");
 });
 
-test("simulation workspace hides process details until completion", async () => {
+test("voice workspace hides process details until completion", async () => {
   const workspace = buildWorkspace();
   workspace.productStatus = "in_progress";
   workspace.snapshot.phase = "awaiting_answer";
-  workspace.config.experienceMode = "simulation";
+  workspace.snapshot.interviewMode = "voice";
+  // 旧会话中冻结的模式值不得覆盖当前按交互通道定义的产品行为。
+  workspace.config.experienceMode = "coaching";
   const service = new AgentWorkspaceService({
     async load() {
       return workspace;

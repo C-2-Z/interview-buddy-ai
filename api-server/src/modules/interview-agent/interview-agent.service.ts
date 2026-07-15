@@ -19,6 +19,7 @@ import {
 } from "./interview-agent.repository.js";
 import type {
   AgentInputResponse,
+  AgentExperienceMode,
   AgentInterruptResponse,
   AgentRetryResponse,
   AgentSessionView,
@@ -351,8 +352,12 @@ export class InterviewAgentService {
     const agentVersion = "agent-v3" as const;
     const graph = this.dependencies.getGraph();
     const model = await this.dependencies.resolveModel(input);
+    // 交互通道即产品体验：文字固定实时反馈，语音固定隐藏过程反馈。
+    const experienceMode: AgentExperienceMode =
+      input.interviewMode === "voice" ? "simulation" : "coaching";
     const resolvedInput = {
       ...input,
+      experienceMode,
       modelProvider: model.name,
       modelName: model.model,
       webResearch:
@@ -412,10 +417,10 @@ export class InterviewAgentService {
   }
 
   /**
-   * 读取冻结体验模式，供语音桥在服务端执行过程评分隐藏。
+   * 根据交互通道读取过程反馈策略，供语音桥在服务端执行过程评分隐藏。
    *
    * @param sessionId - 当前用户拥有的 Agent 3 会话。
-   * @returns 创建时显式选择的体验模式。
+   * @returns 根据文字或语音通道派生并冻结的过程反馈策略。
    */
   async getExperienceMode(sessionId: string): Promise<"simulation" | "coaching"> {
     const projection = await this.dependencies.repository.getOwnedSessionProjection(sessionId);
@@ -427,7 +432,7 @@ export class InterviewAgentService {
         false,
       );
     }
-    return FrozenAgentConfigSchema.parse(projection.agentConfig).experienceMode;
+    return projection.interviewMode === "voice" ? "simulation" : "coaching";
   }
 
   /**
@@ -703,6 +708,7 @@ export class InterviewAgentService {
     graph: InterviewAgentGraph,
     created: CreateAgentSessionResponse,
     input: CreateAgentSessionInput & {
+      experienceMode: AgentExperienceMode;
       promptVersion: string;
       agentVersion: InterviewAgentState["version"];
     },

@@ -4,7 +4,6 @@ export type AgentPhase="preparing"|"awaiting_answer"|"reasoning"|"speaking"|"sco
 export type AgentRoleId="general"|"technical"|"manager"|"hr";
 export type AgentPendingAction="ask"|"follow_up"|"score"|"handoff"|"finish";
 export type AgentVersion="agent-v3";
-export type AgentExperienceMode="simulation"|"coaching";
 
 /** Agent 对用户公开的行动记录，不包含模型推理或原始工具结果。 */
 export type AgentActivity=Readonly<{
@@ -46,7 +45,6 @@ export type AgentSnapshot=Readonly<{
 export type CreateAgentSessionBody=Readonly<{
   /** 角色模式。 */ mode:AgentMode;
   /** 交互通道。 */ interviewMode:"text"|"voice";
-  /** 用户必须显式选择的体验模式。 */ experienceMode:AgentExperienceMode;
   /** 岗位。 */ position:string;
   /** 难度。 */ difficulty:"初级"|"中级"|"高级";
   /** 题数。 */ questionCount:number;
@@ -82,7 +80,7 @@ export type AgentWorkspace={
   /** 面向用户的业务生命周期状态。 */
   productStatus:"in_progress"|"paused"|"completed"|"abandoned"|"failed";
   snapshot:AgentSnapshot;
-  config:{position:string;difficulty:string;questionCount:number;targetCompany:string|null;experienceMode:AgentExperienceMode};
+  config:{position:string;difficulty:string;questionCount:number;targetCompany:string|null};
   research:{status:"pending"|"running"|"completed"|"skipped"|"failed";sources:Array<{id:string;category:"company"|"role"|"industry";title:string;url:string}>};
   strategy:AgentStrategyView|null;
   activities:AgentActivity[];

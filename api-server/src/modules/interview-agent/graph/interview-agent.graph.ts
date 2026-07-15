@@ -13,6 +13,7 @@ import { PROVIDER_CONFIGS } from "../../../shared/ai/providers.js";
 import type { CreateAgentSessionInput } from "../interview-agent.schemas.js";
 import type {
   AgentSnapshot,
+  AgentExperienceMode,
   FrozenAgentConfig,
   InterviewAgentState,
   RoleStage,
@@ -114,7 +115,7 @@ export type CreateInitialAgentStateParams = Readonly<{
   /** 已鉴权的会话所有者标识。 */
   userId: string;
   /** 通过 `CreateAgentSessionSchema` 校验后的创建参数。 */
-  input: CreateAgentSessionInput;
+  input: CreateAgentSessionInput & { experienceMode: AgentExperienceMode };
   /** 已解析的 Prompt 版本；缺省时兼容读取 `AGENT_PROMPT_VERSION`。 */
   promptVersion?: string;
   /** 全局联网研究开关；请求开关与该值同时为 true 才会冻结为启用。 */
