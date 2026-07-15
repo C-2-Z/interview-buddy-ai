@@ -107,6 +107,7 @@ export function ImmersiveVoiceLobby() {
   async function enterInterview() {
     if (
       !draft.position.trim() ||
+      !draft.experienceMode ||
       readiness.data?.status === "blocked" ||
       !readiness.data ||
       entering
@@ -127,14 +128,15 @@ export function ImmersiveVoiceLobby() {
       const sessionId = await session.create({
         mode: draft.mode,
         interviewMode: "voice",
+        experienceMode: draft.experienceMode,
         position: draft.position.trim(),
         difficulty: draft.difficulty,
         questionCount: draft.questionCount,
         targetCompany: draft.targetCompany.trim() || undefined,
         modelProvider: draft.modelProvider,
         webResearch: true,
-        brainId: readiness.data.agentVersion === "agent-v2" ? draft.brainId || undefined : undefined,
-        useTrainingMemory: readiness.data.agentVersion === "agent-v2" && draft.useTrainingMemory,
+        brainId: draft.brainId || undefined,
+        useTrainingMemory: draft.useTrainingMemory,
       });
       localStorage.removeItem(VOICE_LOBBY_DRAFT_KEY);
       await navigate({ to: "/voice/session/$id", params: { id: sessionId } });
@@ -155,6 +157,7 @@ export function ImmersiveVoiceLobby() {
   const deviceBlocked = Boolean(device.preflight.error);
   const canEnter = Boolean(
     draft.position.trim() &&
+    draft.experienceMode &&
     readiness.data &&
     readiness.data.status !== "blocked" &&
     !deviceBlocked &&
@@ -277,6 +280,28 @@ export function ImmersiveVoiceLobby() {
                     </Button>
                   </div>
                 </fieldset>
+                <fieldset className="space-y-2">
+                  <legend className="text-sm font-medium">体验模式（必选）</legend>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant={draft.experienceMode === "simulation" ? "default" : "outline"}
+                      onClick={() => patch({ experienceMode: "simulation" })}
+                    >
+                      真实模拟
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={draft.experienceMode === "coaching" ? "default" : "outline"}
+                      onClick={() => patch({ experienceMode: "coaching" })}
+                    >
+                      教练模式
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    真实模拟完成前不会播报逐题评分；教练模式实时反馈。
+                  </p>
+                </fieldset>
                 <div className="space-y-2">
                   <Label htmlFor="voice-company">目标公司（选填）</Label>
                   <Input
@@ -286,8 +311,7 @@ export function ImmersiveVoiceLobby() {
                     maxLength={100}
                   />
                 </div>
-                {readiness.data?.agentVersion === "agent-v2" && (
-                  <>
+                <>
                 <div className="space-y-2">
                   <Label htmlFor="voice-brain">面试知识库 Brain（选填）</Label>
                   <Select
@@ -311,8 +335,7 @@ export function ImmersiveVoiceLobby() {
                   checked={draft.useTrainingMemory}
                   onCheckedChange={(value) => patch({ useTrainingMemory: value })}
                 />
-                  </>
-                )}
+                </>
               </CardContent>
             </Card>
           </section>

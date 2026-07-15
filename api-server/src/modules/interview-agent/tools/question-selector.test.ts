@@ -16,6 +16,10 @@ const CANDIDATES: AgentQuestionCandidate[] = [
     difficulty: "中级",
     type: "technical",
     tags: ["MYSQL", "technical"],
+    roleIds: ["technical"],
+    dimensionKeys: ["MYSQL"],
+    topicKeys: ["database"],
+    evidenceGoalKeys: ["action", "result"],
     source: "bank",
   },
   {
@@ -25,6 +29,10 @@ const CANDIDATES: AgentQuestionCandidate[] = [
     difficulty: "中级",
     type: "behavioral",
     tags: ["COMMUNICATION", "manager"],
+    roleIds: ["manager"],
+    dimensionKeys: ["COMMUNICATION"],
+    topicKeys: ["collaboration"],
+    evidenceGoalKeys: ["situation", "action", "result"],
     source: "bank",
   },
 ];
@@ -63,6 +71,8 @@ test("equal scores use stable candidate id ordering", () => {
     question: `${candidate.id} question`,
     tags: [],
     type: "generic",
+    roleIds: ["general" as const],
+    dimensionKeys: ["UNKNOWN"],
   }));
   const selected = selectQuestionFromBank(equal, {
     position: "后端工程师",
@@ -98,6 +108,10 @@ test("model fallback runs only when no bank question remains", async () => {
         difficulty: "高级",
         type: "SYSTEM_DESIGN",
         tags: ["SYSTEM_DESIGN"],
+        roleIds: ["technical"],
+        dimensionKeys: ["SYSTEM_DESIGN"],
+        topicKeys: ["system-design"],
+        evidenceGoalKeys: ["tradeoff", "recovery"],
         source: "model",
       };
     },

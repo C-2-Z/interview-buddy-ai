@@ -45,7 +45,7 @@ export const ROLE_PERSONAS = {
     rubricOverrides: {},
     contentPhases: ["introduction", "tech_fundamentals", "project_deep_dive", "system_design", "wrap_up"],
     stageTransitionMessages: DEFAULT_PHASE_TRANSITIONS,
-    promptVersion: "agent-v1-general",
+    promptVersion: "agent-v3-general",
   },
   technical: {
     id: "technical",
@@ -60,7 +60,7 @@ export const ROLE_PERSONAS = {
       project_deep_dive: "基础问题就到这里，我们来深入聊聊你的项目。",
       system_design: "项目聊完了，来看一个系统设计场景。",
     },
-    promptVersion: "agent-v1-technical",
+    promptVersion: "agent-v3-technical",
   },
   manager: {
     id: "manager",
@@ -74,7 +74,7 @@ export const ROLE_PERSONAS = {
     stageTransitionMessages: {
       system_design: "项目部分聊完了，下面我们聊聊系统设计。",
     },
-    promptVersion: "agent-v1-manager",
+    promptVersion: "agent-v3-manager",
   },
   hr: {
     id: "hr",
@@ -86,7 +86,7 @@ export const ROLE_PERSONAS = {
     rubricOverrides: { communication: 1.1 },
     contentPhases: ["wrap_up"],
     stageTransitionMessages: {},
-    promptVersion: "agent-v1-hr",
+    promptVersion: "agent-v3-hr",
   },
 } satisfies Record<RoleId, RolePersona>;
 

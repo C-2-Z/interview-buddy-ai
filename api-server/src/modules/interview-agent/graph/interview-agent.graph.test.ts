@@ -39,9 +39,11 @@ function buildTestState() {
   return createInitialAgentState({
     sessionId: SESSION_ID,
     userId: USER_ID,
+    preparedQuestionId: "33333333-3333-4333-8333-333333333333",
     input: {
       mode: "single",
-      interviewMode: "text",
+    interviewMode: "text",
+    experienceMode: "coaching",
       position: "后端工程师",
       difficulty: "中级",
       questionCount: 3,
@@ -56,7 +58,8 @@ test("web research uses the available safe provider by default", () => {
     userId: USER_ID,
     input: CreateAgentSessionSchema.parse({
       mode: "single",
-      interviewMode: "text",
+    interviewMode: "text",
+    experienceMode: "coaching",
       position: "后端工程师",
       difficulty: "中级",
       questionCount: 3,
@@ -96,7 +99,7 @@ test("deterministic model adapter returns identical structured questions", async
     persona: getRolePersona("general"),
     position: "后端工程师",
     difficulty: "中级" as const,
-    promptVersion: "agent-v1",
+    promptVersion: "agent-v3",
   };
 
   const first = await provider.generateQuestion(input);
@@ -119,7 +122,7 @@ test("MemorySaver interrupts, resumes by inputId, and reaches completed state", 
 
   const interruptedResult = await graph.invoke(buildTestState(), config);
   assert.equal(interruptedResult.phase, "awaiting_answer");
-  assert.equal(interruptedResult.currentQuestionId, `mock:${SESSION_ID}:general:1`);
+  assert.equal(interruptedResult.currentQuestionId, "33333333-3333-4333-8333-333333333333");
   assert.equal(isInterrupted(interruptedResult), true);
   if (!isInterrupted(interruptedResult)) {
     throw new Error("Expected the Phase 1 graph to interrupt");
@@ -127,7 +130,7 @@ test("MemorySaver interrupts, resumes by inputId, and reaches completed state", 
   assert.deepEqual(interruptedResult[INTERRUPT][0].value, {
     type: "agent.input.required",
     sessionId: SESSION_ID,
-    questionId: `mock:${SESSION_ID}:general:1`,
+    questionId: "33333333-3333-4333-8333-333333333333",
     resumeWith: "inputId",
   });
 
@@ -256,6 +259,7 @@ test("panel graph advances through every frozen role and question", async () => 
     input: {
       mode: "panel",
       interviewMode: "text",
+      experienceMode: "coaching",
       position: "后端工程师",
       difficulty: "中级",
       questionCount: 3,
@@ -283,13 +287,13 @@ test("panel graph advances through every frozen role and question", async () => 
 });
 
 test("checkpoint schema validation is strict and runtime factory does not setup", async () => {
-  for (const valid of ["langgraph", "agent_v1", "_private2"]) {
+  for (const valid of ["langgraph", "agent_v3", "_private2"]) {
     assert.equal(resolveAgentCheckpointSchema(valid), valid);
   }
   for (const invalid of [
     "",
     "LangGraph",
-    "agent-v1",
+    "agent-v3",
     "1agent",
     " langgraph",
     "langgraph ",
@@ -300,7 +304,7 @@ test("checkpoint schema validation is strict and runtime factory does not setup"
 
   const saver = createPostgresCheckpointer({
     connectionString: "postgresql://agent:agent@127.0.0.1:5432/agent",
-    schema: "agent_v1",
+    schema: "agent_v3",
   });
   assert.equal(
     (saver as unknown as { isSetup: boolean }).isSetup,

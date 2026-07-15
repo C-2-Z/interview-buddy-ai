@@ -77,12 +77,9 @@ export class AgentReadinessService {
         message: "面试数据服务尚未完成升级，请联系管理员。",
         recoveryAction: "contact_admin",
       });
-    if (
-      (this.dependencies.runtimeConfig.defaultVersion ?? "agent-v1") === "agent-v2" &&
-      !infrastructure.agentV2DatabaseReady
-    ) blockers.push({
-      code: "agent_v2_database_unavailable",
-      message: "受控面试策略服务尚未完成升级，请联系管理员。",
+    if (!infrastructure.agentV3DatabaseReady) blockers.push({
+      code: "agent_v3_database_unavailable",
+      message: "Agent 3 面试服务尚未完成升级，请联系管理员。",
       recoveryAction: "contact_admin",
     });
     if (ephemeral)
@@ -132,7 +129,7 @@ export class AgentReadinessService {
       });
 
     return {
-      agentVersion: this.dependencies.runtimeConfig.defaultVersion ?? "agent-v1",
+      agentVersion: "agent-v3",
       status: blockers.length ? "blocked" : warnings.length ? "degraded" : "ready",
       checkpointMode,
       capabilities: {

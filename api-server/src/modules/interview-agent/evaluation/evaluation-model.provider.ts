@@ -95,11 +95,12 @@ export class ProductionAgentEvaluationModelProvider implements AgentEvaluationMo
       {
         role: "system",
         content: [
-          "按冻结量表逐维度给出 0-100 整数分，只能引用提供的 evidenceIds。",
-          "没有证据的维度仍必须输出，evidenceIds=[]，rationale 必须明确写“证据不足”。",
+          "按冻结量表逐维度输出 status、score、rationale、evidenceIds，只能引用该维度提供的候选人原文证据。",
+          "有证据时 status=scored 且 score 为 0-100 整数；无证据时 status=not_observed、score=null、evidenceIds=[]。",
+          "主维度无证据的 0 分规则由服务端执行，不要用常识补全候选人能力。",
           "不得输出 overallScore；它由代码按权重计算。只输出严格 JSON。",
           repair ? "这是唯一修复尝试：严格补齐全部维度并移除非法引用。" : "首次评分。",
-          '{"dimensions":{"KEY":{"score":0,"rationale":"理由","evidenceIds":[]}},"feedback":"反馈"}',
+          '{"dimensions":{"KEY":{"status":"scored|not_observed","score":0,"rationale":"理由","evidenceIds":[]}},"feedback":"反馈"}',
         ].join("\n"),
       },
       {

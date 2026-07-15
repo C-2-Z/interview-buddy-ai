@@ -211,14 +211,15 @@ function createSessionInput(): CreateAgentSessionRepositoryInput {
   return {
     mode: "single",
     interviewMode: "text",
+    experienceMode: "coaching",
     position: "Backend Engineer",
     difficulty: "中级",
     questionCount: 5,
     modelProvider: "deepseek",
     modelName: "deepseek-chat",
-    promptVersion: "interview-agent-v1",
+    promptVersion: "interview-agent-v3",
     webResearch: true,
-    agentVersion: "agent-v1",
+    agentVersion: "agent-v3",
     useTrainingMemory: false,
   };
 }
@@ -249,11 +250,14 @@ test("createSession calls the transactional RPC with a credential-free payload",
         p_session: {
           mode: "single",
           interviewMode: "text",
+          experienceMode: "coaching",
           position: "Backend Engineer",
           difficulty: "中级",
           questionCount: 5,
           webResearch: true,
-          promptVersion: "interview-agent-v1",
+          promptVersion: "interview-agent-v3",
+          agentVersion: "agent-v3",
+          useTrainingMemory: false,
           modelProvider: "deepseek",
           modelName: "deepseek-chat",
         },
@@ -262,7 +266,7 @@ test("createSession calls the transactional RPC with a credential-free payload",
   ]);
 });
 
-test("agent-v2 creation sends only the bounded incremental context fields", async () => {
+test("agent-v3 creation sends only the bounded optional context fields", async () => {
   const database = new FakeAgentDatabaseClient();
   database.enqueueRpcData("create_agent_interview_session", {
     sessionId: SESSION_ID,
@@ -273,12 +277,12 @@ test("agent-v2 creation sends only the bounded incremental context fields", asyn
   const repository = new SupabaseInterviewAgentRepository(database);
   await repository.createSession({
     ...createSessionInput(),
-    agentVersion: "agent-v2",
+    agentVersion: "agent-v3",
     brainId: "33333333-3333-4333-8333-333333333333",
     useTrainingMemory: true,
   });
   const payload = database.rpcCalls[0]?.args.p_session as Record<string, unknown>;
-  assert.equal(payload.agentVersion, "agent-v2");
+  assert.equal(payload.agentVersion, "agent-v3");
   assert.equal(payload.brainId, "33333333-3333-4333-8333-333333333333");
   assert.equal(payload.useTrainingMemory, true);
 });
@@ -414,7 +418,7 @@ test("getOwnedSessionProjection returns the safe restore projection", async () =
     id: SESSION_ID,
     user_id: USER_ID,
     thread_id: SESSION_ID,
-    agent_version: "agent-v1",
+    agent_version: "agent-v3",
     agent_mode: "panel",
     interview_mode: "voice",
     agent_phase: "preparing",
@@ -489,7 +493,7 @@ test("getLatestSnapshotEvent projects the latest committed snapshot", async () =
     payload: {
       sessionId: SESSION_ID,
       threadId: SESSION_ID,
-      version: "agent-v1",
+      version: "agent-v3",
       mode: "single",
       interviewMode: "text",
       phase: "awaiting_answer",

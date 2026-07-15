@@ -9,9 +9,13 @@ const REQUIRED_AGENT_RPCS = [
   "create_agent_interview_session",
   "commit_agent_preparation",
   "accept_agent_input",
-  "commit_agent_question_evaluation",
   "finalize_agent_report",
   "record_agent_run",
+  "commit_agent_v3_preparation",
+  "commit_agent_v3_strategy_revision",
+  "commit_agent_v3_question",
+  "commit_agent_v3_question_evaluation",
+  "get_agent_v3_workspace",
 ] as const;
 
 /** Supabase OpenAPI 元数据的最小安全形状。 */
@@ -56,7 +60,7 @@ async function inspectLegacyAgentRpcMetadata(): Promise<boolean> {
 /** readiness 数据访问依赖，便于单元测试隔离真实连接。 */
 export type AgentReadinessRepositoryDependencies = {
   /** 执行无副作用的业务迁移版本 RPC。 */ checkAgentDatabase(): Promise<boolean>;
-  /** 验证 Agent 2.0 增量迁移版本；旧部署保持 false。 */ checkAgentV2Database?(): Promise<boolean>;
+  /** 验证 Agent 3 增量迁移版本；旧部署保持 false。 */ checkAgentV3Database?(): Promise<boolean>;
   /** 查询 checkpoint schema 中的必要表。 */ checkCheckpointSchema(): Promise<boolean>;
 };
 
@@ -71,12 +75,12 @@ export class AgentReadinessRepository {
    * @returns 不包含数据库错误或连接信息的基础设施结果。
    */
   async inspectInfrastructure(): Promise<AgentReadinessInfrastructure> {
-    const [agentDatabaseReady, agentV2DatabaseReady, checkpointSchemaReady] = await Promise.all([
+    const [agentDatabaseReady, agentV3DatabaseReady, checkpointSchemaReady] = await Promise.all([
       this.dependencies.checkAgentDatabase().catch(() => false),
-      this.dependencies.checkAgentV2Database?.().catch(() => false) ?? false,
+      this.dependencies.checkAgentV3Database?.().catch(() => false) ?? false,
       this.dependencies.checkCheckpointSchema().catch(() => false),
     ]);
-    return { agentDatabaseReady, agentV2DatabaseReady, checkpointSchemaReady };
+    return { agentDatabaseReady, agentV3DatabaseReady, checkpointSchemaReady };
   }
 }
 
@@ -100,12 +104,12 @@ export function createAgentReadinessRepository(
       // 老环境在应用新探测迁移前仍可通过既有只读元数据证明主链路完整，避免无谓阻断用户。
       return inspectLegacyAgentRpcMetadata();
     },
-    async checkAgentV2Database() {
+    async checkAgentV3Database() {
       const client = supabase as unknown as {
         rpc(name: "check_agent_readiness"): PromiseLike<{ data: string | null; error: unknown }>;
       };
       const { data, error } = await client.rpc("check_agent_readiness");
-      return !error && data === "20260714000006";
+      return !error && data === "20260715000002";
     },
     async checkCheckpointSchema() {
       const connectionString = process.env.DATABASE_URL?.trim();

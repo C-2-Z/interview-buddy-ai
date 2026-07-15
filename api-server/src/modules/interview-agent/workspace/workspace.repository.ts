@@ -7,7 +7,7 @@ import type { AgentWorkspace } from "./workspace.types.js";
 export interface WorkspaceDatabaseClient {
   /** 调用数据库中的单次只读工作台投影。 */
   rpc(
-    name: "get_agent_workspace",
+    name: "get_agent_v3_workspace",
     parameters: { p_session_id: string },
   ): PromiseLike<unknown>;
 }
@@ -18,7 +18,8 @@ const ResponseSchema = z.object({
 }).passthrough();
 
 const DimensionEvaluationSchema = z.object({
-  score: z.number().int().min(0).max(100),
+  status: z.enum(["scored", "not_observed"]),
+  score: z.number().int().min(0).max(100).nullable(),
   rationale: z.string(),
   evidenceIds: z.array(z.string().uuid()),
 }).passthrough();
@@ -26,7 +27,7 @@ const DimensionEvaluationSchema = z.object({
 const SnapshotSchema = z.object({
   sessionId: z.string().uuid(),
   threadId: z.string().min(1),
-  version: z.enum(["agent-v1", "agent-v2"]),
+  version: z.literal("agent-v3"),
   mode: z.enum(["single", "panel"]),
   interviewMode: z.enum(["text", "voice"]),
   phase: z.enum(["preparing", "awaiting_answer", "reasoning", "speaking", "scoring", "role_handoff", "reporting", "completed", "failed"]),
@@ -47,6 +48,7 @@ const WorkspaceSchema = z.object({
     difficulty: z.string(),
     questionCount: z.number().int().positive(),
     targetCompany: z.string().nullable(),
+    experienceMode: z.enum(["simulation", "coaching"]),
   }).strict(),
   research: z.object({
     status: z.enum(["pending", "running", "completed", "skipped", "failed"]),
@@ -128,7 +130,7 @@ export class AgentWorkspaceRepository {
    * @returns 不含 Prompt、Key、checkpoint 或工具原文的完整页面投影。
    */
   async load(sessionId: string): Promise<AgentWorkspace> {
-    const workspace = await execute(this.database.rpc("get_agent_workspace", {
+    const workspace = await execute(this.database.rpc("get_agent_v3_workspace", {
       p_session_id: sessionId,
     }));
     return WorkspaceSchema.parse(workspace) as AgentWorkspace;

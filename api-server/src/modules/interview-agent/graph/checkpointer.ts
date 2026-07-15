@@ -12,10 +12,8 @@ import {
   type PendingWrite,
 } from "@langchain/langgraph-checkpoint";
 
-/** Agent v1 的固定 LangGraph checkpoint namespace。 */
-export const AGENT_CHECKPOINT_NAMESPACE = "agent-v1" as const;
-/** Agent v2 独立 namespace，防止与既有会话 checkpoint 混读。 */
-export const AGENT_V2_CHECKPOINT_NAMESPACE = "agent-v2" as const;
+/** Agent 3 唯一的 LangGraph checkpoint namespace。 */
+export const AGENT_CHECKPOINT_NAMESPACE = "agent-v3" as const;
 
 /** 未配置环境变量时使用的私有 PostgreSQL schema。 */
 export const DEFAULT_AGENT_CHECKPOINT_SCHEMA = "langgraph";
@@ -32,10 +30,10 @@ export type CreatePostgresCheckpointerOptions = Readonly<{
 }>;
 
 /**
- * 将 saver 调用映射到固定 `agent-v1` namespace 的适配器。
+ * 将 saver 调用映射到固定 `agent-v3` namespace 的适配器。
  *
  * LangGraph 1.x 会把顶层 compiled graph 的运行时 namespace 规范化为空字符串；该适配器在
- * saver 边界恢复产品约定的 `agent-v1`，同时把返回配置映射回调用方 namespace，避免影响
+ * saver 边界固定使用唯一的 `agent-v3` namespace，同时把返回配置映射回调用方 namespace，避免影响
  * LangGraph 内部的恢复与 checkpoint_id 处理。
  */
 class AgentNamespaceCheckpointSaver extends BaseCheckpointSaver {
@@ -46,7 +44,7 @@ class AgentNamespaceCheckpointSaver extends BaseCheckpointSaver {
    */
   constructor(
     private readonly delegate: BaseCheckpointSaver,
-    private readonly namespace: "agent-v1" | "agent-v2",
+    private readonly namespace: typeof AGENT_CHECKPOINT_NAMESPACE,
   ) {
     super(delegate.serde);
   }
@@ -55,7 +53,7 @@ class AgentNamespaceCheckpointSaver extends BaseCheckpointSaver {
    * 将调用方配置映射到固定 Agent namespace。
    *
    * @param config - LangGraph 传入的运行配置。
-   * @returns 保留 thread/checkpoint id 且 namespace 固定为 agent-v1 的配置。
+   * @returns 保留 thread/checkpoint id 且 namespace 固定为 agent-v3 的配置。
    */
   private toStoredConfig(config: RunnableConfig): RunnableConfig {
     return {
@@ -197,9 +195,8 @@ class AgentNamespaceCheckpointSaver extends BaseCheckpointSaver {
  */
 export function withAgentCheckpointNamespace(
   checkpointer: BaseCheckpointSaver,
-  namespace: "agent-v1" | "agent-v2" = AGENT_CHECKPOINT_NAMESPACE,
 ): BaseCheckpointSaver {
-  return new AgentNamespaceCheckpointSaver(checkpointer, namespace);
+  return new AgentNamespaceCheckpointSaver(checkpointer, AGENT_CHECKPOINT_NAMESPACE);
 }
 
 /**

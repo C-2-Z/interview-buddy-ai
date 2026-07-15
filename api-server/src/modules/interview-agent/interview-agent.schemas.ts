@@ -14,6 +14,7 @@ export const CreateAgentSessionSchema = z
   .object({
     mode: z.enum(["single", "panel"]),
     interviewMode: z.enum(["text", "voice"]),
+    experienceMode: z.enum(["simulation", "coaching"]),
     position: z.string().trim().min(1).max(100),
     difficulty: z.enum(["初级", "中级", "高级"]),
     questionCount: z.number().int().min(3).max(10),
@@ -76,6 +77,7 @@ export const AgentRetrySchema = z
 export const FrozenAgentConfigSchema: z.ZodType<FrozenAgentConfig> = z
   .object({
     interviewMode: z.enum(["text", "voice"]),
+    experienceMode: z.enum(["simulation", "coaching"]),
     position: z.string().trim().min(1).max(100),
     difficulty: z.enum(["初级", "中级", "高级"]),
     questionCount: z.number().int().min(3).max(10),
@@ -117,7 +119,7 @@ export const RoleStageSchema: z.ZodType<RoleStage> = z
  */
 export const InterviewAgentStateSchema: z.ZodType<InterviewAgentState> = z
   .object({
-    version: z.enum(["agent-v1", "agent-v2"]),
+    version: z.literal("agent-v3"),
     sessionId: z.string().uuid(),
     userId: z.string().uuid(),
     mode: z.enum(["single", "panel"]),
@@ -146,10 +148,15 @@ export const InterviewAgentStateSchema: z.ZodType<InterviewAgentState> = z
     observationIds: z.array(z.string().uuid()).max(100).optional(),
     remainingToolBudget: z.number().int().min(0).max(3).optional(),
     currentQuestionIntent: z.string().trim().min(1).max(500).nullable().optional(),
+    currentPrimaryDimension: z.string().trim().min(1).max(100).nullable().optional(),
+    currentEvidenceGoals: z.array(z.string().trim().min(1).max(100)).max(8).optional(),
+    currentTopicKeys: z.array(z.string().trim().min(1).max(100)).max(8).optional(),
     latestDecision: z.object({
       action: z.enum(["follow_up", "score"]),
       reasonCode: z.string().trim().min(1).max(100),
       followUpQuestion: z.string().trim().min(5).max(500).nullable(),
+      coveredEvidenceGoals: z.array(z.string().trim().min(1).max(200)).max(20),
+      missingEvidenceGoals: z.array(z.string().trim().min(1).max(200)).max(20),
     }).strict().nullable().optional(),
     memoryApplied: z.boolean().optional(),
     brainApplied: z.boolean().optional(),

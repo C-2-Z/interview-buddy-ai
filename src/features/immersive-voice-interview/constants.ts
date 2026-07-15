@@ -4,6 +4,7 @@ import type { ImmersiveVoiceState, VoiceLobbyDraft } from "./types";
 /** 语音候场的最小默认配置。 */
 export const INITIAL_VOICE_LOBBY_DRAFT: VoiceLobbyDraft = {
   mode: "single",
+  experienceMode: "",
   position: "",
   difficulty: "中级",
   questionCount: 5,

@@ -17,11 +17,20 @@ export const AgentToolRequestSchema = z.object({
   reasonCode: z.string().trim().min(1).max(100),
 }).strict();
 
+/** Planner 交给选题器的结构化标准。 */
+export const AgentQuestionCriteriaSchema = z.object({
+  primaryDimension: z.string().trim().min(1).max(100),
+  topicKeys: z.array(z.string().trim().min(1).max(100)).min(1).max(8),
+  evidenceGoalKeys: z.array(z.string().trim().min(1).max(100)).min(1).max(8),
+  questionIntent: z.string().trim().min(5).max(500),
+}).strict();
+
 /** Planner 和 Reflection 共用的结构化策略输出。 */
 export const AgentStrategyDraftSchema = z.object({
   objective: z.string().trim().min(5).max(300),
   focusDimensions: z.array(z.string().trim().min(1).max(100)).min(1).max(5),
   questionIntent: z.string().trim().min(5).max(500),
+  questionCriteria: AgentQuestionCriteriaSchema,
   toolRequests: z.array(AgentToolRequestSchema).max(3),
   activityLabel: z.string().trim().min(2).max(100),
 }).strict();
@@ -31,6 +40,8 @@ export const AgentResponseDecisionSchema = z.object({
   action: z.enum(["follow_up", "score"]),
   reasonCode: z.string().trim().min(1).max(100),
   followUpQuestion: z.string().trim().min(5).max(500).nullable(),
+  coveredEvidenceGoals: z.array(z.string().trim().min(1).max(100)).max(8),
+  missingEvidenceGoals: z.array(z.string().trim().min(1).max(100)).max(8),
 }).strict().superRefine((value, context) => {
   if ((value.action === "follow_up") !== (value.followUpQuestion !== null)) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: "follow-up text must match action" });

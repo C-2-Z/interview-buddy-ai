@@ -12,7 +12,7 @@ export type ResearchCategory = "company" | "role" | "industry";
 export type WebSearchQuery = {
   /** 由代码模板构造的查询文本。 */
   query: string;
-  /** 返回条数，Agent v1 每类最多五条。 */
+  /** 返回条数，Agent 3 每类最多五条。 */
   maxResults: number;
   /** 可选域名 allowlist。 */
   includeDomains?: string[];
@@ -102,6 +102,10 @@ export type AgentQuestionCandidate = {
   type: string;
   /** 搜索和能力匹配标签。 */
   tags: string[];
+  /** 允许使用该题的面试官角色。 */ roleIds: RoleId[];
+  /** 该题可作为主评分维度的键。 */ dimensionKeys: string[];
+  /** 用于与 Planner 意图做相关性匹配的主题键。 */ topicKeys: string[];
+  /** 该题天然适合收集的事实证据目标。 */ evidenceGoalKeys: string[];
   /** 优先使用题库，模型只作兜底。 */
   source: "bank" | "model";
 };
@@ -109,7 +113,7 @@ export type AgentQuestionCandidate = {
 /** 准备阶段交给后续 Graph 的冻结计划。 */
 export type PreparedInterviewPlan = {
   /** 计划结构版本。 */
-  version: "plan-v1";
+  version: "plan-v3";
   /** 固定角色顺序与题量。 */
   rolePlan: RoleStage[];
   /** 冻结能力维度及目标题量。 */
@@ -118,6 +122,10 @@ export type PreparedInterviewPlan = {
   questionRoles: RoleId[];
   /** 每个题目索引对应的主维度键。 */
   questionDimensions: string[];
+  /** 每题冻结的实际评分维度。 */
+  questionApplicableDimensions: string[][];
+  /** 每题冻结的证据目标。 */
+  questionEvidenceGoals: string[][];
   /** 已选首题；没有题库命中时由模型兜底。 */
   firstQuestion: AgentQuestionCandidate;
   /** 是否成功使用了联网来源。 */

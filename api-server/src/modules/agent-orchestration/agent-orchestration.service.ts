@@ -12,7 +12,7 @@ import type { AgentOrchestrationRepository } from "./agent-orchestration.reposit
 import type { AgentPlanningContext, AgentReflectionContext, AgentResponseContext, AgentStrategyDraft, AgentStrategyReceipt, AgentToolRequest, AgentOrchestrationRunner } from "./agent-orchestration.types.js";
 import type { AgentResponseDecision } from "../interview-agent/interview-agent.types.js";
 
-const AGENT_V2_WEB_TOOL_TIMEOUT_MS = 5_000;
+const AGENT_V3_WEB_TOOL_TIMEOUT_MS = 5_000;
 
 /** 动态工具执行依赖。 */
 export type AgentOrchestrationDependencies = {
@@ -47,7 +47,7 @@ function toolActivityLabel(name: AgentToolRequest["name"], running: boolean): st
   return `${prefix}读取本场面试上下文`;
 }
 
-/** 受控 Agent v2 编排服务。 */
+/** 受控 Agent 3 编排服务。 */
 export class AgentOrchestrationService implements AgentOrchestrationRunner {
   /** @param dependencies - 模型、持久化、白名单工具和用户作用域数据源。 */
   constructor(private readonly dependencies: AgentOrchestrationDependencies) {}
@@ -62,7 +62,14 @@ export class AgentOrchestrationService implements AgentOrchestrationRunner {
         const allowed = new Set(input.allowedDimensions);
         const focusDimensions = draft.focusDimensions.filter((key) => allowed.has(key));
         if (focusDimensions.length === 0) throw new Error("strategy dimensions are outside the frozen blueprint");
-        return { ...draft, focusDimensions };
+        if (!allowed.has(draft.questionCriteria.primaryDimension)) {
+          throw new Error("question primary dimension is outside the frozen blueprint");
+        }
+        return {
+          ...draft,
+          focusDimensions,
+          questionIntent: draft.questionCriteria.questionIntent,
+        };
       } catch {
         if (repair) break;
       }
@@ -71,6 +78,12 @@ export class AgentOrchestrationService implements AgentOrchestrationRunner {
       objective: `围绕 ${input.position} 收集可验证的能力证据`,
       focusDimensions: input.allowedDimensions.slice(0, 3),
       questionIntent: "通过具体经历、行动和结果验证候选人的真实能力",
+      questionCriteria: {
+        primaryDimension: input.allowedDimensions[0] ?? "COMMUNICATION",
+        topicKeys: [input.position.slice(0, 100)],
+        evidenceGoalKeys: ["situation", "action", "result"],
+        questionIntent: "通过具体经历、行动和结果验证候选人的真实能力",
+      },
       toolRequests: [],
       activityLabel: reflection ? "已使用安全策略调整后续问题" : "已使用安全策略制定面试计划",
     };
@@ -90,21 +103,30 @@ export class AgentOrchestrationService implements AgentOrchestrationRunner {
     let sourceCount = 0;
     let memoryApplied = false;
     let brainApplied = false;
+    let resultContext = "";
     let status: "completed" | "skipped" | "failed" = "completed";
     try {
       if (request.name === "search_question_bank") {
         const results = await this.dependencies.tools.searchQuestionBank({ position: input.position, difficulty: input.difficulty as "初级" | "中级" | "高级", limit: 10 });
         sourceCount = results.length;
         resultReferences.push(...results.map((item) => item.id));
+        resultContext = JSON.stringify(results.slice(0, 10).map((item) => ({
+          id: item.id,
+          question: item.question.slice(0, 500),
+        })));
       } else if (request.name === "web_search") {
         if (!this.dependencies.webSearch.available) status = "skipped";
         else {
           const results = await this.dependencies.webSearch.search(
             { query: `${input.targetCompany ?? ""} ${input.position} ${sanitizeWebText(request.focus, 100)}`.trim(), maxResults: 5 },
-            AbortSignal.timeout(AGENT_V2_WEB_TOOL_TIMEOUT_MS),
+            AbortSignal.timeout(AGENT_V3_WEB_TOOL_TIMEOUT_MS),
           );
           sourceCount = results.length;
           resultReferences.push(...results.map((item) => item.contentHash));
+          resultContext = JSON.stringify(results.map((item) => ({
+            title: sanitizeWebText(item.title, 300),
+            snippet: sanitizeWebText(item.snippet, 1_000),
+          })));
         }
       } else if (request.name === "search_knowledge" && input.brainId) {
         const documentIds = await getBrainDocumentIds(this.dependencies.supabase, input.brainId);
@@ -119,16 +141,22 @@ export class AgentOrchestrationService implements AgentOrchestrationRunner {
             similarity: Math.max(0, Math.min(1, result.similarity)),
           })));
           brainApplied = sourceCount > 0;
+          resultContext = JSON.stringify(results.map((item) => ({
+            title: sanitizeWebText(item.documentTitle, 300),
+            snippet: sanitizeWebText(item.content, 1_000),
+          })));
         }
       } else if (request.name === "load_session_messages") {
         const results = await this.dependencies.tools.loadSessionMessages(input.sessionId);
         sourceCount = results.length;
         resultReferences.push(...results);
+        resultContext = JSON.stringify(results.slice(0, 50));
       } else if (request.name === "load_training_profile") {
         const profile = await this.dependencies.memory.get(input.userId);
         memoryApplied = input.useTrainingMemory && profile.enabled && profile.summary !== null;
         sourceCount = memoryApplied ? 1 : 0;
         if (memoryApplied) resultReferences.push(profile.updatedAt ?? "training-profile");
+        if (memoryApplied) resultContext = JSON.stringify({ summary: profile.summary }).slice(0, 8_000);
         if (!memoryApplied) status = "skipped";
       } else status = "skipped";
     } catch {
@@ -141,6 +169,7 @@ export class AgentOrchestrationService implements AgentOrchestrationRunner {
       durationMs: Math.max(0, Math.round(performance.now() - started)),
       resultHash: createHash("sha256").update(JSON.stringify(resultReferences.sort())).digest("hex"),
       resultSummary: `${status}:${sourceCount}`,
+      resultContext: sanitizeWebText(resultContext, 8_000),
     }, activityId);
     return { id: activityId, sourceCount, memoryApplied, brainApplied };
   }
@@ -158,12 +187,20 @@ export class AgentOrchestrationService implements AgentOrchestrationRunner {
       memoryApplied ||= result.memoryApplied;
       brainApplied ||= result.brainApplied;
     }
-    const committed = await this.dependencies.repository.commitStrategy({ sessionId: input.sessionId, kind, draft: { ...draft, toolRequests: requests }, memoryApplied, brainApplied });
+    const committed = await this.dependencies.repository.commitStrategy({ sessionId: input.sessionId, kind, draft: { ...draft, toolRequests: requests }, memoryApplied, brainApplied, observationIds: observations });
     await this.dependencies.repository.recordActivity(input.sessionId, {
       kind, status: "completed", label: draft.activityLabel,
       reasonCode: kind === "planning" ? "initial_strategy" : "score_gap_replan",
     }, activityId);
-    return { strategyRevisionId: committed.id, revision: committed.revision, questionIntent: draft.questionIntent, observationIds: observations, memoryApplied, brainApplied };
+    return {
+      strategyRevisionId: committed.id,
+      revision: committed.revision,
+      questionIntent: draft.questionCriteria.questionIntent,
+      questionCriteria: draft.questionCriteria,
+      observationIds: observations,
+      memoryApplied,
+      brainApplied,
+    };
   }
 
   /** @inheritdoc */
@@ -181,6 +218,11 @@ export class AgentOrchestrationService implements AgentOrchestrationRunner {
       }, activityId).catch(() => undefined);
       throw error;
     }
+  }
+
+  /** @inheritdoc */
+  async resumePreparedStrategy(sessionId: string): Promise<AgentStrategyReceipt | null> {
+    return this.dependencies.repository.getLatestStrategyReceipt(sessionId);
   }
 
   /** @inheritdoc */
@@ -204,7 +246,13 @@ export class AgentOrchestrationService implements AgentOrchestrationRunner {
 
   /** @inheritdoc */
   async decideResponse(input: AgentResponseContext): Promise<AgentResponseDecision> {
-    if (input.followUpCount >= 3) return { action: "score", reasonCode: "follow_up_limit", followUpQuestion: null };
+    if (input.followUpCount >= 3) return {
+      action: "score",
+      reasonCode: "follow_up_limit",
+      followUpQuestion: null,
+      coveredEvidenceGoals: [],
+      missingEvidenceGoals: input.evidenceGoals,
+    };
     for (const repair of [false, true]) {
       try {
         return await this.dependencies.model.decide(input, repair);
@@ -212,7 +260,14 @@ export class AgentOrchestrationService implements AgentOrchestrationRunner {
         if (repair) break;
       }
     }
-    return { action: input.answer.trim().length >= 80 ? "score" : "follow_up", reasonCode: "deterministic_fallback", followUpQuestion: input.answer.trim().length >= 80 ? null : "请补充一个具体场景，并说明你的行动和最终结果。" };
+    const shouldScore = input.answer.trim().length >= 80;
+    return {
+      action: shouldScore ? "score" : "follow_up",
+      reasonCode: "deterministic_fallback",
+      followUpQuestion: shouldScore ? null : "请补充一个尚未说明的具体事实，包括你的行动和最终结果。",
+      coveredEvidenceGoals: shouldScore ? input.evidenceGoals : [],
+      missingEvidenceGoals: shouldScore ? [] : input.evidenceGoals,
+    };
   }
 
   /** @inheritdoc */

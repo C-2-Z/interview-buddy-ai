@@ -101,6 +101,10 @@ const QuestionRowSchema = z.object({
   type: z.string(),
   question: z.string(),
   tags: z.array(z.string()).nullable().optional(),
+  role_ids: z.array(z.enum(["general", "technical", "manager", "hr"])).nullable().optional(),
+  dimension_keys: z.array(z.string()).nullable().optional(),
+  topic_keys: z.array(z.string()).nullable().optional(),
+  evidence_goal_keys: z.array(z.string()).nullable().optional(),
 }).strict();
 const ResearchRowSchema = z.object({
   category: z.enum(["company", "role", "industry"]),
@@ -190,7 +194,7 @@ export class InterviewPreparationRepository implements PreparationCommitReposito
       const raw = unwrapDatabaseResponse(
         await this.database
           .from("question_bank")
-          .select("id, position, difficulty, type, question, tags")
+          .select("id, position, difficulty, type, question, tags, role_ids, dimension_keys, topic_keys, evidence_goal_keys")
           .eq("position", position)
           .eq("difficulty", input.difficulty)
           .order("created_at", { ascending: true })
@@ -208,6 +212,10 @@ export class InterviewPreparationRepository implements PreparationCommitReposito
       difficulty: row.difficulty,
       type: row.type,
       tags: row.tags ?? [],
+      roleIds: row.role_ids ?? [],
+      dimensionKeys: row.dimension_keys ?? [],
+      topicKeys: row.topic_keys ?? [],
+      evidenceGoalKeys: row.evidence_goal_keys ?? [],
       source: "bank",
     }));
   }
@@ -263,7 +271,7 @@ export class InterviewPreparationRepository implements PreparationCommitReposito
    * @returns 数据库分配事件序号后的提交结果。
    */
   async commitPreparation(input: CommitPreparationInput): Promise<AgentOperationCommit> {
-    const raw = unwrapDatabaseResponse(await this.database.rpc("commit_agent_preparation", {
+    const raw = unwrapDatabaseResponse(await this.database.rpc("commit_agent_v3_preparation", {
       p_session_id: input.sessionId,
       p_operation_key: input.operationKey,
       p_node_name: input.nodeName,

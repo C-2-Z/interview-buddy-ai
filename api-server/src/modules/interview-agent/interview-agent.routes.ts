@@ -10,6 +10,7 @@ import { createVoiceSocketToken } from "../voice/voice-token.service.js";
 import { createAgentWorkspaceRepository } from "./workspace/workspace.repository.js";
 import { AgentWorkspaceService } from "./workspace/workspace.service.js";
 import { streamCommittedAgentEvents } from "./events/agent-event-stream.js";
+import { shouldExposeAgentEvent } from "./events/agent-event-visibility.js";
 import { createInterviewAgentRepository } from "./interview-agent.repository.js";
 import { InterviewAgentRepositoryError } from "./interview-agent.repository.js";
 import {
@@ -19,6 +20,7 @@ import {
   AgentRetrySchema,
   AgentSessionParamsSchema,
   CreateAgentSessionSchema,
+  FrozenAgentConfigSchema,
 } from "./interview-agent.schemas.js";
 import {
   createInterviewAgentService,
@@ -61,6 +63,8 @@ interviewAgentRoutes.onError((error, context) => {
         return context.json(body, 404);
       case 409:
         return context.json(body, 409);
+      case 410:
+        return context.json(body, 410);
       case 503:
         return context.json(body, 503);
       default:
@@ -157,8 +161,19 @@ interviewAgentRoutes.post("/sessions/:sessionId/retry", async (context) => {
 interviewAgentRoutes.get("/sessions/:sessionId/events", async (context) => {
   const { sessionId } = AgentSessionParamsSchema.parse(context.req.param());
   const repository = createInterviewAgentRepository(context.var.supabase);
-  await repository.getOwnedSessionProjection(sessionId);
-  return streamCommittedAgentEvents(context, repository, sessionId);
+  const projection = await repository.getOwnedSessionProjection(sessionId);
+  if (projection.version !== "agent-v3") {
+    throw new InterviewAgentServiceError(
+      "legacy_agent_retired",
+      "This legacy Agent session no longer exposes an interactive event stream.",
+      410,
+      false,
+    );
+  }
+  const config = FrozenAgentConfigSchema.parse(projection.agentConfig);
+  return streamCommittedAgentEvents(context, repository, sessionId, (event) =>
+    shouldExposeAgentEvent(event, config.experienceMode, projection.productStatus),
+  );
 });
 
 /** 返回恢复页面所需的真实题目、消息、研究、证据、评分与报告投影。 */

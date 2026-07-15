@@ -30,8 +30,13 @@ const SessionSchema = z.object({ agent_config: z.unknown(), agent_plan: z.object
   capabilityBlueprint: z.object({ dimensions: z.array(z.object({
     key: z.string().min(1).max(100), label: z.string().min(1).max(200), weight: z.number().positive(),
   }).passthrough()).min(1).max(50) }).passthrough(),
+  questionApplicableDimensions: z.array(z.array(z.string())).min(1),
 }).passthrough() }).strict();
-const QuestionSchema = z.object({ id: z.string().uuid(), question: z.string().min(1).max(5_000) }).strict();
+const QuestionSchema = z.object({
+  id: z.string().uuid(), question: z.string().min(1).max(5_000),
+  order_index: z.number().int().min(0).max(9),
+  dimension_key: z.string().min(1).max(100),
+}).strict();
 const MessageSchema = z.object({ id: z.string().uuid(), content: z.string().max(20_000) }).strict();
 const ReceiptSchema: z.ZodType<QuestionEvaluationReceipt> = z.object({
   committed: z.boolean(), duplicate: z.boolean(), operationKey: z.string(), questionId: z.string().uuid(),
@@ -57,7 +62,7 @@ export class SupabaseAgentEvaluationRepository implements AgentEvaluationReposit
   async loadContext(sessionId: string, questionId: string): Promise<QuestionEvaluationContext> {
     const [sessionRaw, questionRaw, messagesRaw] = await Promise.all([
       execute(this.database.from("interview_sessions").select("agent_config, agent_plan").eq("id", sessionId).single()),
-      execute(this.database.from("interview_questions").select("id, question").eq("id", questionId).eq("session_id", sessionId).single()),
+      execute(this.database.from("interview_questions").select("id, question, order_index, dimension_key").eq("id", questionId).eq("session_id", sessionId).single()),
       execute(this.database.from("interview_messages").select("id, content").eq("question_id", questionId).eq("role", "user").order("sequence", { ascending: true })),
     ]);
     const session = SessionSchema.parse(sessionRaw);
@@ -70,8 +75,11 @@ export class SupabaseAgentEvaluationRepository implements AgentEvaluationReposit
       promptVersion: config.promptVersion,
       modelProvider: config.modelProvider,
       modelName: config.modelName,
-      rubricVersion: "rubric-v1",
-      rubric: session.agent_plan.capabilityBlueprint.dimensions.map((dimension) => ({
+      rubricVersion: "rubric-v3",
+      primaryDimensionKey: question.dimension_key,
+      rubric: session.agent_plan.capabilityBlueprint.dimensions.filter((dimension) =>
+        session.agent_plan.questionApplicableDimensions[question.order_index]?.includes(dimension.key),
+      ).map((dimension) => ({
         key: dimension.key, label: dimension.label, weight: dimension.weight,
       })),
       messages: z.array(MessageSchema).parse(messagesRaw),
@@ -80,7 +88,7 @@ export class SupabaseAgentEvaluationRepository implements AgentEvaluationReposit
 
   /** @inheritdoc */
   async commitEvaluation(input: CommitQuestionEvaluationInput): Promise<QuestionEvaluationReceipt> {
-    return ReceiptSchema.parse(await execute(this.database.rpc("commit_agent_question_evaluation", {
+    return ReceiptSchema.parse(await execute(this.database.rpc("commit_agent_v3_question_evaluation", {
       p_session_id: input.context.sessionId,
       p_question_id: input.context.questionId,
       p_evidence: input.evidence,

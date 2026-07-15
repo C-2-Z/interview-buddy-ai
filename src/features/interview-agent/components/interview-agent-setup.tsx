@@ -31,6 +31,7 @@ const TEXT_SETUP_DRAFT_KEY = "ezmock:text-interview-setup-draft:v2";
 /** 文字练习表单草稿。 */
 type SetupDraft = {
   /** 单面试官或多角色面试。 */ mode: AgentMode;
+  /** 必须由用户显式选择，不从旧草稿推断。 */ experienceMode: "simulation" | "coaching" | "";
   /** 目标岗位。 */ position: string;
   /** 难度。 */ difficulty: "初级" | "中级" | "高级";
   /** 题目数量。 */ questionCount: number;
@@ -44,6 +45,7 @@ type SetupDraft = {
 
 const INITIAL_DRAFT: SetupDraft = {
   mode: "single",
+  experienceMode: "",
   position: "",
   difficulty: "中级",
   questionCount: 5,
@@ -105,11 +107,12 @@ export function InterviewAgentSetupPage({
 
   /** 使用固定 text 通道创建唯一 Agent 会话，失败时不清空任何字段。 */
   async function createFromDraft() {
-    if (!readiness.data || readiness.data.status === "blocked" || readiness.isFetching) return;
+    if (!draft.experienceMode || !readiness.data || readiness.data.status === "blocked" || readiness.isFetching) return;
     createRecovery.clear();
     const body: CreateAgentSessionBody = {
       mode: draft.mode,
       interviewMode: "text",
+      experienceMode: draft.experienceMode,
       position: draft.position.trim(),
       difficulty: draft.difficulty,
       questionCount: draft.questionCount,
@@ -118,8 +121,8 @@ export function InterviewAgentSetupPage({
       resumeId: initialResumeId,
       modelProvider: draft.modelProvider,
       webResearch: draft.webResearch,
-      brainId: readiness.data.agentVersion === "agent-v2" ? draft.brainId || undefined : undefined,
-      useTrainingMemory: readiness.data.agentVersion === "agent-v2" && draft.useTrainingMemory,
+      brainId: draft.brainId || undefined,
+      useTrainingMemory: draft.useTrainingMemory,
     };
     try {
       const sessionId = await session.create(body);
@@ -212,6 +215,29 @@ export function InterviewAgentSetupPage({
               </div>
             </fieldset>
 
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium">体验模式（必选）</legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Button
+                  type="button"
+                  variant={draft.experienceMode === "simulation" ? "default" : "outline"}
+                  onClick={() => patch({ experienceMode: "simulation" })}
+                >
+                  真实模拟
+                </Button>
+                <Button
+                  type="button"
+                  variant={draft.experienceMode === "coaching" ? "default" : "outline"}
+                  onClick={() => patch({ experienceMode: "coaching" })}
+                >
+                  教练模式
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                真实模拟在完成前隐藏评分和研究过程；教练模式会实时展示反馈。
+              </p>
+            </fieldset>
+
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="text-difficulty">难度</Label>
@@ -289,8 +315,7 @@ export function InterviewAgentSetupPage({
               />
             </div>
 
-            {readiness.data?.agentVersion === "agent-v2" && (
-              <>
+            <>
             <div className="space-y-2">
               <Label htmlFor="brain">面试知识库 Brain（选填）</Label>
               <Select
@@ -318,8 +343,7 @@ export function InterviewAgentSetupPage({
               checked={draft.useTrainingMemory}
               onCheckedChange={(value) => patch({ useTrainingMemory: value })}
             />
-              </>
-            )}
+            </>
 
             <div className="flex items-center justify-between gap-4 rounded-xl border p-4">
               <div className="flex gap-3">
@@ -347,6 +371,7 @@ export function InterviewAgentSetupPage({
                 !readiness.data ||
                 readiness.data.status === "blocked" ||
                 !draft.position.trim()
+                || !draft.experienceMode
               }
             >
               {session.loading ? (

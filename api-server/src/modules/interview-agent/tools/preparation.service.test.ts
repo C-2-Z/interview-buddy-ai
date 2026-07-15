@@ -32,6 +32,7 @@ const SKILL: SkillDef = {
 };
 const CONFIG: FrozenAgentConfig = {
   interviewMode: "text",
+  experienceMode: "coaching",
   position: "后端工程师",
   difficulty: "中级",
   questionCount: 5,
@@ -42,7 +43,7 @@ const CONFIG: FrozenAgentConfig = {
   modelProvider: "deepseek",
   modelName: "deepseek-v4-flash",
   webResearch: true,
-  promptVersion: "agent-v1-test",
+  promptVersion: "agent-v3-test",
 };
 
 /** 构建准备服务使用的只读工具 fake。 */
@@ -77,6 +78,10 @@ test("no Tavily key still prepares a full interview plan", async () => {
     difficulty: "中级",
     type: "MYSQL",
     tags: ["MYSQL", "technical"],
+    roleIds: ["technical"],
+    dimensionKeys: ["MYSQL"],
+    topicKeys: ["后端工程师"],
+    evidenceGoalKeys: ["situation", "action", "result"],
     source: "bank",
   };
   const model: AgentModelProvider = {

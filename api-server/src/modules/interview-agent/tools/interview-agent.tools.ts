@@ -1,4 +1,4 @@
-/** Interview Agent v1 允许的内部只读工具端口与固定 allowlist。 */
+/** Interview Agent 3 允许的内部只读工具端口与固定 allowlist。 */
 import type { SkillDef } from "../../skills/skill.types.js";
 import type {
   AgentDifficulty,
@@ -9,7 +9,7 @@ import type {
   AgentResumeSummary,
 } from "./preparation.types.js";
 
-/** Agent v1 唯一允许注册的内部工具名称。 */
+/** Agent 3 唯一允许注册的内部工具名称。 */
 export const ALLOWED_AGENT_TOOL_NAMES = [
   "load_skill",
   "load_resume_summary",

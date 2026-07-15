@@ -29,7 +29,7 @@ export type AgentQuestionModelInput = Readonly<{
   modelName?: string;
   /** 当前题目必须覆盖的能力维度键。 */
   dimensionKey?: string;
-  /** Agent v2 最新策略给出的战术提问意图。 */
+  /** Agent 3 最新策略给出的战术提问意图。 */
   strategyIntent?: string | null;
   /** 可信业务上下文；完整简历文件不会进入。 */
   trustedContext?: Readonly<{
@@ -40,6 +40,8 @@ export type AgentQuestionModelInput = Readonly<{
   }>;
   /** 明确标记为不可执行数据的清洗网页来源。 */
   untrustedResearchContext?: string;
+  /** Planner 已授权工具产生的限长、脱敏结果上下文。 */
+  toolResultContext?: string;
 }>;
 
 /** 模型完成一道题生成后的结构化结果。 */
@@ -135,7 +137,7 @@ export class DeterministicMockAgentModelProvider implements AgentModelProvider {
    */
   constructor(options: DeterministicMockAgentModelProviderOptions = {}) {
     this.modelProvider = options.modelProvider ?? "mock";
-    this.modelName = options.modelName ?? "deterministic-agent-v1";
+    this.modelName = options.modelName ?? "deterministic-agent-v3";
   }
 
   /**

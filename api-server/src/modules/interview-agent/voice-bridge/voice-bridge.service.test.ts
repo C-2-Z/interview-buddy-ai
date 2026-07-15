@@ -16,7 +16,7 @@ function snapshot(eventCursor: number): AgentSnapshot {
   return {
     sessionId: SESSION_ID,
     threadId: SESSION_ID,
-    version: "agent-v1",
+    version: "agent-v3",
     mode: "single",
     interviewMode: "voice",
     phase: "awaiting_answer",
@@ -101,6 +101,47 @@ test("duplicate turn returns no output events and cannot repeat TTS", async () =
   assert.equal(result.duplicate, true);
   assert.deepEqual(result.events, []);
   assert.equal(reads, 0);
+});
+
+test("simulation voice channel never emits activity or per-question score events", async () => {
+  const visibleMessage: AgentEvent = {
+    sequence: 23,
+    type: "agent.message_completed",
+    data: {
+      id: "77777777-7777-4777-8777-777777777777",
+      role: "assistant",
+      content: "下一题",
+      roleId: "general",
+      createdAt: new Date(0).toISOString(),
+      interrupted: false,
+    },
+  };
+  const bridge = new AgentVoiceBridgeService({
+    agentService: {
+      async getSession() { return { snapshot: snapshot(20) }; },
+      async getExperienceMode() { return "simulation"; },
+      async submitInput() {
+        return { duplicate: false, operationKey: "input:voice:simulation", snapshot: snapshot(24) };
+      },
+      async interruptSession() { return {}; },
+    },
+    voiceProvider: fakeVoiceProvider([]),
+    eventReader: {
+      async listEventsAfter() {
+        return [
+          { sequence: 21, type: "agent.activity", data: { id: "88888888-8888-4888-8888-888888888888", kind: "planning", status: "completed", label: "hidden" } } as AgentEvent,
+          { sequence: 22, type: "agent.score_completed", data: { questionId: QUESTION_ID, overallScore: 90, dimensions: {} } } as AgentEvent,
+          visibleMessage,
+          { sequence: 24, type: "agent.snapshot", data: snapshot(24) },
+        ];
+      },
+    },
+  });
+  const result = await bridge.submitVoiceInput(SESSION_ID, "simulation", "回答");
+  assert.deepEqual(result.events.map((event) => event.type), [
+    "agent.message_completed",
+    "agent.snapshot",
+  ]);
 });
 
 test("interrupt cancels Agent and provider without one failure hiding the other", async () => {

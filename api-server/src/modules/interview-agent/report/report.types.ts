@@ -7,13 +7,22 @@ export type FrozenQuestionScore = {
   /** 全场题号。 */ orderIndex: number;
   /** 角色。 */ roleId: "general" | "technical" | "manager" | "hr";
   /** 代码计算总分。 */ overallScore: number;
-  /** 冻结维度分。 */ dimensions: Record<string, { score: number }>;
+  /** 冻结维度分；未观察维度不参与聚合。 */ dimensions: Record<string, {
+    status: "scored" | "not_observed";
+    score: number | null;
+    evidenceIds: string[];
+  }>;
 };
 
 /** 前端雷达图兼容的维度聚合。 */
 export type AgentDimensionSummary = {
   /** 聚合维度。 */
-  dimensions: Record<string, { score: number; count: number; weight: number }>;
+  dimensions: Record<string, {
+    score: number;
+    count: number;
+    weight: number;
+    evidenceCoverageCount: number;
+  }>;
   /** 冻结加权总分。 */ overallScore: number;
   /** 表现最好维度展示文本。 */ strengths: string[];
   /** 待改进维度展示文本。 */ weaknesses: string[];

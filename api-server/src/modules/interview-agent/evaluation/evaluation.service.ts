@@ -86,6 +86,8 @@ export function buildQuestionEvaluation(
     throw new Error("Evaluation dimensions do not match the frozen rubric");
   }
   const evidenceIds = new Set(evidence.map((item) => item.id));
+  const evidenceById = new Map(evidence.map((item) => [item.id, item]));
+  const dimensions: QuestionEvaluation["dimensions"] = {};
   let weighted = 0;
   let totalWeight = 0;
   for (const dimension of context.rubric) {
@@ -93,10 +95,33 @@ export function buildQuestionEvaluation(
     if (!result || result.evidenceIds.some((id) => !evidenceIds.has(id))) {
       throw new Error("Evaluation references unknown evidence");
     }
-    // 无证据维度必须显式写“证据不足”，避免模型用常识补全候选人能力。
-    if (result.evidenceIds.length === 0 && !/证据不足|insufficient evidence/i.test(result.rationale)) {
-      throw new Error("Evidence-free dimension must be marked insufficient");
+    if (result.evidenceIds.some((id) => evidenceById.get(id)?.dimensionKey !== dimension.key)) {
+      throw new Error("Evaluation evidence belongs to another dimension");
     }
+    // 主维度无证据按 0 分计；辅助维度无证据只标记未观察，不制造虚假短板。
+    if (result.evidenceIds.length === 0) {
+      if (dimension.key === context.primaryDimensionKey) {
+        dimensions[dimension.key] = {
+          status: "scored",
+          score: 0,
+          rationale: "主维度在追问上限内仍无可验证候选人原文证据。",
+          evidenceIds: [],
+        };
+        totalWeight += dimension.weight;
+      } else {
+        dimensions[dimension.key] = {
+          status: "not_observed",
+          score: null,
+          rationale: "本题未观察到足够候选人原文证据。",
+          evidenceIds: [],
+        };
+      }
+      continue;
+    }
+    if (result.status !== "scored" || result.score === null) {
+      throw new Error("Observed dimension must provide a scored result");
+    }
+    dimensions[dimension.key] = { ...result, status: "scored" };
     weighted += result.score * dimension.weight;
     totalWeight += dimension.weight;
   }
@@ -105,7 +130,7 @@ export function buildQuestionEvaluation(
     promptVersion: context.promptVersion,
     modelProvider: context.modelProvider,
     modelName: context.modelName,
-    dimensions: output.dimensions,
+    dimensions,
     overallScore: totalWeight > 0 ? Math.round(weighted / totalWeight) : 0,
     feedback: output.feedback,
   };

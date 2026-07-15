@@ -43,6 +43,7 @@ import {
   type PreparationCommitRepository,
 } from "./tools/preparation.repository.js";
 import { InterviewPreparationService } from "./tools/preparation.service.js";
+import type { PreparedInterviewPlan } from "./tools/preparation.types.js";
 import { createWebSearchProviderFromEnv } from "./providers/web-search.provider.js";
 import type { AgentInterviewerModelProvider } from "./providers/agent-model.provider.js";
 import { createProductionAgentModelProvider } from "./providers/production-agent-model.provider.js";
@@ -76,7 +77,7 @@ import type { AgentOrchestrationRunner } from "../agent-orchestration/agent-orch
 import { getBrainDetail } from "../knowledge/brain/brain.service.js";
 
 const logger = createModuleLogger("interview-agent");
-const PREPARE_OPERATION_KEY = "prepare:agent-v1";
+const PREPARE_OPERATION_KEY = "prepare:agent-v3";
 const PREPARE_NODE_NAME = "prepare_interview";
 const INPUT_NODE_NAME = "wait_for_input";
 
@@ -98,7 +99,7 @@ export type InterviewAgentServiceDependencies = {
   /** 已验证 JWT 的用户 UUID。 */
   userId: string;
   /** 延迟取得已编译 Graph，关闭功能时不会读取 DATABASE_URL。 */
-  getGraph: (version: InterviewAgentState["version"]) => InterviewAgentGraph;
+  getGraph: () => InterviewAgentGraph;
   /** 非敏感运行配置。 */
   runtimeConfig: AgentRuntimeConfig;
   /** 解析用户设置中的 Provider，但返回值不携带 API Key。 */
@@ -111,6 +112,8 @@ export type InterviewAgentServiceDependencies = {
   preparationRepository?: PreparationCommitRepository;
   /** v2 准备过程的用户可见活动真相源；v1 和最小测试图可以省略。 */
   orchestrationRepository?: AgentOrchestrationRepository;
+  /** Agent 3 唯一的 Planner、工具与追问编排服务。 */
+  orchestrationService?: AgentOrchestrationRunner;
   /** Phase 3 在恢复 Graph 前原子保存回答正文；测试最小图可省略。 */
   inputRepository?: AgentInputRepository;
   /** true 表示 Graph finalize_report 已提交完整 session_completed 报告事件。 */
@@ -128,6 +131,7 @@ export type InterviewAgentServiceErrorCode =
   | "agent_graph_unavailable"
   | "agent_context_forbidden"
   | "agent_memory_consent_required"
+  | "legacy_agent_retired"
   | "agent_finish_not_available";
 
 /** 不泄露 checkpoint、模型或数据库详情的 Service 错误。 */
@@ -188,8 +192,7 @@ function getDefaultInterviewAgentGraph(
   interviewerModelProvider: AgentInterviewerModelProvider,
   evaluationService: QuestionEvaluationService,
   reportService: DefaultAgentReportService,
-  version: InterviewAgentState["version"],
-  orchestrationService?: AgentOrchestrationRunner,
+  orchestrationService: AgentOrchestrationRunner,
 ): InterviewAgentGraph {
   defaultCheckpointer ??= createAgentRuntimeCheckpointer();
   return compileInterviewAgentGraph({
@@ -199,7 +202,6 @@ function getDefaultInterviewAgentGraph(
     interviewerModelProvider,
     evaluationService,
     reportService,
-    version,
     orchestrationService,
   });
 }
@@ -237,7 +239,7 @@ function stateFromProjection(projection: AgentSessionProjection): InterviewAgent
   const config = FrozenAgentConfigSchema.parse(projection.agentConfig);
   const rolePlan = buildRolePlan(projection.mode, config.questionCount);
   return {
-    version: projection.version,
+    version: "agent-v3",
     sessionId: projection.sessionId,
     userId: projection.userId,
     mode: projection.mode,
@@ -256,6 +258,9 @@ function stateFromProjection(projection: AgentSessionProjection): InterviewAgent
     observationIds: [],
     remainingToolBudget: 0,
     currentQuestionIntent: null,
+    currentPrimaryDimension: null,
+    currentEvidenceGoals: [],
+    currentTopicKeys: [],
     latestDecision: null,
     memoryApplied: false,
     brainApplied: false,
@@ -343,8 +348,8 @@ export class InterviewAgentService {
       await this.dependencies.assertCreationReady(input);
     }
     // 在数据库创建前解析 Graph 配置，缺少 DATABASE_URL 时不留下不可恢复的孤儿会话。
-    const agentVersion = this.dependencies.runtimeConfig.defaultVersion ?? "agent-v1";
-    const graph = this.dependencies.getGraph(agentVersion);
+    const agentVersion = "agent-v3" as const;
+    const graph = this.dependencies.getGraph();
     const model = await this.dependencies.resolveModel(input);
     const resolvedInput = {
       ...input,
@@ -358,25 +363,13 @@ export class InterviewAgentService {
     const created = await this.dependencies.repository.createSession(resolvedInput);
 
     const preparationTask = this.prepareSession(graph, created, resolvedInput);
-    if (agentVersion === "agent-v2") {
-      // v2 先返回可恢复 sessionId，让客户端立即订阅持久化活动；后台任务仍由 operation 保证幂等。
-      void preparationTask.catch((error: unknown) => {
-        logger.error(error instanceof Error ? error : new Error("Agent preparation failed"), {
-          event: "agent_preparation_failed",
-          sessionId: created.sessionId,
-        });
-      });
-      return created;
-    }
-    try {
-      await preparationTask;
-    } catch (error) {
-      // 创建响应必须仍然让客户端获得 sessionId，retry 可在 checkpoint/DB 恢复后继续。
+    // 创建接口先返回可恢复的 sessionId，后台准备仍由 operation key 保证幂等。
+    void preparationTask.catch((error: unknown) => {
       logger.error(error instanceof Error ? error : new Error("Agent preparation failed"), {
         event: "agent_preparation_failed",
         sessionId: created.sessionId,
       });
-    }
+    });
     return created;
   }
 
@@ -387,7 +380,15 @@ export class InterviewAgentService {
    * @returns 与 SSE 使用同一业务事件真相的视图。
    */
   async getSession(sessionId: string): Promise<AgentSessionView> {
-    await this.dependencies.repository.getOwnedSessionProjection(sessionId);
+    const projection = await this.dependencies.repository.getOwnedSessionProjection(sessionId);
+    if (projection.version !== "agent-v3") {
+      throw new InterviewAgentServiceError(
+        "legacy_agent_retired",
+        "This legacy Agent session is available only through interview history and reports.",
+        410,
+        false,
+      );
+    }
     return {
       snapshot: await loadCommittedSnapshot(this.dependencies.repository, sessionId),
     };
@@ -399,7 +400,34 @@ export class InterviewAgentService {
    * @param sessionId - Agent 会话 UUID。
    */
   async assertSessionReadable(sessionId: string): Promise<void> {
-    await this.dependencies.repository.getOwnedSessionProjection(sessionId);
+    const projection = await this.dependencies.repository.getOwnedSessionProjection(sessionId);
+    if (projection.version !== "agent-v3") {
+      throw new InterviewAgentServiceError(
+        "legacy_agent_retired",
+        "This legacy Agent session no longer exposes an interactive event stream.",
+        410,
+        false,
+      );
+    }
+  }
+
+  /**
+   * 读取冻结体验模式，供语音桥在服务端执行过程评分隐藏。
+   *
+   * @param sessionId - 当前用户拥有的 Agent 3 会话。
+   * @returns 创建时显式选择的体验模式。
+   */
+  async getExperienceMode(sessionId: string): Promise<"simulation" | "coaching"> {
+    const projection = await this.dependencies.repository.getOwnedSessionProjection(sessionId);
+    if (projection.version !== "agent-v3") {
+      throw new InterviewAgentServiceError(
+        "legacy_agent_retired",
+        "This legacy Agent session is read-only.",
+        410,
+        false,
+      );
+    }
+    return FrozenAgentConfigSchema.parse(projection.agentConfig).experienceMode;
   }
 
   /**
@@ -500,10 +528,18 @@ export class InterviewAgentService {
         );
       }
 
-      const graph = this.dependencies.getGraph(lifecycleProjection.version);
+      if (lifecycleProjection.version !== "agent-v3") {
+        throw new InterviewAgentServiceError(
+          "legacy_agent_retired",
+          "This legacy Agent session is read-only and can no longer be resumed.",
+          410,
+          false,
+        );
+      }
+      const graph = this.dependencies.getGraph();
       const invoked = await graph.invoke(
         createAgentResumeCommand(input.inputId),
-        createAgentGraphConfig(sessionId, lifecycleProjection.version),
+        createAgentGraphConfig(sessionId),
       );
       const state = parseOwnedGraphState(invoked, sessionId, this.dependencies.userId);
       if (state.phase === "awaiting_answer") {
@@ -640,7 +676,15 @@ export class InterviewAgentService {
       );
     }
 
-    const graph = this.dependencies.getGraph(projection.version);
+    if (projection.version !== "agent-v3") {
+      throw new InterviewAgentServiceError(
+        "legacy_agent_retired",
+        "This legacy Agent session is read-only and can no longer be retried.",
+        410,
+        false,
+      );
+    }
+    const graph = this.dependencies.getGraph();
     const duplicate = await this.prepareFromProjection(graph, projection);
     return {
       duplicate,
@@ -685,14 +729,13 @@ export class InterviewAgentService {
         input,
         promptVersion: input.promptVersion,
         webResearchEnabled: this.dependencies.runtimeConfig.webResearchEnabled,
-        version: input.agentVersion,
       });
-      const preparation = await this.preparePlanWithActivity(
+      const prepared = await this.preparePlanWithActivity(
         created.sessionId,
         input.mode,
         initialState.config,
-        input.agentVersion,
       );
+      const preparation = prepared?.plan ?? null;
       const preparedQuestionId = preparation ? randomUUID() : undefined;
       const invoked = await graph.invoke(
         createInitialAgentState({
@@ -702,10 +745,10 @@ export class InterviewAgentService {
           promptVersion: input.promptVersion,
           webResearchEnabled: this.dependencies.runtimeConfig.webResearchEnabled,
           preparedQuestionId,
-          version: input.agentVersion,
           capabilityDimensions: preparation?.capabilityBlueprint.dimensions.map((dimension) => dimension.key),
+          preparedStrategy: prepared?.strategy,
         }),
-        createAgentGraphConfig(created.sessionId, input.agentVersion),
+        createAgentGraphConfig(created.sessionId),
       );
       const state = parseOwnedGraphState(invoked, created.sessionId, this.dependencies.userId);
       if (preparation && preparedQuestionId) {
@@ -714,7 +757,7 @@ export class InterviewAgentService {
         await this.commitPreparedState(state, created.eventCursor);
       }
     } catch (error) {
-      if (input.agentVersion === "agent-v2" && this.dependencies.orchestrationRepository) {
+      if (this.dependencies.orchestrationRepository) {
         await this.dependencies.orchestrationRepository.recordActivity(created.sessionId, {
           kind: "planning",
           status: "failed",
@@ -756,7 +799,44 @@ export class InterviewAgentService {
         true,
       );
     }
-    return service.prepare({ sessionId, mode, config });
+    const preparedContext = await service.prepareContext({ sessionId, mode, config });
+    const orchestration = this.dependencies.orchestrationService;
+    if (!orchestration) {
+      return {
+        plan: await service.prepare({ sessionId, mode, config }),
+        strategy: undefined,
+      };
+    }
+    // Planner 必须先于首题选择执行；这里只把有限上下文短暂交给模型，不进入 Graph State。
+    const strategy = await orchestration.resumePreparedStrategy?.(sessionId) ?? await orchestration.planSession({
+      sessionId,
+      userId: this.dependencies.userId,
+      position: config.position,
+      difficulty: config.difficulty,
+      targetCompany: config.targetCompany,
+      brainId: config.brainId ?? null,
+      useTrainingMemory: config.useTrainingMemory ?? false,
+      webResearch: config.webResearch,
+      modelProvider: config.modelProvider,
+      modelName: config.modelName,
+      promptVersion: config.promptVersion,
+      allowedDimensions: preparedContext.blueprint.dimensions.map((dimension) => dimension.key),
+      jobDescription: config.jobDescription,
+      resumeSummary: preparedContext.resumeSummary,
+      researchContext: preparedContext.research.sources.map((source) => ({
+        title: source.title,
+        snippet: source.snippet,
+      })),
+    });
+    const plan = await service.selectFirstQuestion(
+      { sessionId, mode, config },
+      preparedContext,
+      strategy.questionCriteria,
+      await this.dependencies.orchestrationRepository
+        ?.loadObservationContexts(sessionId, strategy.observationIds)
+        .catch(() => []) ?? [],
+    );
+    return { plan, strategy };
   }
 
   /**
@@ -772,11 +852,10 @@ export class InterviewAgentService {
     sessionId: string,
     mode: AgentSessionProjection["mode"],
     config: FrozenAgentConfig,
-    version: InterviewAgentState["version"],
   ) {
     const activityRepository = this.dependencies.orchestrationRepository;
     let activityId: string | null = null;
-    if (version === "agent-v2" && activityRepository) {
+    if (activityRepository) {
       // 可观测性降级不应阻断首题生成，数据库活动短暂不可用时仍继续原有准备流程。
       activityId = await activityRepository.recordActivity(sessionId, {
         kind: "planning",
@@ -790,7 +869,7 @@ export class InterviewAgentService {
       const preparation = await this.preparePlanIfConfigured(
         sessionId,
         mode,
-        version === "agent-v2" ? { ...config, webResearch: false } : config,
+        config,
       );
       if (activityId && activityRepository) {
         await activityRepository.recordActivity(sessionId, {
@@ -798,7 +877,7 @@ export class InterviewAgentService {
           status: "completed",
           label: "已整理岗位资料与首题候选",
           reasonCode: "context_prepared",
-          sourceCount: preparation?.researchSources.length ?? 0,
+          sourceCount: preparation?.plan.researchSources.length ?? 0,
         }, activityId);
       }
       return preparation;
@@ -826,7 +905,7 @@ export class InterviewAgentService {
   private async commitPreparedPlan(
     state: InterviewAgentState,
     previousCursor: number,
-    plan: Awaited<ReturnType<InterviewPreparationService["prepare"]>>,
+    plan: PreparedInterviewPlan,
     questionId: string,
   ): Promise<void> {
     const repository = this.dependencies.preparationRepository;
@@ -911,14 +990,14 @@ export class InterviewAgentService {
 
     try {
       const restoredConfig = FrozenAgentConfigSchema.parse(projection.agentConfig);
-      const preparation = await this.preparePlanWithActivity(
+      const prepared = await this.preparePlanWithActivity(
         projection.sessionId,
         projection.mode,
         restoredConfig,
-        projection.version,
       );
+      const preparation = prepared?.plan ?? null;
       const fallbackQuestionId = preparation ? randomUUID() : null;
-      const config = createAgentGraphConfig(projection.sessionId, projection.version);
+      const config = createAgentGraphConfig(projection.sessionId);
       const saved = await graph.getState(config);
       const parsedSaved = InterviewAgentStateSchema.safeParse(saved.values);
       let state: InterviewAgentState;
@@ -937,6 +1016,12 @@ export class InterviewAgentService {
             {
               ...stateFromProjection(projection),
               currentQuestionId: fallbackQuestionId,
+              strategyRevisionId: prepared?.strategy?.strategyRevisionId ?? null,
+              observationIds: prepared?.strategy?.observationIds ?? [],
+              currentQuestionIntent: prepared?.strategy?.questionIntent ?? null,
+              currentPrimaryDimension: prepared?.strategy?.questionCriteria.primaryDimension ?? null,
+              currentEvidenceGoals: prepared?.strategy?.questionCriteria.evidenceGoalKeys ?? [],
+              currentTopicKeys: prepared?.strategy?.questionCriteria.topicKeys ?? [],
             },
             config,
           ),
@@ -957,7 +1042,7 @@ export class InterviewAgentService {
       }
       return false;
     } catch (error) {
-      if (projection.version === "agent-v2" && this.dependencies.orchestrationRepository) {
+      if (this.dependencies.orchestrationRepository) {
         await this.dependencies.orchestrationRepository.recordActivity(projection.sessionId, {
           kind: "planning",
           status: "failed",
@@ -1035,11 +1120,6 @@ export function createInterviewAgentService(
   const inputRepository = createAgentInputRepository(supabase);
   const agentRunAuditor = createAgentRunAuditor(supabase);
   const agentModelProvider = createProductionAgentModelProvider(supabase, userId, agentRunAuditor);
-  const questionRuntimeService = new DefaultQuestionRuntimeService({
-    runtimeRepository: createQuestionRuntimeRepository(supabase),
-    preparationRepository,
-    modelProvider: agentModelProvider,
-  });
   const evaluationService = new QuestionEvaluationService(
     createAgentEvaluationRepository(supabase),
     createAgentEvaluationModelProvider(supabase, userId, agentRunAuditor),
@@ -1049,6 +1129,14 @@ export function createInterviewAgentService(
   const webSearchProvider = createWebSearchProviderFromEnv();
   const memoryService = new AgentMemoryService(createAgentMemoryRepository(supabase));
   const orchestrationRepository = createAgentOrchestrationRepository(supabase);
+  const questionRuntimeService = new DefaultQuestionRuntimeService({
+    runtimeRepository: createQuestionRuntimeRepository(supabase),
+    preparationRepository,
+    modelProvider: agentModelProvider,
+    loadObservationContexts(sessionId, observationIds) {
+      return orchestrationRepository.loadObservationContexts(sessionId, observationIds);
+    },
+  });
   const orchestrationService = new AgentOrchestrationService({
     repository: orchestrationRepository,
     model: new ProductionAgentOrchestrationModel(supabase, userId, agentRunAuditor),
@@ -1060,15 +1148,14 @@ export function createInterviewAgentService(
   return new InterviewAgentService({
     repository: createInterviewAgentRepository(supabase),
     userId,
-    getGraph: (version) =>
+    getGraph: () =>
       getDefaultInterviewAgentGraph(
         inputRepository,
         questionRuntimeService,
         agentModelProvider,
         evaluationService,
         reportService,
-        version,
-        version === "agent-v2" ? orchestrationService : undefined,
+        orchestrationService,
       ),
     runtimeConfig: getAgentRuntimeConfig(),
     async assertCreationReady(input) {
@@ -1110,6 +1197,7 @@ export function createInterviewAgentService(
     },
     preparationRepository,
     orchestrationRepository,
+    orchestrationService,
     inputRepository,
     reportFinalizedInGraph: true,
     preparationService: new InterviewPreparationService({

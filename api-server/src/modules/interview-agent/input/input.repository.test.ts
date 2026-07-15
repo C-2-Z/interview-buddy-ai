@@ -24,6 +24,8 @@ class FakeInputQuery implements AgentInputDatabaseQuery {
   /** @inheritdoc */
   eq(column: string, value: unknown) { this.filters.set(column, value); return this; }
   /** @inheritdoc */
+  order() { return this; }
+  /** @inheritdoc */
   single() { return this; }
   /** @inheritdoc */
   then<TResult1 = unknown, TResult2 = never>(

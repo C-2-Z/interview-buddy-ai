@@ -10,7 +10,7 @@ const BASE_INPUT = {
   nodeName: "test_node",
   modelProvider: "deepseek",
   modelName: "deepseek-chat",
-  promptVersion: "agent-v1-test",
+  promptVersion: "agent-v3-test",
 } as const;
 
 /** 创建只收集安全审计字段的内存审计器。 */

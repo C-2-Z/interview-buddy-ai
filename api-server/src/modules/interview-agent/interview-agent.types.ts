@@ -1,13 +1,16 @@
 /** Interview Agent 模块的状态、事件与 HTTP API 公共契约。 */
 
-/** Agent 状态契约版本。 */
-export type AgentVersion = "agent-v1" | "agent-v2";
+/** 单一 Agent 3 状态契约标识。 */
+export type AgentVersion = "agent-v3";
 
 /** 面试角色编排模式。 */
 export type AgentMode = "single" | "panel";
 
 /** 用户参与面试时使用的交互通道。 */
 export type AgentInterviewMode = "text" | "voice";
+
+/** 面试过程是否展示训练反馈。 */
+export type AgentExperienceMode = "simulation" | "coaching";
 
 /** 面试难度等级。 */
 export type AgentDifficulty = "初级" | "中级" | "高级";
@@ -46,6 +49,8 @@ export type AgentModelProvider = "deepseek" | "openai" | "anthropic";
 export type FrozenAgentConfig = Readonly<{
   /** 文本或语音面试通道。 */
   interviewMode: AgentInterviewMode;
+  /** 真实模拟隐藏过程反馈，教练模式实时展示。 */
+  experienceMode: AgentExperienceMode;
   /** 用户选择的目标岗位。 */
   position: string;
   /** 本场面试的难度。 */
@@ -152,6 +157,11 @@ export type InterviewAgentState = {
   remainingToolBudget?: number;
   /** 当前题需要验证的用户可读意图。 */
   currentQuestionIntent?: string | null;
+  /** 当前题冻结的主评分维度。 */
+  currentPrimaryDimension?: string | null;
+  /** 当前题冻结的证据目标键。 */
+  currentEvidenceGoals?: string[];
+  /** 当前题策略主题键。 */ currentTopicKeys?: string[];
   /** 最近一次受控回答决策；不包含模型思维链。 */
   latestDecision?: AgentResponseDecision | null;
   /** 当前策略是否实际读取了长期训练摘要。 */
@@ -160,7 +170,7 @@ export type InterviewAgentState = {
   brainApplied?: boolean;
 };
 
-/** Agent v2 对有效回答作出的受控下一步决策。 */
+/** Agent 3 对有效回答作出的受控下一步决策。 */
 export type AgentResponseDecision = {
   /** 继续聚焦追问，或结束当前题并评分。 */
   action: "follow_up" | "score";
@@ -168,6 +178,10 @@ export type AgentResponseDecision = {
   reasonCode: string;
   /** 追问分支的单句文本；评分分支为 null。 */
   followUpQuestion: string | null;
+  /** 当前完整对话已经覆盖的冻结证据目标。 */
+  coveredEvidenceGoals: string[];
+  /** 仍需追问的冻结证据目标。 */
+  missingEvidenceGoals: string[];
 };
 
 /** 返回给客户端的可恢复 Agent 快照。 */
@@ -264,7 +278,7 @@ export type AgentScoreView = {
   /** 维度分、理由和真实证据引用。 */
   dimensions: Record<
     string,
-    { score: number; rationale: string; evidenceIds: string[] }
+    { status: "scored" | "not_observed"; score: number | null; rationale: string; evidenceIds: string[] }
   >;
 };
 
@@ -333,6 +347,8 @@ export type CreateAgentSessionBody = {
   mode: AgentMode;
   /** 文本或语音面试通道。 */
   interviewMode: AgentInterviewMode;
+  /** 必须由用户明确选择的面试体验。 */
+  experienceMode: AgentExperienceMode;
   /** 目标岗位。 */
   position: string;
   /** 面试难度。 */

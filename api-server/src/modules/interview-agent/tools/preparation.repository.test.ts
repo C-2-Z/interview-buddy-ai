@@ -69,7 +69,7 @@ class FakeDatabase implements PreparationDatabaseClient {
         duplicate: false,
         inProgress: false,
         status: "completed",
-        operationKey: "prepare:agent-v1",
+        operationKey: "prepare:agent-v3",
         nodeName: "prepare_interview",
         result: { phase: "awaiting_answer" },
         firstEventSequence: 2,
@@ -121,7 +121,7 @@ class FakeDatabase implements PreparationDatabaseClient {
 /** 构造足以验证 RPC 序列化的冻结计划。 */
 function planFixture(): PreparedInterviewPlan {
   return {
-    version: "plan-v1",
+    version: "plan-v3",
     rolePlan: [{ stageIndex: 0, roleId: "general", questionCount: 3, startQuestionIndex: 0, endQuestionIndex: 2 }],
     capabilityBlueprint: {
       version: "capability-v1",
@@ -130,7 +130,9 @@ function planFixture(): PreparedInterviewPlan {
     },
     questionRoles: ["general", "general", "general"],
     questionDimensions: ["technical_depth", "technical_depth", "technical_depth"],
-    firstQuestion: { id: QUESTION_ID, question: "后端工程师问题", position: "后端工程师", difficulty: "中级", type: "技术题", tags: [], source: "bank" },
+    questionApplicableDimensions: [["technical_depth", "COMMUNICATION", "LOGICAL_THINKING"], ["technical_depth", "COMMUNICATION", "LOGICAL_THINKING"], ["technical_depth", "COMMUNICATION", "LOGICAL_THINKING"]],
+    questionEvidenceGoals: [["situation", "action", "result"], ["situation", "action", "result"], ["situation", "action", "result"]],
+    firstQuestion: { id: QUESTION_ID, question: "后端工程师问题", position: "后端工程师", difficulty: "中级", type: "技术题", tags: [], roleIds: ["general"], dimensionKeys: ["technical_depth"], topicKeys: ["backend"], evidenceGoalKeys: ["situation", "action", "result"], source: "bank" },
     researchStatus: "skipped",
     researchSources: [],
   };
@@ -162,7 +164,7 @@ test("research cache maps snake_case rows and preparation uses one RPC", async (
   assert.equal(sources[0].fetchedAt, "2026-07-12T00:00:00.000Z");
   const result = await repository.commitPreparation({
     sessionId: SESSION_ID,
-    operationKey: "prepare:agent-v1",
+    operationKey: "prepare:agent-v3",
     nodeName: "prepare_interview",
     currentRole: "general",
     plan: planFixture(),
@@ -171,6 +173,6 @@ test("research cache maps snake_case rows and preparation uses one RPC", async (
     events: [{ type: "agent.phase", data: { phase: "awaiting_answer" } }],
   });
   assert.equal(result.committed, true);
-  assert.equal(database.rpcCall?.name, "commit_agent_preparation");
+  assert.equal(database.rpcCall?.name, "commit_agent_v3_preparation");
   assert.deepEqual(database.rpcCall?.args.p_sources, []);
 });

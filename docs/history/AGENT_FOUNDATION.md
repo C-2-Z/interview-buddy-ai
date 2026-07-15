@@ -1,4 +1,6 @@
-# Interview Agent Phase 1–7 完整实现与本地切换
+# Interview Agent Phase 1–7 完整实现与本地切换（历史归档）
+
+> **已退役：** 本文描述 Agent v1 基础链路，不可作为当前实现依据。请阅读 `docs/NEXT_AI_AGENT_V3_HANDOFF_2026-07-15.md`。
 
 本文记录 `docs/AGENT_APPLICATION_IMPLEMENTATION_PLAN.md` 的 Phase 1–7 已实现范围、运行方式和安全边界。
 

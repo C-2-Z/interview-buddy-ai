@@ -12,6 +12,8 @@ export type SelectQuestionInput = {
   roleId: RoleId;
   /** 当前题目的主能力维度。 */
   dimensionKey: string;
+  /** Planner 希望覆盖的主题键。 */ desiredTopicKeys?: readonly string[];
+  /** Planner 希望收集的证据目标键。 */ evidenceGoalKeys?: readonly string[];
   /** 已使用题目 ID。 */
   excludedQuestionIds: ReadonlySet<string>;
   /** 已使用题目规范文本，防止同题不同 ID。 */
@@ -91,6 +93,21 @@ export function selectQuestionFromBank(
   return (
     candidates
       .filter((candidate) => candidate.source === "bank")
+      .filter((candidate) => candidate.difficulty === input.difficulty)
+      .filter((candidate) => candidate.roleIds.includes(input.roleId))
+      .filter((candidate) => candidate.dimensionKeys.includes(input.dimensionKey))
+      .filter((candidate) => {
+        const desiredTopics = input.desiredTopicKeys?.map(normalizeQuestionTopic) ?? [];
+        if (desiredTopics.length === 0) return true;
+        const topics = new Set(candidate.topicKeys.map(normalizeQuestionTopic));
+        return desiredTopics.some((topic) => topics.has(topic));
+      })
+      .filter((candidate) => {
+        const desiredEvidence = input.evidenceGoalKeys?.map(normalizeQuestionTopic) ?? [];
+        if (desiredEvidence.length === 0) return true;
+        const goals = new Set(candidate.evidenceGoalKeys.map(normalizeQuestionTopic));
+        return desiredEvidence.some((goal) => goals.has(goal));
+      })
       .filter(
         (candidate) =>
           !input.excludedQuestionIds.has(candidate.id) &&

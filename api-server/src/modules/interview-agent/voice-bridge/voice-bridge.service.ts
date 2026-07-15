@@ -11,6 +11,8 @@ const EVENT_PAGE_SIZE = 250;
 export interface AgentVoiceServicePort {
   /** 读取提交前后的持久快照水位。 */
   getSession(sessionId: string): Promise<{ snapshot: AgentSnapshot }>;
+  /** 读取冻结体验模式，以便服务端过滤模拟模式过程评分。 */
+  getExperienceMode?(sessionId: string): Promise<"simulation" | "coaching">;
   /** 语音与文本共用同一个 Graph 恢复方法，仅持久化 source 不同。 */
   submitInput(
     sessionId: string,
@@ -106,6 +108,8 @@ export class AgentVoiceBridgeService {
       { inputId, type: "text", content },
       "voice",
     );
+    const experienceMode = await this.dependencies.agentService.getExperienceMode?.(sessionId)
+      ?? "coaching";
     const events = result.duplicate
       ? []
       : await readCommittedEvents(
@@ -114,16 +118,19 @@ export class AgentVoiceBridgeService {
           before.snapshot.eventCursor,
           result.snapshot.eventCursor,
         );
+    const visibleEvents = experienceMode === "simulation"
+      ? events.filter((event) => event.type !== "agent.score_completed" && event.type !== "agent.activity")
+      : events;
     logger.info("agent_voice_input_committed", {
       sessionId,
       inputId,
       duplicate: result.duplicate,
-      eventCount: events.length,
+      eventCount: visibleEvents.length,
     });
     return {
       snapshot: result.snapshot,
       inputId,
-      events,
+      events: visibleEvents,
       duplicate: result.duplicate,
     };
   }

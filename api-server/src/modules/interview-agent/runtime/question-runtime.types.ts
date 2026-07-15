@@ -80,6 +80,10 @@ export type SelectRuntimeQuestionInput = {
   roleId: RoleId;
   /** v2 Reflection 给出的下一题战术意图；v1 缺省。 */
   questionIntent?: string | null;
+  /** Planner/Reflection 冻结的主维度。 */ primaryDimension?: string | null;
+  /** 本题策略主题键。 */ topicKeys?: string[];
+  /** 本题冻结证据目标。 */ evidenceGoalKeys?: string[];
+  /** Planner/Reflection 已持久化的工具观察引用；Graph 只保存这些 ID。 */ observationIds?: string[];
 };
 
 /** Graph select_question 节点的结果。 */

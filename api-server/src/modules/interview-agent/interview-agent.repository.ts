@@ -38,7 +38,7 @@ export type AgentSessionProjection = {
   /** LangGraph thread_id。 */
   threadId: string;
   /** 当前持久化契约版本。 */
-  version: "agent-v1" | "agent-v2";
+  version: "agent-v1" | "agent-v2" | "agent-v3";
   /** 单角色或固定阶段面板模式。 */
   mode: "single" | "panel";
   /** 文本或语音交互通道。 */
@@ -182,7 +182,7 @@ export type CreateAgentSessionRepositoryInput = CreateAgentSessionInput & {
   /** 服务端当前启用的 Prompt 契约版本。 */
   promptVersion: string;
   /** 服务端按灰度开关选择的持久化与 Graph 版本。 */
-  agentVersion?: "agent-v1" | "agent-v2";
+  agentVersion: "agent-v3";
 };
 
 /** Repository 对外暴露的稳定、安全错误码。 */
@@ -334,7 +334,7 @@ const SessionProjectionRowSchema = z
     id: SessionIdSchema,
     user_id: SessionIdSchema,
     thread_id: z.string().trim().min(1).max(200),
-    agent_version: z.enum(["agent-v1", "agent-v2"]),
+    agent_version: z.enum(["agent-v1", "agent-v2", "agent-v3"]),
     agent_mode: z.enum(["single", "panel"]),
     interview_mode: z.enum(["text", "voice"]),
     agent_phase: AgentPhaseSchema,
@@ -423,7 +423,7 @@ const EventDraftSchema = z
 const AgentSnapshotDataSchema: ZodType<AgentSnapshot> = z.object({
   sessionId: SessionIdSchema,
   threadId: z.string().trim().min(1).max(200),
-  version: z.enum(["agent-v1", "agent-v2"]),
+  version: z.literal("agent-v3"),
   mode: z.enum(["single", "panel"]),
   interviewMode: z.enum(["text", "voice"]),
   phase: AgentPhaseSchema,
@@ -433,6 +433,7 @@ const AgentSnapshotDataSchema: ZodType<AgentSnapshot> = z.object({
   followUpCount: SafeIntegerSchema,
   pendingAction: z.enum(["ask", "follow_up", "score", "handoff", "finish"]),
   eventCursor: SafeIntegerSchema,
+  strategyRevision: SafeIntegerSchema.optional(),
 });
 const AgentPhaseDataSchema = z
   .object({
@@ -473,7 +474,8 @@ const ScoreCompletedDataSchema = z.object({
   questionId: SessionIdSchema,
   overallScore: z.number().int().min(0).max(100),
   dimensions: z.record(z.object({
-    score: z.number().int().min(0).max(100),
+    status: z.enum(["scored", "not_observed"]),
+    score: z.number().int().min(0).max(100).nullable(),
     rationale: z.string().min(1).max(1_000),
     evidenceIds: z.array(SessionIdSchema).max(50),
   }).strict()),
@@ -545,7 +547,7 @@ const FailInputSchema = z
   .strict();
 const CreateSessionRepositoryInputSchema = CreateAgentSessionSchema.extend({
   promptVersion: z.string().trim().min(1).max(100),
-  agentVersion: z.enum(["agent-v1", "agent-v2"]).optional(),
+  agentVersion: z.literal("agent-v3"),
 });
 
 const MAX_SAFE_JSON_DEPTH = 32;
@@ -952,6 +954,7 @@ function serializeCreateSessionInput(
   const payload: Record<string, unknown> = {
     mode: input.mode,
     interviewMode: input.interviewMode,
+    experienceMode: input.experienceMode,
     position: input.position,
     difficulty: input.difficulty,
     questionCount: input.questionCount,
@@ -962,12 +965,9 @@ function serializeCreateSessionInput(
   if (input.targetCompany !== undefined) payload.targetCompany = input.targetCompany;
   if (input.skillId !== undefined) payload.skillId = input.skillId;
   if (input.resumeId !== undefined) payload.resumeId = input.resumeId;
-  // v1 必须保持旧 RPC 的严格字段集合；只有 v2 才发送增量迁移认识的新上下文字段。
-  if (input.agentVersion === "agent-v2") {
-    payload.agentVersion = input.agentVersion;
-    if (input.brainId !== undefined) payload.brainId = input.brainId;
-    if (input.useTrainingMemory !== undefined) payload.useTrainingMemory = input.useTrainingMemory;
-  }
+  payload.agentVersion = input.agentVersion;
+  if (input.brainId !== undefined) payload.brainId = input.brainId;
+  if (input.useTrainingMemory !== undefined) payload.useTrainingMemory = input.useTrainingMemory;
   if (input.modelProvider !== undefined) payload.modelProvider = input.modelProvider;
   if (input.modelName !== undefined) payload.modelName = input.modelName;
   return cloneSafeJsonObject(payload, "input");

@@ -30,7 +30,7 @@ test("question generation uses frozen provider and parses strict JSON", async ()
     persona: getRolePersona("technical"),
     position: "后端工程师",
     difficulty: "高级",
-    promptVersion: "agent-v1-test",
+    promptVersion: "agent-v3-test",
     modelProvider: "openai",
     modelName: "gpt-4.1-mini",
     dimensionKey: "system_design",
@@ -65,7 +65,7 @@ test("follow-up generation is Persona and evidence-gap constrained", async () =>
     followUpNumber: 1,
     modelProvider: "deepseek",
     modelName: "deepseek-v4-flash",
-    promptVersion: "agent-v1-test",
+    promptVersion: "agent-v3-test",
   });
   assert.match(result.content, /指标/);
   assert.match(prompt, /missing_result/);
@@ -90,7 +90,7 @@ test("malformed model output is rejected instead of becoming a question", async 
       followUpNumber: 1,
       modelProvider: "deepseek",
       modelName: "deepseek-v4-flash",
-      promptVersion: "agent-v1-test",
+      promptVersion: "agent-v3-test",
     }),
   );
 });

@@ -1,4 +1,4 @@
-/** Interview Agent v1 只读工具的生产实现与固定注册表。 */
+/** Interview Agent 3 只读工具的生产实现与固定注册表。 */
 import { findSkill } from "../../skills/skills.service.js";
 import type { InterviewAgentState } from "../interview-agent.types.js";
 import {

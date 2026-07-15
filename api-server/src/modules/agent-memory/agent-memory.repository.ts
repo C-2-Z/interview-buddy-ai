@@ -1,4 +1,4 @@
-// @ts-nocheck - Agent v2 增量表将在下一次 Supabase 类型生成后纳入静态数据库类型。
+// @ts-nocheck - Agent 3 复用的训练记忆表将在下一次 Supabase 类型生成后纳入静态数据库类型。
 /** Agent Memory Repository：依赖 RLS 读写当前用户的脱敏训练摘要。 */
 import { z } from "zod";
 import type { UserSupabaseClient } from "../../shared/db/supabase.js";

@@ -22,21 +22,15 @@ import {
   type AgentModelProvider,
   type AgentInterviewerModelProvider,
 } from "../providers/agent-model.provider.js";
-import { buildRolePlan, getRolePersona } from "../roles/personas.js";
-import { AGENT_CHECKPOINT_NAMESPACE, AGENT_V2_CHECKPOINT_NAMESPACE, withAgentCheckpointNamespace } from "./checkpointer.js";
+import { buildRolePlan } from "../roles/personas.js";
+import { AGENT_CHECKPOINT_NAMESPACE, withAgentCheckpointNamespace } from "./checkpointer.js";
 import type { AgentInputRepository } from "../input/input.repository.js";
 import { buildInputRedirect, guardAgentInput } from "./input-guard.js";
-import {
-  assessAnswerSufficiency,
-  buildFocusedFollowUp,
-  extractKeywords,
-  detectVagueSignal,
-  buildVagueFollowUp,
-} from "./answer-sufficiency.js";
 import type { QuestionRuntimeService } from "../runtime/question-runtime.service.js";
 import type { QuestionEvaluationRunner } from "../evaluation/evaluation.service.js";
 import type { AgentReportFinalizer } from "../report/report.service.js";
 import type { AgentOrchestrationRunner } from "../../agent-orchestration/agent-orchestration.types.js";
+import type { AgentStrategyReceipt } from "../../agent-orchestration/agent-orchestration.types.js";
 
 /** Graph 等待业务消息持久化后发出的安全 interrupt 数据。 */
 export type AgentInputRequiredInterrupt = Readonly<{
@@ -72,11 +66,46 @@ export type CompileInterviewAgentGraphOptions = Readonly<{
   evaluationService?: QuestionEvaluationRunner;
   /** Phase 4 只读取冻结评分的报告服务。 */
   reportService?: AgentReportFinalizer;
-  /** v2 规划、工具、回答决策、反思和记忆闭环。 */
+  /** Agent 3 规划、工具、回答决策、反思和记忆闭环。 */
   orchestrationService?: AgentOrchestrationRunner;
-  /** 编译版本；v1 保持原有节点路由。 */
-  version?: InterviewAgentState["version"];
 }>;
+
+/**
+ * 为离线测试和显式降级环境提供仍遵守 Agent 3 契约的确定性编排器。
+ * 生产服务始终注入数据库编排器；该实现不会访问网络或训练记忆。
+ *
+ * @returns 不执行外部工具、直接进入评分的 Agent 3 编排端口。
+ */
+function createDeterministicOrchestrationRunner(): AgentOrchestrationRunner {
+  const receipt: AgentStrategyReceipt = {
+    strategyRevisionId: "00000000-0000-4000-8000-000000000003",
+    revision: 1,
+    questionIntent: "验证候选人的具体行动与结果",
+    questionCriteria: {
+      primaryDimension: "COMMUNICATION",
+      topicKeys: ["experience"],
+      evidenceGoalKeys: ["situation", "action", "result"],
+      questionIntent: "验证候选人的具体行动与结果",
+    },
+    observationIds: [],
+    memoryApplied: false,
+    brainApplied: false,
+  };
+  return {
+    async planSession() { return receipt; },
+    async reflect() { return receipt; },
+    async decideResponse(input) {
+      return {
+        action: "score",
+        reasonCode: "offline_deterministic_score",
+        followUpQuestion: null,
+        coveredEvidenceGoals: [],
+        missingEvidenceGoals: input.evidenceGoals,
+      };
+    },
+    async updateTrainingMemory() { return false; },
+  };
+}
 
 /** 创建初始 Agent State 所需的业务参数。 */
 export type CreateInitialAgentStateParams = Readonly<{
@@ -92,10 +121,10 @@ export type CreateInitialAgentStateParams = Readonly<{
   webResearchEnabled?: boolean;
   /** Phase 2 已原子规划的业务首题 UUID；存在时 ask 节点不再次生成。 */
   preparedQuestionId?: string;
-  /** 双版本运行时选择；服务端创建路径负责决定，客户端不可覆盖。 */
-  version?: InterviewAgentState["version"];
   /** 准备阶段冻结的能力维度键，供 v2 Planner 白名单校验。 */
   capabilityDimensions?: string[];
+  /** 首题选择前已经提交的 Planner 回执；只保存策略和观察引用。 */
+  preparedStrategy?: AgentStrategyReceipt;
 }>;
 
 /**
@@ -124,6 +153,9 @@ export const AgentStateAnnotation = Annotation.Root({
   observationIds: Annotation<string[]>(),
   remainingToolBudget: Annotation<number>(),
   currentQuestionIntent: Annotation<string | null>(),
+  currentPrimaryDimension: Annotation<string | null>(),
+  currentEvidenceGoals: Annotation<string[]>(),
+  currentTopicKeys: Annotation<string[]>(),
   latestDecision: Annotation<InterviewAgentState["latestDecision"]>(),
   memoryApplied: Annotation<boolean>(),
   brainApplied: Annotation<boolean>(),
@@ -187,11 +219,10 @@ export type AgentResumeCommand = Command<unknown, Partial<AgentGraphState>, Agen
  * 为指定会话构建固定 LangGraph 运行配置。
  *
  * @param sessionId - 业务会话标识；v1 中不可替换为用户 ID 或随机线程 ID。
- * @returns 固定使用 `thread_id=sessionId` 与 `checkpoint_ns=agent-v1` 的配置。
+ * @returns 固定使用 `thread_id=sessionId` 与 `checkpoint_ns=agent-v3` 的配置。
  */
 export function createAgentGraphConfig(
   sessionId: string,
-  version: InterviewAgentState["version"] = "agent-v1",
 ): RunnableConfig {
   if (!sessionId.trim()) {
     throw new Error("sessionId is required for the Agent graph");
@@ -199,7 +230,7 @@ export function createAgentGraphConfig(
   return {
     configurable: {
       thread_id: sessionId,
-      checkpoint_ns: version === "agent-v2" ? AGENT_V2_CHECKPOINT_NAMESPACE : AGENT_CHECKPOINT_NAMESPACE,
+      checkpoint_ns: AGENT_CHECKPOINT_NAMESPACE,
     },
   };
 }
@@ -208,7 +239,7 @@ export function createAgentGraphConfig(
  * 从已校验创建参数构建不含凭据和回答正文的初始可恢复状态。
  *
  * @param params - 会话、用户和创建请求参数。
- * @returns 处于 preparing 阶段且角色计划已冻结的 Agent v1 状态。
+ * @returns 处于 preparing 阶段且角色计划已冻结的 Agent 3 状态。
  */
 export function createInitialAgentState(
   params: CreateInitialAgentStateParams,
@@ -219,6 +250,7 @@ export function createInitialAgentState(
     params.webResearchEnabled ?? process.env.AGENT_WEB_RESEARCH_ENABLED !== "0";
   const config: FrozenAgentConfig = Object.freeze({
     interviewMode: params.input.interviewMode,
+    experienceMode: params.input.experienceMode,
     position: params.input.position,
     difficulty: params.input.difficulty,
     questionCount: params.input.questionCount,
@@ -232,11 +264,11 @@ export function createInitialAgentState(
     modelName: params.input.modelName ?? PROVIDER_CONFIGS[modelProvider].defaultModel,
     webResearch: (params.input.webResearch ?? true) && globalWebResearchEnabled,
     promptVersion:
-      params.promptVersion?.trim() || process.env.AGENT_PROMPT_VERSION?.trim() || "agent-v1",
+      params.promptVersion?.trim() || process.env.AGENT_PROMPT_VERSION?.trim() || "agent-v3-realism-v1",
   });
 
   return {
-    version: params.version ?? "agent-v1",
+    version: "agent-v3",
     sessionId: params.sessionId,
     userId: params.userId,
     mode: params.input.mode,
@@ -251,13 +283,16 @@ export function createInitialAgentState(
     latestInputId: null,
     latestEvidenceIds: [],
     pendingAction: "ask",
-    strategyRevisionId: null,
-    observationIds: [],
+    strategyRevisionId: params.preparedStrategy?.strategyRevisionId ?? null,
+    observationIds: params.preparedStrategy?.observationIds ?? [],
     remainingToolBudget: 0,
-    currentQuestionIntent: null,
+    currentQuestionIntent: params.preparedStrategy?.questionIntent ?? null,
+    currentPrimaryDimension: params.preparedStrategy?.questionCriteria.primaryDimension ?? null,
+    currentEvidenceGoals: params.preparedStrategy?.questionCriteria.evidenceGoalKeys ?? [],
+    currentTopicKeys: params.preparedStrategy?.questionCriteria.topicKeys ?? [],
     latestDecision: null,
-    memoryApplied: false,
-    brainApplied: false,
+    memoryApplied: params.preparedStrategy?.memoryApplied ?? false,
+    brainApplied: params.preparedStrategy?.brainApplied ?? false,
   };
 }
 
@@ -285,9 +320,7 @@ export function createAgentSnapshot(state: InterviewAgentState, eventCursor = 0)
     followUpCount: state.followUpCount,
     pendingAction: state.pendingAction,
     eventCursor,
-    ...(state.version === "agent-v2"
-      ? { strategyRevision: state.strategyRevisionId ? state.currentQuestionIndex + 1 : 0 }
-      : {}),
+    strategyRevision: state.strategyRevisionId ? state.currentQuestionIndex + 1 : 0,
   };
 }
 
@@ -343,12 +376,9 @@ function parseAgentResumeInput(value: unknown): AgentResumeInput {
  * @returns 可 invoke、恢复及读取状态的已编译 LangGraph。
  */
 export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOptions) {
-  const modelProvider = options.modelProvider ?? createDeterministicMockAgentModelProvider();
-  const version = options.version ?? "agent-v1";
-  const isV2 = version === "agent-v2";
-  if (isV2 && !options.orchestrationService) {
-    throw new Error("Agent v2 requires an orchestration service");
-  }
+  void (options.modelProvider ?? createDeterministicMockAgentModelProvider());
+  const orchestrationService = options.orchestrationService
+    ?? createDeterministicOrchestrationRunner();
 
   /** 将 checkpoint 安全字段投影成 Planner 输入，不携带回答正文或凭据。 */
   const planningContext = (state: AgentGraphState) => ({
@@ -373,12 +403,17 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
 
   /** v2 生成首版策略并执行最多三个经审批的只读工具。 */
   const planSession = async (state: AgentGraphState): Promise<Partial<AgentGraphState>> => {
-    const receipt = await options.orchestrationService!.planSession(planningContext(state));
+    // 重试命中已提交策略时只恢复引用，避免重复执行 Planner 和授权工具。
+    if (state.strategyRevisionId && state.currentQuestionIntent) return {};
+    const receipt = await orchestrationService.planSession(planningContext(state));
     return {
       strategyRevisionId: receipt.strategyRevisionId,
       observationIds: receipt.observationIds,
       remainingToolBudget: 3,
       currentQuestionIntent: receipt.questionIntent,
+      currentPrimaryDimension: receipt.questionCriteria.primaryDimension,
+      currentEvidenceGoals: receipt.questionCriteria.evidenceGoalKeys,
+      currentTopicKeys: receipt.questionCriteria.topicKeys,
       memoryApplied: receipt.memoryApplied,
       brainApplied: receipt.brainApplied,
     };
@@ -414,34 +449,10 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
   });
 
   /** 构建/恢复首题引用；Phase 2 已提交首题时不会再次调用模型。 */
-  const buildInterviewPlan = async (state: AgentGraphState): Promise<Partial<AgentGraphState>> => {
-    // Phase 2 已经完成题库优先选择时，Graph 只引用业务题目，避免重复调用模型。
-    if (state.currentQuestionId) {
-      return {
-        currentQuestionId: state.currentQuestionId,
-        pendingAction: "ask",
-      };
-    }
-    const persona = getRolePersona(state.currentRole);
-    const generated = await modelProvider.generateQuestion({
-      sessionId: state.sessionId,
-      questionIndex: state.currentQuestionIndex,
-      roleId: state.currentRole,
-      persona,
-      position: state.config.position,
-      difficulty: state.config.difficulty,
-      promptVersion: state.config.promptVersion,
-      modelProvider: state.config.modelProvider,
-      modelName: state.config.modelName,
-    });
-    if (!generated.questionId.trim() || !generated.content.trim()) {
-      throw new Error("Agent model provider returned an empty question");
-    }
-    return {
-      currentQuestionId: generated.questionId,
-      pendingAction: "ask",
-    };
-  };
+  const buildInterviewPlan = (): Partial<AgentGraphState> => ({
+    phase: "preparing",
+    pendingAction: "ask",
+  });
 
   /** 在 checkpoint 边界暂停，并在恢复时只记录已持久化消息的 inputId。 */
   const waitForInput = (state: AgentGraphState): Partial<AgentGraphState> => {
@@ -503,61 +514,13 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
     if (guarded.disposition === "redirect") {
       content = buildInputRedirect(guarded.reason);
     } else if (
-      isV2 &&
       state.latestDecision?.action === "follow_up" &&
       state.latestDecision.followUpQuestion
     ) {
-      // v2 决策调用同时生成追问，避免为同一回答重复调用模型。
+      // Agent 3 决策调用同时生成追问，避免为同一回答重复调用模型。
       content = state.latestDecision.followUpQuestion;
     } else {
-      // 新增：提取关键词 + 检测含糊信号
-      const keywords = extractKeywords(persisted.content);
-      const hasVague = detectVagueSignal(persisted.content);
-
-      if (hasVague) {
-        // 压力测试追问（注重关键词或催促举例）
-        content = buildVagueFollowUp(state.currentRole, keywords);
-      } else if (keywords.length > 0) {
-        // 关键词分支在没有模型 Provider 的测试或降级环境中仍必须产生确定性追问。
-        content = options.interviewerModelProvider
-          ? (
-              await options.interviewerModelProvider.generateFollowUp({
-                sessionId: state.sessionId,
-                roleId: state.currentRole,
-                persona: getRolePersona(state.currentRole),
-                question: persisted.question,
-                answer: persisted.content,
-                evidenceGap: "missing_specifics",
-                followUpNumber: state.followUpCount + 1,
-                modelProvider: state.config.modelProvider,
-                modelName: state.config.modelName,
-                promptVersion: state.config.promptVersion,
-              })
-            ).content
-          : buildFocusedFollowUp(state.currentRole, "missing_specifics");
-      } else {
-        // 现有充分度追问逻辑
-        const sufficiency = assessAnswerSufficiency(persisted.content);
-        if (sufficiency.sufficient) {
-          throw new Error("Interviewer follow-up requires an evidence gap");
-        }
-        content = options.interviewerModelProvider
-          ? (
-              await options.interviewerModelProvider.generateFollowUp({
-                sessionId: state.sessionId,
-                roleId: state.currentRole,
-                persona: getRolePersona(state.currentRole),
-                question: persisted.question,
-                answer: persisted.content,
-                evidenceGap: sufficiency.gap,
-                followUpNumber: state.followUpCount + 1,
-                modelProvider: state.config.modelProvider,
-                modelName: state.config.modelName,
-                promptVersion: state.config.promptVersion,
-              })
-            ).content
-          : buildFocusedFollowUp(state.currentRole, sufficiency.gap);
-      }
+      throw new Error("Agent 3 follow-up decision is unavailable");
     }
     const receipt = await options.inputRepository.commitInterviewerResponse({
       sessionId: state.sessionId,
@@ -590,13 +553,32 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
     if (!options.inputRepository || !state.latestInputId) {
       return { pendingAction: "score" };
     }
-    if (state.followUpCount >= 3) return { pendingAction: "score" };
+    if (state.followUpCount >= 3) {
+      return {
+        pendingAction: "score",
+        latestDecision: {
+          action: "score",
+          reasonCode: "follow_up_limit",
+          followUpQuestion: null,
+          coveredEvidenceGoals: [],
+          missingEvidenceGoals: state.currentEvidenceGoals,
+        },
+      };
+    }
     const persisted = await options.inputRepository.loadInput(state.sessionId, state.latestInputId);
-    if (isV2 && options.orchestrationService) {
-      const decision = await options.orchestrationService.decideResponse({
+    const conversation = await options.inputRepository.loadQuestionConversation?.(
+      state.sessionId,
+      persisted.questionId,
+    ) ?? [{ role: "user" as const, content: persisted.content }];
+    {
+      const decision = await orchestrationService.decideResponse({
         sessionId: state.sessionId,
         question: persisted.question,
         answer: persisted.content,
+        conversation,
+        evidenceGoals: state.currentEvidenceGoals.length > 0
+          ? state.currentEvidenceGoals
+          : ["situation", "action", "result"],
         roleId: state.currentRole,
         followUpCount: state.followUpCount,
         modelProvider: state.config.modelProvider,
@@ -605,20 +587,6 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
       });
       return { pendingAction: decision.action, latestDecision: decision };
     }
-    // 新增：提取关键词 + 检测含糊信号（优先于格式检查）
-    const keywords = extractKeywords(persisted.content);
-    const hasVague = detectVagueSignal(persisted.content);
-
-    // 含糊信号优先触发追问
-    if (hasVague) return { pendingAction: "follow_up" };
-    // 有关键词则追问实现细节
-    if (keywords.length > 0) return { pendingAction: "follow_up" };
-
-    // 现有充分度判定逻辑
-    const sufficiency = assessAnswerSufficiency(persisted.content);
-    return {
-      pendingAction: sufficiency.sufficient ? "score" : "follow_up",
-    };
   };
 
   /** 追问或评分分支只读取确定性 pendingAction。 */
@@ -671,10 +639,10 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
 
   /** 每道非末题评分后基于冻结分数修订策略，最多执行一个可选工具。 */
   const reflectAndReplan = async (state: AgentGraphState): Promise<Partial<AgentGraphState>> => {
-    if (!options.orchestrationService || state.currentQuestionIndex + 1 >= state.config.questionCount) {
+    if (state.currentQuestionIndex + 1 >= state.config.questionCount) {
       return {};
     }
-    const receipt = await options.orchestrationService.reflect({
+    const receipt = await orchestrationService.reflect({
       ...planningContext(state),
       currentQuestionIndex: state.currentQuestionIndex,
       currentRole: state.currentRole,
@@ -685,12 +653,15 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
       observationIds: [...state.observationIds, ...receipt.observationIds].slice(-100),
       remainingToolBudget: 0,
       currentQuestionIntent: receipt.questionIntent,
+      currentPrimaryDimension: receipt.questionCriteria.primaryDimension,
+      currentEvidenceGoals: receipt.questionCriteria.evidenceGoalKeys,
+      currentTopicKeys: receipt.questionCriteria.topicKeys,
       memoryApplied: state.memoryApplied || receipt.memoryApplied,
       brainApplied: state.brainApplied || receipt.brainApplied,
     };
   };
 
-  /** 按 plan-v1 当前索引题库优先选题，提交完成后才进入下一次 interrupt。 */
+  /** 按 plan-v3 当前索引题库优先选题，提交完成后才进入下一次 interrupt。 */
   const selectQuestion = async (state: AgentGraphState): Promise<Partial<AgentGraphState>> => {
     if (state.currentQuestionId) {
       return {
@@ -707,7 +678,11 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
       sessionId: state.sessionId,
       questionIndex: state.currentQuestionIndex,
       roleId: state.currentRole,
-      questionIntent: isV2 ? state.currentQuestionIntent : null,
+      questionIntent: state.currentQuestionIntent,
+      primaryDimension: state.currentPrimaryDimension,
+      topicKeys: state.currentTopicKeys,
+      evidenceGoalKeys: state.currentEvidenceGoals,
+      observationIds: state.observationIds,
     });
     return {
       phase: "awaiting_answer",
@@ -729,8 +704,8 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
 
   /** 报告完成后再次检查实时授权，仅保存聚合分而不保存回答正文。 */
   const updateTrainingMemory = async (state: AgentGraphState): Promise<Partial<AgentGraphState>> => {
-    if (state.config.useTrainingMemory && options.orchestrationService) {
-      await options.orchestrationService.updateTrainingMemory(state.sessionId, state.userId);
+    if (state.config.useTrainingMemory) {
+      await orchestrationService.updateTrainingMemory(state.sessionId, state.userId);
     }
     return { phase: "completed", pendingAction: "finish" };
   };
@@ -752,22 +727,18 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
   // LangGraph 的 fluent 泛型不会从运行时版本分支扩展节点联合；动态节点仍由本文件的显式白名单约束。
   const versionedGraph = graph as unknown as VersionedGraphBuilder;
 
-  if (isV2) {
-    versionedGraph
-      .addNode("load_training_memory", loadTrainingMemory)
-      .addNode("plan_session", planSession)
-      .addNode("authorize_tools", authorizeTools)
-      .addNode("execute_tools", executeTools)
-      .addNode("reflect_and_replan", reflectAndReplan)
-      .addNode("update_training_memory", updateTrainingMemory)
-      .addEdge("hydrate_context", "load_training_memory")
-      .addEdge("load_training_memory", "plan_session")
-      .addEdge("plan_session", "authorize_tools")
-      .addEdge("authorize_tools", "execute_tools")
-      .addEdge("execute_tools", "research_context");
-  } else {
-    graph.addEdge("hydrate_context", "research_context");
-  }
+  versionedGraph
+    .addNode("load_training_memory", loadTrainingMemory)
+    .addNode("plan_session", planSession)
+    .addNode("authorize_tools", authorizeTools)
+    .addNode("execute_tools", executeTools)
+    .addNode("reflect_and_replan", reflectAndReplan)
+    .addNode("update_training_memory", updateTrainingMemory)
+    .addEdge("hydrate_context", "load_training_memory")
+    .addEdge("load_training_memory", "plan_session")
+    .addEdge("plan_session", "authorize_tools")
+    .addEdge("authorize_tools", "execute_tools")
+    .addEdge("execute_tools", "research_context");
 
   graph
     .addEdge("research_context", "build_interview_plan")
@@ -784,13 +755,9 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
     ])
     .addEdge("interviewer_respond", "wait_for_input");
 
-  if (isV2) {
-    versionedGraph
-      .addEdge("score_question", "reflect_and_replan")
-      .addEdge("reflect_and_replan", "advance_stage");
-  } else {
-    graph.addEdge("score_question", "advance_stage");
-  }
+  versionedGraph
+    .addEdge("score_question", "reflect_and_replan")
+    .addEdge("reflect_and_replan", "advance_stage");
 
   graph
     .addConditionalEdges("advance_stage", routeAdvancedStage, [
@@ -799,25 +766,12 @@ export function compileInterviewAgentGraph(options: CompileInterviewAgentGraphOp
     ])
     .addEdge("select_question", "wait_for_input");
 
-  if (isV2) {
-    versionedGraph
-      .addEdge("finalize_report", "update_training_memory")
-      .addEdge("update_training_memory", END);
-  } else {
-    graph.addEdge("finalize_report", END);
-  }
+  versionedGraph
+    .addEdge("finalize_report", "update_training_memory")
+    .addEdge("update_training_memory", END);
 
   return graph.compile({
-    checkpointer: withAgentCheckpointNamespace(options.checkpointer, version),
-    name: version === "agent-v2" ? "interview-agent-v2" : "interview-agent-v1",
+    checkpointer: withAgentCheckpointNamespace(options.checkpointer),
+    name: "interview-agent-v3",
   });
-}
-
-/** 明确编译 Agent v2，调用方必须注入 Orchestration Service。 */
-export function compileInterviewAgentV2Graph(
-  options: Omit<CompileInterviewAgentGraphOptions, "version"> & {
-    orchestrationService: AgentOrchestrationRunner;
-  },
-) {
-  return compileInterviewAgentGraph({ ...options, version: "agent-v2" });
 }

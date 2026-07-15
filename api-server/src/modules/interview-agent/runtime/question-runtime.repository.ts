@@ -49,9 +49,13 @@ const ResearchSchema = z.object({
 const CandidateSchema = z.object({
   id: z.string(), question: z.string(), position: z.string(), difficulty: z.enum(["初级", "中级", "高级"]),
   type: z.string(), tags: z.array(z.string()), source: z.enum(["bank", "model"]),
+  roleIds: z.array(z.enum(["general", "technical", "manager", "hr"])),
+  dimensionKeys: z.array(z.string()),
+  topicKeys: z.array(z.string()),
+  evidenceGoalKeys: z.array(z.string()),
 }).strict();
 const PlanSchema = z.object({
-  version: z.literal("plan-v1"),
+  version: z.literal("plan-v3"),
   rolePlan: z.array(RoleStageSchema).min(1).max(3),
   capabilityBlueprint: z.object({
     version: z.literal("capability-v1"), questionCount: z.number().int().min(3).max(10),
@@ -59,6 +63,8 @@ const PlanSchema = z.object({
   }).strict(),
   questionRoles: z.array(z.enum(["general", "technical", "manager", "hr"])).min(3).max(10),
   questionDimensions: z.array(z.string().min(1).max(100)).min(3).max(10),
+  questionApplicableDimensions: z.array(z.array(z.string().min(1).max(100)).min(1).max(3)).min(3).max(10),
+  questionEvidenceGoals: z.array(z.array(z.string().min(1).max(100)).min(1).max(8)).min(3).max(10),
   firstQuestion: CandidateSchema,
   researchStatus: z.enum(["completed", "skipped", "failed"]),
   researchSources: z.array(ResearchSchema).max(15),
@@ -112,7 +118,7 @@ export class SupabaseQuestionRuntimeRepository implements QuestionRuntimeReposit
 
   /** @inheritdoc */
   async commitQuestion(input: CommitRuntimeQuestionInput): Promise<RuntimeQuestionReceipt> {
-    return ReceiptSchema.parse(await execute(this.database.rpc("commit_agent_next_question", {
+    return ReceiptSchema.parse(await execute(this.database.rpc("commit_agent_v3_question", {
       p_session_id: input.sessionId,
       p_question: {
         id: input.id, orderIndex: input.orderIndex, question: input.question, roleId: input.roleId,

@@ -34,13 +34,18 @@ export function aggregateFrozenScores(
   const dimensions: AgentDimensionSummary["dimensions"] = {};
   for (const rubric of context.rubric) {
     const scores = context.questions
-      .map((question) => question.dimensions[rubric.key]?.score)
+      .map((question) => question.dimensions[rubric.key])
+      .filter((dimension) => dimension?.status === "scored")
+      .map((dimension) => dimension.score)
       .filter((score): score is number => Number.isInteger(score));
     if (scores.length === 0) continue;
     dimensions[rubric.key] = {
       score: Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length),
       count: scores.length,
       weight: rubric.weight,
+      evidenceCoverageCount: context.questions.filter((question) =>
+        (question.dimensions[rubric.key]?.evidenceIds.length ?? 0) > 0,
+      ).length,
     };
   }
   const values = Object.entries(dimensions);

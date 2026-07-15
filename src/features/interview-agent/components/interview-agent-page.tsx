@@ -183,6 +183,7 @@ export function InterviewAgentPage({
   const canAnswer =
     snapshot.phase === "awaiting_answer" && workspace.productStatus === "in_progress";
   const completed = snapshot.phase === "completed";
+  const showProcessDetails = workspace.config.experienceMode === "coaching" || completed;
   const interviewFinished = completed || ["abandoned", "failed"].includes(workspace.productStatus);
 
   return (
@@ -218,7 +219,7 @@ export function InterviewAgentPage({
             </Badge>
           </div>
         </header>
-        <ContentPhaseIndicator workspace={workspace} snapshot={snapshot} />
+        {showProcessDetails && <ContentPhaseIndicator workspace={workspace} snapshot={snapshot} />}
         <div
           className="flex min-h-10 flex-wrap gap-3 border-b px-4 py-2 text-xs text-muted-foreground"
           aria-live="polite"
@@ -227,8 +228,8 @@ export function InterviewAgentPage({
             第 {Math.min(snapshot.currentQuestionIndex + 1, workspace.config.questionCount)} /{" "}
             {workspace.config.questionCount} 题
           </span>
-          <span>追问 {snapshot.followUpCount}/3</span>
-          <RoundIndicator workspace={workspace} snapshot={snapshot} />
+          {showProcessDetails && <span>追问 {snapshot.followUpCount}/3</span>}
+          {showProcessDetails && <RoundIndicator workspace={workspace} snapshot={snapshot} />}
           {session.error && (
             <span className="text-destructive" role="alert">
               {session.error}
@@ -275,13 +276,17 @@ export function InterviewAgentPage({
             {timeline.length === 0 && (
               snapshot.phase === "preparing" ? (
                 <div className="py-6 sm:py-10">
-                  <AgentPreparationProgress
-                    position={workspace.config.position}
-                    activities={workspace.activities}
-                    strategy={workspace.strategy}
-                    retrying={session.loading}
-                    onRetry={() => void session.retryPreparation().catch(() => undefined)}
-                  />
+                  {showProcessDetails ? (
+                    <AgentPreparationProgress
+                      position={workspace.config.position}
+                      activities={workspace.activities}
+                      strategy={workspace.strategy}
+                      retrying={session.loading}
+                      onRetry={() => void session.retryPreparation().catch(() => undefined)}
+                    />
+                  ) : (
+                    <p className="text-center text-sm text-muted-foreground">正在准备真实模拟面试…</p>
+                  )}
                 </div>
               ) : (
                 <div className="py-16 text-center text-sm text-muted-foreground">
@@ -327,7 +332,7 @@ export function InterviewAgentPage({
       </section>
 
       <aside className="space-y-4">
-        {snapshot.phase !== "preparing" && (
+        {showProcessDetails && snapshot.phase !== "preparing" && (
           <AgentActivityPanel strategy={workspace.strategy} activities={workspace.activities} />
         )}
         {workspace.report && (
@@ -336,7 +341,7 @@ export function InterviewAgentPage({
             feedback={workspace.report.overallFeedback}
           />
         )}
-        <Card>
+        {showProcessDetails && <Card>
           <CardHeader>
             <CardTitle className="text-base">研究上下文</CardTitle>
           </CardHeader>
@@ -359,8 +364,8 @@ export function InterviewAgentPage({
               ))
             )}
           </CardContent>
-        </Card>
-        <Card>
+        </Card>}
+        {showProcessDetails && <Card>
           <CardHeader>
             <CardTitle className="text-base">证据与评分</CardTitle>
           </CardHeader>
@@ -387,7 +392,7 @@ export function InterviewAgentPage({
               </div>
             ))}
           </CardContent>
-        </Card>
+        </Card>}
         {!session.connected && !completed && (
           <Button variant="outline" className="min-h-11 w-full" onClick={session.reconnect}>
             <RotateCw />

@@ -44,7 +44,7 @@ const CREATED_AT = "2026-07-12T00:00:00.000Z";
 /** 测试使用的无网络 Agent 运行配置。 */
 const ENABLED_RUNTIME: AgentRuntimeConfig = {
   enabled: true,
-  promptVersion: "agent-v1-test",
+  promptVersion: "agent-v3-test",
   webResearchEnabled: false,
   eventRetentionDays: 90,
   maxNodeRetries: 2,
@@ -91,7 +91,7 @@ class MemoryInterviewAgentRepository implements InterviewAgentRepository {
       sessionId: SESSION_ID,
       userId: USER_ID,
       threadId: SESSION_ID,
-      version: input.agentVersion ?? "agent-v1",
+      version: "agent-v3",
       mode: input.mode,
       interviewMode: input.interviewMode,
       phase: "preparing",
@@ -99,6 +99,7 @@ class MemoryInterviewAgentRepository implements InterviewAgentRepository {
       currentRole,
       agentConfig: {
         interviewMode: input.interviewMode,
+        experienceMode: input.experienceMode,
         position: input.position,
         difficulty: input.difficulty,
         questionCount: input.questionCount,
@@ -117,7 +118,7 @@ class MemoryInterviewAgentRepository implements InterviewAgentRepository {
     const snapshot: AgentSnapshot = {
       sessionId: SESSION_ID,
       threadId: SESSION_ID,
-      version: input.agentVersion ?? "agent-v1",
+      version: "agent-v3",
       mode: input.mode,
       interviewMode: input.interviewMode,
       phase: "preparing",
@@ -480,14 +481,59 @@ function createHarness(
     checkpointer,
     inputRepository: persistInputs ? repository : undefined,
     questionRuntimeService,
-    version: runtime.defaultVersion ?? "agent-v1",
     orchestrationService,
+  });
+  const preparationRepository: PreparationCommitRepository = {
+    async commitPreparation(input) {
+      return repository.commitOperation({
+        sessionId: input.sessionId,
+        operationKey: input.operationKey,
+        nodeName: input.nodeName,
+        phase: "awaiting_answer",
+        currentRole: input.currentRole,
+        result: input.result,
+        events: input.events,
+      });
+    },
+  };
+  const preparationService = new InterviewPreparationService({
+    tools: {
+      async loadSkill() { return null; },
+      async loadResumeSummary() { return null; },
+      async loadSessionMessages() { return []; },
+      async loadRubric() { return []; },
+      async searchQuestionBank() {
+        return [{
+          id: "33333333-3333-4333-8333-333333333333",
+          question: "请说明一次具体的后端问题解决经历。",
+          position: "后端工程师",
+          difficulty: "中级",
+          type: "COMMUNICATION",
+          tags: ["COMMUNICATION"],
+          roleIds: ["general"],
+          dimensionKeys: ["COMMUNICATION"],
+          topicKeys: ["后端工程师", "backend"],
+          evidenceGoalKeys: ["situation", "action", "result"],
+          source: "bank",
+        }];
+      },
+    },
+    webSearchProvider: new DisabledWebSearchProvider(),
+    modelProvider: {
+      async generateQuestion() {
+        throw new Error("deterministic bank candidate must match");
+      },
+    },
+    async loadResearchSources() { return []; },
   });
   const service = new InterviewAgentService({
     repository,
     userId: USER_ID,
     getGraph: () => graph,
     runtimeConfig: runtime,
+    preparationRepository,
+    preparationService,
+    orchestrationService,
     assertCreationReady,
     inputRepository: persistInputs ? repository : undefined,
     async resolveModel() {
@@ -497,10 +543,26 @@ function createHarness(
   return { checkpointer, graph, repository, service };
 }
 
+/** 等待异步准备操作提交目标阶段，避免测试依赖事件循环时序。 */
+async function waitForPhase(
+  service: InterviewAgentService,
+  sessionId: string,
+  expected: AgentSnapshot["phase"] = "awaiting_answer",
+): Promise<{ snapshot: AgentSnapshot }> {
+  let view = await service.getSession(sessionId);
+  for (let attempt = 0; attempt < 100 && view.snapshot.phase !== expected; attempt += 1) {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    view = await service.getSession(sessionId);
+  }
+  assert.equal(view.snapshot.phase, expected);
+  return view;
+}
+
 /** Phase 1 共用的创建请求。 */
 const CREATE_INPUT = {
   mode: "single",
   interviewMode: "text",
+  experienceMode: "coaching",
   position: "后端工程师",
   difficulty: "中级",
   questionCount: 3,
@@ -537,19 +599,19 @@ test("server readiness blocks creation before any session write", async () => {
 test("create reaches durable awaiting_answer snapshot at the interrupt", async () => {
   const harness = createHarness();
   const created = await harness.service.createSession(CREATE_INPUT);
-  const view = await harness.service.getSession(created.sessionId);
+  const view = await waitForPhase(harness.service, created.sessionId);
 
   assert.equal(created.phase, "preparing");
   assert.equal(created.eventCursor, 1);
   assert.equal(view.snapshot.phase, "awaiting_answer");
-  assert.equal(view.snapshot.currentQuestionId, `mock:${SESSION_ID}:general:1`);
-  assert.equal(view.snapshot.eventCursor, 3);
+  assert.match(view.snapshot.currentQuestionId ?? "", /^[0-9a-f-]{36}$/);
+  assert.equal(view.snapshot.eventCursor, 4);
   assert.deepEqual((await harness.graph.getState(createAgentGraphConfig(SESSION_ID))).next, [
     "wait_for_input",
   ]);
 });
 
-test("v2 creation returns immediately while preparation continues in the background", async () => {
+test("v3 creation returns immediately while preparation continues in the background", async () => {
   let releasePlanner: (() => void) | undefined;
   const plannerGate = new Promise<void>((resolve) => {
     releasePlanner = resolve;
@@ -561,6 +623,12 @@ test("v2 creation returns immediately while preparation continues in the backgro
         strategyRevisionId: "44444444-4444-4444-8444-444444444444",
         revision: 1,
         questionIntent: "验证候选人的后端故障诊断能力",
+        questionCriteria: {
+          primaryDimension: "COMMUNICATION",
+          topicKeys: ["后端工程师"],
+          evidenceGoalKeys: ["situation", "action", "result"],
+          questionIntent: "verify backend diagnosis evidence",
+        },
         observationIds: [],
         memoryApplied: false,
         brainApplied: false,
@@ -570,7 +638,7 @@ test("v2 creation returns immediately while preparation continues in the backgro
       throw new Error("reflection must not run during preparation");
     },
     async decideResponse() {
-      return { action: "score", reasonCode: "enough_evidence", followUpQuestion: null };
+      return { action: "score", reasonCode: "enough_evidence", followUpQuestion: null, coveredEvidenceGoals: [], missingEvidenceGoals: [] };
     },
     async updateTrainingMemory() {
       return false;
@@ -578,15 +646,13 @@ test("v2 creation returns immediately while preparation continues in the backgro
   };
   const runtime: AgentRuntimeConfig = {
     ...ENABLED_RUNTIME,
-    promptVersion: "agent-v2-test",
-    v2Enabled: true,
-    defaultVersion: "agent-v2",
+    promptVersion: "agent-v3-test",
   };
   const harness = createHarness(runtime, false, false, undefined, orchestrationService);
 
   const created = await harness.service.createSession(CREATE_INPUT);
   const preparingView = await harness.service.getSession(created.sessionId);
-  assert.equal(preparingView.snapshot.version, "agent-v2");
+  assert.equal(preparingView.snapshot.version, "agent-v3");
   assert.equal(preparingView.snapshot.phase, "preparing");
 
   releasePlanner?.();
@@ -598,7 +664,7 @@ test("v2 creation returns immediately while preparation continues in the backgro
   }
   assert.equal(completedView.snapshot.phase, "awaiting_answer");
   assert.equal(
-    (await harness.graph.getState(createAgentGraphConfig(SESSION_ID, "agent-v2"))).next[0],
+    (await harness.graph.getState(createAgentGraphConfig(SESSION_ID))).next[0],
     "wait_for_input",
   );
 });
@@ -624,6 +690,10 @@ test("Phase 2 preparation commits the bank-first question and snapshot atomicall
           difficulty: "中级",
           type: "技术题",
           tags: ["technical_depth"],
+          roleIds: ["general"],
+          dimensionKeys: ["COMMUNICATION"],
+          topicKeys: ["后端工程师"],
+          evidenceGoalKeys: ["situation", "action", "result"],
           source: "bank" as const,
         },
       ];
@@ -674,6 +744,7 @@ test("Phase 2 preparation commits the bank-first question and snapshot atomicall
   });
 
   await service.createSession(CREATE_INPUT);
+  await waitForPhase(service, SESSION_ID);
   const questionEvent = repository.events.find((event) => event.type === "agent.question_ready");
   assert.ok(committed);
   assert.equal(committed.question.bankQuestionId, bankQuestionId);
@@ -692,6 +763,7 @@ test("Phase 2 preparation commits the bank-first question and snapshot atomicall
 test("duplicate input returns the first result without resuming twice", async () => {
   const harness = createHarness();
   await harness.service.createSession(CREATE_INPUT);
+  await waitForPhase(harness.service, SESSION_ID);
 
   const first = await harness.service.submitInput(SESSION_ID, {
     inputId: "answer-001",
@@ -708,13 +780,14 @@ test("duplicate input returns the first result without resuming twice", async ()
   assert.equal(duplicate.duplicate, true);
   assert.equal(harness.repository.inputCommitCount, 1);
   assert.equal(duplicate.snapshot.phase, "completed");
-  assert.equal(duplicate.snapshot.eventCursor, 6);
+  assert.equal(duplicate.snapshot.eventCursor, 7);
 });
 
 test("answer content never enters state or any MemorySaver checkpoint", async () => {
   const forbiddenContent = "ANSWER_BODY_MUST_STAY_IN_BUSINESS_MESSAGES";
   const harness = createHarness();
   await harness.service.createSession(CREATE_INPUT);
+  await waitForPhase(harness.service, SESSION_ID);
   await harness.service.submitInput(SESSION_ID, {
     inputId: "answer-secure",
     type: "text",
@@ -734,6 +807,7 @@ test("Phase 3 persists the candidate message before resuming by inputId", async 
   const answerContent = "这段正文只能存在于业务消息和事件中";
   const harness = createHarness(ENABLED_RUNTIME, true);
   await harness.service.createSession(CREATE_INPUT);
+  await waitForPhase(harness.service, SESSION_ID);
   const result = await harness.service.submitInput(SESSION_ID, {
     inputId: "durable-answer-1",
     type: "text",
@@ -747,7 +821,7 @@ test("Phase 3 persists the candidate message before resuming by inputId", async 
     ),
     true,
   );
-  assert.equal(result.snapshot.eventCursor, 7);
+  assert.equal(result.snapshot.eventCursor, 8);
   const checkpoints: string[] = [];
   for await (const tuple of harness.checkpointer.list(createAgentGraphConfig(SESSION_ID))) {
     checkpoints.push(JSON.stringify(tuple));
@@ -759,6 +833,7 @@ test("Phase 3 persists the candidate message before resuming by inputId", async 
 test("Phase 3 guard redirects copied input and interrupts on the same question", async () => {
   const harness = createHarness(ENABLED_RUNTIME, true);
   await harness.service.createSession(CREATE_INPUT);
+  await waitForPhase(harness.service, SESSION_ID);
   const result = await harness.service.submitInput(SESSION_ID, {
     inputId: "copied-answer-1",
     type: "text",
@@ -768,7 +843,7 @@ test("Phase 3 guard redirects copied input and interrupts on the same question",
   assert.equal(result.snapshot.phase, "awaiting_answer");
   assert.equal(result.snapshot.pendingAction, "follow_up");
   assert.equal(result.snapshot.followUpCount, 0);
-  assert.equal(result.snapshot.eventCursor, 7);
+  assert.equal(result.snapshot.eventCursor, 8);
   assert.equal(
     harness.repository.events.some(
       (event) =>
@@ -784,8 +859,44 @@ test("Phase 3 guard redirects copied input and interrupts on the same question",
 });
 
 test("Phase 3 asks at most three follow-ups before leaving the question", async () => {
-  const harness = createHarness(ENABLED_RUNTIME, true);
+  const followUpOrchestration: AgentOrchestrationRunner = {
+    async planSession() {
+      return {
+        strategyRevisionId: "44444444-4444-4444-8444-444444444444",
+        revision: 1,
+        questionIntent: "collect missing evidence",
+        questionCriteria: {
+          primaryDimension: "COMMUNICATION",
+          topicKeys: ["后端工程师"],
+          evidenceGoalKeys: ["situation", "action", "result"],
+          questionIntent: "collect missing evidence",
+        },
+        observationIds: [],
+        memoryApplied: false,
+        brainApplied: false,
+      };
+    },
+    async reflect(input) { return this.planSession(input); },
+    async decideResponse() {
+      return {
+        action: "follow_up",
+        reasonCode: "missing_result",
+        followUpQuestion: "请补充你采取的行动和最终结果。",
+        coveredEvidenceGoals: ["situation"],
+        missingEvidenceGoals: ["action", "result"],
+      };
+    },
+    async updateTrainingMemory() { return false; },
+  };
+  const harness = createHarness(
+    ENABLED_RUNTIME,
+    true,
+    false,
+    undefined,
+    followUpOrchestration,
+  );
   await harness.service.createSession(CREATE_INPUT);
+  await waitForPhase(harness.service, SESSION_ID);
   for (let index = 1; index <= 3; index += 1) {
     const result = await harness.service.submitInput(SESSION_ID, {
       inputId: `brief-answer-${index}`,
@@ -813,6 +924,7 @@ test("Phase 3 asks at most three follow-ups before leaving the question", async 
 test("Phase 3 service completes all frozen questions instead of ending after the first", async () => {
   const harness = createHarness(ENABLED_RUNTIME, true, true);
   await harness.service.createSession(CREATE_INPUT);
+  await waitForPhase(harness.service, SESSION_ID);
   const sufficient =
     "我先分析慢查询日志和执行计划，定位到联合索引缺失；随后增加索引并完成压测，最终 P95 延迟从 800 毫秒降低到 120 毫秒。";
   for (let index = 1; index <= 2; index += 1) {
@@ -831,16 +943,17 @@ test("Phase 3 service completes all frozen questions instead of ending after the
   });
   assert.equal(final.snapshot.phase, "completed");
   assert.equal(final.snapshot.currentQuestionIndex, 2);
-  assert.equal(final.snapshot.eventCursor, 15);
+  assert.equal(final.snapshot.eventCursor, 16);
   assert.equal(
     harness.repository.events.filter((event) => event.type === "agent.question_ready").length,
-    2,
+    3,
   );
 });
 
 test("a second concurrent claim cannot invoke the same input operation", async () => {
   const harness = createHarness();
   await harness.service.createSession(CREATE_INPUT);
+  await waitForPhase(harness.service, SESSION_ID);
   const requests = await Promise.allSettled([
     harness.service.submitInput(SESSION_ID, {
       inputId: "answer-concurrent",

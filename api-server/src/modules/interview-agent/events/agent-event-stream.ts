@@ -188,6 +188,7 @@ export function streamCommittedAgentEvents(
   context: Context,
   reader: AgentEventReader,
   sessionId: string,
+  shouldSend: (event: AgentEvent) => boolean = () => true,
 ) {
   const lastEventId = context.req.header("last-event-id");
   return streamSSE(context, async (stream) => {
@@ -196,7 +197,7 @@ export function streamCommittedAgentEvents(
     let lastPingAt = Date.now();
 
     for (const event of catchup.events) {
-      await writeAgentEvent(stream, event);
+      if (shouldSend(event)) await writeAgentEvent(stream, event);
     }
 
     // 游标已经最新时也立即发送空心跳，确保代理和浏览器尽快收到响应头。
@@ -210,7 +211,7 @@ export function streamCommittedAgentEvents(
         AGENT_EVENT_REPLAY_PAGE_SIZE,
       );
       for (const event of events) {
-        await writeAgentEvent(stream, event);
+        if (shouldSend(event)) await writeAgentEvent(stream, event);
         cursor = event.sequence;
       }
 

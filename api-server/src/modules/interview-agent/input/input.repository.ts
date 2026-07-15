@@ -13,6 +13,8 @@ export interface AgentInputDatabaseQuery extends PromiseLike<unknown> {
   select(columns: string): AgentInputDatabaseQuery;
   /** 添加等值过滤。 */
   eq(column: string, value: unknown): AgentInputDatabaseQuery;
+  /** 按消息创建时间稳定排序，保证多轮上下文顺序真实。 */
+  order(column: string, options: { ascending: boolean }): AgentInputDatabaseQuery;
   /** 要求恰好一行。 */
   single(): AgentInputDatabaseQuery;
 }
@@ -36,6 +38,11 @@ export interface AgentInputRepository {
   }): Promise<AgentInputReceipt>;
   /** Guard/证据节点只按引用加载一条用户消息和题目。 */
   loadInput(sessionId: string, inputId: string): Promise<PersistedAgentInput>;
+  /** 临时加载当前题完整消息序列；正文只存在于单次决策调用，不进入 checkpoint。 */
+  loadQuestionConversation?(
+    sessionId: string,
+    questionId: string,
+  ): Promise<Array<{ role: "user" | "assistant"; content: string }>>;
   /** 幂等保存 Guard redirect 或有效回答追问。 */
   commitInterviewerResponse(input: {
     sessionId: string;
@@ -92,6 +99,12 @@ const InputRowSchema = z.object({
     question: z.string().min(1).max(5_000),
   }).strict(),
 }).strict();
+const ConversationRowsSchema = z.array(z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string().max(20_000),
+  created_at: z.string().datetime({ offset: true }),
+  interview_questions: z.object({ session_id: z.string().uuid() }).strict(),
+}).strict()).max(50);
 
 /** 执行 Supabase 操作并隐藏数据库原始错误文本。 */
 async function execute(operation: PromiseLike<unknown>): Promise<unknown> {
@@ -168,6 +181,28 @@ export class SupabaseAgentInputRepository implements AgentInputRepository {
       source: row.source,
       createdAt: row.created_at,
     };
+  }
+
+  /** @inheritdoc */
+  async loadQuestionConversation(
+    sessionId: string,
+    questionId: string,
+  ): Promise<Array<{ role: "user" | "assistant"; content: string }>> {
+    const rows = ConversationRowsSchema.parse(await execute(
+      this.database
+        .from("interview_messages")
+        .select("role, content, created_at, interview_questions!inner(session_id)")
+        .eq("question_id", questionId)
+        .eq("interview_questions.session_id", sessionId)
+        .order("created_at", { ascending: true }),
+    ));
+    let remaining = 24_000;
+    return rows.flatMap((row) => {
+      if (remaining <= 0) return [];
+      const content = row.content.slice(0, Math.min(6_000, remaining));
+      remaining -= content.length;
+      return [{ role: row.role, content }];
+    });
   }
 
   /** @inheritdoc */

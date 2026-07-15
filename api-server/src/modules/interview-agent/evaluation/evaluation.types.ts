@@ -30,8 +30,10 @@ export type FrozenRubricDimension = {
 
 /** 模型对一个维度的评分输出。 */
 export type EvaluationDimension = {
+  /** 有证据并参与总分，或本题未观察到且排除聚合。 */
+  status: "scored" | "not_observed";
   /** 0–100 整数分。 */
-  score: number;
+  score: number | null;
   /** 基于证据的简洁理由。 */
   rationale: string;
   /** 只引用本次已验证证据 UUID。 */
@@ -79,7 +81,9 @@ export type QuestionEvaluationContext = {
   /** 冻结模型名。 */
   modelName: string;
   /** 量表版本。 */
-  rubricVersion: "rubric-v1";
+  rubricVersion: "rubric-v3";
+  /** 本题必须评分的主能力维度。 */
+  primaryDimensionKey: string;
   /** 冻结维度。 */
   rubric: FrozenRubricDimension[];
   /** 本题全部候选人消息。 */

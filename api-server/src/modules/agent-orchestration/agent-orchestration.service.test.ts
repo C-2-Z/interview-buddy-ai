@@ -22,7 +22,7 @@ const CONTEXT: AgentPlanningContext = {
   webResearch: false,
   modelProvider: "deepseek",
   modelName: "deepseek-chat",
-  promptVersion: "agent-v2-test",
+  promptVersion: "agent-v3-test",
   allowedDimensions: ["communication", "technical_depth", "evidence"],
 };
 
@@ -30,10 +30,24 @@ const CONTEXT: AgentPlanningContext = {
 function harness(model: AgentOrchestrationModel) {
   const activities: Array<{ id: string; kind: string; status: string; label: string }> = [];
   const strategies: AgentStrategyDraft[] = [];
+  let latestReceipt: Awaited<ReturnType<AgentOrchestrationService["planSession"]>> | null = null;
   let questionSearches = 0;
   let messageLoads = 0;
   const repository: AgentOrchestrationRepository = {
-    async commitStrategy(input) { strategies.push(input.draft); return { id: crypto.randomUUID(), revision: strategies.length }; },
+    async commitStrategy(input) {
+      strategies.push(input.draft);
+      const id = crypto.randomUUID();
+      latestReceipt = {
+        strategyRevisionId: id,
+        revision: strategies.length,
+        questionIntent: input.draft.questionCriteria.questionIntent,
+        questionCriteria: input.draft.questionCriteria,
+        observationIds: input.observationIds,
+        memoryApplied: input.memoryApplied,
+        brainApplied: input.brainApplied,
+      };
+      return { id, revision: strategies.length };
+    },
     async recordActivity(_sessionId, activity, activityId) {
       const id = activityId ?? crypto.randomUUID();
       activities.push({ id, kind: activity.kind, status: activity.status, label: activity.label });
@@ -41,9 +55,11 @@ function harness(model: AgentOrchestrationModel) {
     },
     async listActivities() { return []; },
     async getLatestStrategy() { return null; },
+    async getLatestStrategyReceipt() { return latestReceipt; },
     async getLatestEvaluation() { return { communication: { score: 58 } }; },
     async getReportDimensions() { return { communication: { score: 62 } }; },
     async recordKnowledgeCitations() {},
+    async loadObservationContexts() { return []; },
   };
   const tools: InterviewAgentTools = {
     async loadSkill() { return null; },
@@ -74,6 +90,12 @@ test("planner approves only available distinct read tools within budget", async 
   const draft: AgentStrategyDraft = {
     objective: "收集可验证的岗位能力证据",
     focusDimensions: ["communication"],
+    questionCriteria: {
+      primaryDimension: "communication",
+      topicKeys: ["experience"],
+      evidenceGoalKeys: ["situation", "action", "result"],
+      questionIntent: "verify concrete actions and results",
+    },
     questionIntent: "验证候选人的具体行动和结果",
     activityLabel: "已制定本场提问策略",
     toolRequests: [
@@ -88,7 +110,7 @@ test("planner approves only available distinct read tools within budget", async 
   const model: AgentOrchestrationModel = {
     async plan() { return draft; },
     async reflect() { return draft; },
-    async decide() { return { action: "score", reasonCode: "enough", followUpQuestion: null }; },
+    async decide() { return { action: "score", reasonCode: "enough", followUpQuestion: null, coveredEvidenceGoals: [], missingEvidenceGoals: [] }; },
   };
   const fake = harness(model);
   const receipt = await fake.service.planSession(CONTEXT);
@@ -113,7 +135,7 @@ test("planner approves only available distinct read tools within budget", async 
 test("invalid planner output gets one repair then deterministic fallback", async () => {
   let calls = 0;
   const model: AgentOrchestrationModel = {
-    async plan() { calls += 1; return { objective: "bad", focusDimensions: ["forbidden"], questionIntent: "bad", activityLabel: "bad", toolRequests: [] }; },
+    async plan() { calls += 1; return { objective: "bad", focusDimensions: ["forbidden"], questionIntent: "bad", questionCriteria: { primaryDimension: "forbidden", topicKeys: [], evidenceGoalKeys: [], questionIntent: "bad" }, activityLabel: "bad", toolRequests: [] }; },
     async reflect() { throw new Error("not used"); },
     async decide() { throw new Error("invalid"); },
   };
@@ -126,15 +148,19 @@ test("invalid planner output gets one repair then deterministic fallback", async
     sessionId: CONTEXT.sessionId,
     question: "请举例",
     answer: "很短",
+    conversation: [{ role: "user", content: "short answer" }],
+    evidenceGoals: ["situation", "action", "result"],
     roleId: "general",
     followUpCount: 0,
     modelProvider: "deepseek",
     modelName: "deepseek-chat",
-    promptVersion: "agent-v2-test",
+    promptVersion: "agent-v3-test",
   }), {
     action: "follow_up",
     reasonCode: "deterministic_fallback",
-    followUpQuestion: "请补充一个具体场景，并说明你的行动和最终结果。",
+    coveredEvidenceGoals: [],
+    missingEvidenceGoals: ["situation", "action", "result"],
+    followUpQuestion: "请补充一个尚未说明的具体事实，包括你的行动和最终结果。",
   });
 });
 
@@ -143,19 +169,85 @@ test("response decision enforces the frozen follow-up limit before calling the m
   const model: AgentOrchestrationModel = {
     async plan() { throw new Error("not used"); },
     async reflect() { throw new Error("not used"); },
-    async decide() { calls += 1; return { action: "follow_up", reasonCode: "more", followUpQuestion: "继续" }; },
+    async decide() { calls += 1; return { action: "follow_up", reasonCode: "more", followUpQuestion: "继续", coveredEvidenceGoals: [], missingEvidenceGoals: ["result"] }; },
   };
   const fake = harness(model);
   const decision = await fake.service.decideResponse({
     sessionId: CONTEXT.sessionId,
     question: "问题",
     answer: "回答",
+    conversation: [{ role: "user", content: "answer" }],
+    evidenceGoals: ["result"],
     roleId: "general",
     followUpCount: 3,
     modelProvider: "deepseek",
     modelName: "deepseek-chat",
-    promptVersion: "agent-v2-test",
+    promptVersion: "agent-v3-test",
   });
-  assert.deepEqual(decision, { action: "score", reasonCode: "follow_up_limit", followUpQuestion: null });
+  assert.deepEqual(decision, { action: "score", reasonCode: "follow_up_limit", followUpQuestion: null, coveredEvidenceGoals: [], missingEvidenceGoals: ["result"] });
   assert.equal(calls, 0);
+});
+
+test("response decision passes the complete ordered question conversation to the model", async () => {
+  const conversation = [
+    { role: "user" as const, content: "我先说明背景和目标。" },
+    { role: "assistant" as const, content: "你具体采取了什么行动？" },
+    { role: "user" as const, content: "我拆分了故障域，并逐项验证。" },
+  ];
+  let receivedConversation: typeof conversation | null = null;
+  const fake = harness({
+    async plan() { throw new Error("not used"); },
+    async reflect() { throw new Error("not used"); },
+    async decide(input) {
+      receivedConversation = input.conversation;
+      return {
+        action: "follow_up",
+        reasonCode: "missing_result",
+        followUpQuestion: "最终结果如何？",
+        coveredEvidenceGoals: ["situation", "action"],
+        missingEvidenceGoals: ["result"],
+      };
+    },
+  });
+
+  await fake.service.decideResponse({
+    sessionId: CONTEXT.sessionId,
+    question: "请介绍一次故障处理经历。",
+    answer: conversation[2].content,
+    conversation,
+    evidenceGoals: ["situation", "action", "result"],
+    roleId: "technical",
+    followUpCount: 1,
+    modelProvider: "deepseek",
+    modelName: "deepseek-chat",
+    promptVersion: "agent-v3-test",
+  });
+
+  assert.deepEqual(receivedConversation, conversation);
+});
+
+test("preparation retry reuses the committed strategy receipt without another planner call", async () => {
+  let calls = 0;
+  const draft: AgentStrategyDraft = {
+    objective: "collect verifiable evidence",
+    focusDimensions: ["communication"],
+    questionIntent: "verify concrete actions",
+    questionCriteria: {
+      primaryDimension: "communication",
+      topicKeys: ["experience"],
+      evidenceGoalKeys: ["action", "result"],
+      questionIntent: "verify concrete actions",
+    },
+    activityLabel: "strategy ready",
+    toolRequests: [],
+  };
+  const fake = harness({
+    async plan() { calls += 1; return draft; },
+    async reflect() { return draft; },
+    async decide() { throw new Error("unused"); },
+  });
+  const first = await fake.service.planSession(CONTEXT);
+  const restored = await fake.service.resumePreparedStrategy(CONTEXT.sessionId);
+  assert.equal(calls, 1);
+  assert.deepEqual(restored, first);
 });

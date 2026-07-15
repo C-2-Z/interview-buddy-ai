@@ -29,7 +29,7 @@ test("Agent runtime config accepts explicit bounded values", () => {
 
   Object.assign(process.env, {
     AGENT_INTERVIEW_ENABLED: "1",
-    AGENT_PROMPT_VERSION: "agent-v1-test",
+    AGENT_PROMPT_VERSION: "agent-v3-test",
     AGENT_WEB_RESEARCH_ENABLED: "0",
     AGENT_EVENT_RETENTION_DAYS: "30",
     AGENT_MAX_NODE_RETRIES: "3",
@@ -39,7 +39,7 @@ test("Agent runtime config accepts explicit bounded values", () => {
   try {
     assert.deepEqual(getAgentRuntimeConfig(), {
       enabled: true,
-      promptVersion: "agent-v1-test",
+      promptVersion: "agent-v3-test",
       webResearchEnabled: false,
       eventRetentionDays: 30,
       maxNodeRetries: 3,
@@ -60,17 +60,11 @@ test("out-of-range numeric configuration is rejected", () => {
   }
 });
 
-test("Agent v2 requires an explicit rollout gate and keeps v1 as the safe default", () => {
-  const enabled = process.env.AGENT_V2_ENABLED;
-  const version = process.env.AGENT_DEFAULT_VERSION;
-  try {
-    process.env.AGENT_V2_ENABLED = "0";
-    process.env.AGENT_DEFAULT_VERSION = "agent-v2";
-    assert.equal(getAgentRuntimeConfig().defaultVersion, "agent-v1");
-    process.env.AGENT_V2_ENABLED = "1";
-    assert.equal(getAgentRuntimeConfig().defaultVersion, "agent-v2");
-  } finally {
-    restoreEnvironment("AGENT_V2_ENABLED", enabled);
-    restoreEnvironment("AGENT_DEFAULT_VERSION", version);
-  }
+test("legacy Agent version environment switches no longer affect the runtime", () => {
+  process.env.AGENT_V2_ENABLED = "0";
+  process.env.AGENT_DEFAULT_VERSION = "agent-v1";
+  const config = getAgentRuntimeConfig();
+  assert.equal("defaultVersion" in config, false);
+  delete process.env.AGENT_V2_ENABLED;
+  delete process.env.AGENT_DEFAULT_VERSION;
 });

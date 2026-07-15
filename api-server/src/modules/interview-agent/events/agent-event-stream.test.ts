@@ -8,6 +8,7 @@ import {
   parseLastAgentEventId,
   type AgentEventReader,
 } from "./agent-event-stream.js";
+import { shouldExposeAgentEvent } from "./agent-event-visibility.js";
 
 /** 测试中需要访问快照专属字段的事件窄类型。 */
 type SnapshotEvent = Extract<AgentEvent, { type: "agent.snapshot" }>;
@@ -20,7 +21,7 @@ function snapshot(sequence: number): SnapshotEvent {
     data: {
       sessionId: "f34c4bbb-a1bb-43c7-b223-7eb8281f9653",
       threadId: "f34c4bbb-a1bb-43c7-b223-7eb8281f9653",
-      version: "agent-v1",
+      version: "agent-v3",
       mode: "single",
       interviewMode: "text",
       phase: "awaiting_answer",
@@ -139,4 +140,13 @@ test("a replay page that cannot reach the latest snapshot resyncs", async () => 
   );
   assert.deepEqual(result.events, [latest]);
   assert.equal(result.resynced, true);
+});
+
+test("simulation SSE hides process scoring until the session is completed", () => {
+  const score = { sequence: 9, type: "agent.score_completed", data: { questionId: "22222222-2222-4222-8222-222222222222", overallScore: 88, dimensions: {} } } as AgentEvent;
+  const activity = { sequence: 10, type: "agent.activity", data: { id: "33333333-3333-4333-8333-333333333333", kind: "planning", status: "completed", label: "hidden" } } as AgentEvent;
+  assert.equal(shouldExposeAgentEvent(score, "simulation", "in_progress"), false);
+  assert.equal(shouldExposeAgentEvent(activity, "simulation", "in_progress"), false);
+  assert.equal(shouldExposeAgentEvent(score, "simulation", "completed"), true);
+  assert.equal(shouldExposeAgentEvent(score, "coaching", "in_progress"), true);
 });

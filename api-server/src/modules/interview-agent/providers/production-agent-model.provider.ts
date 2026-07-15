@@ -86,6 +86,8 @@ export class ProductionAgentModelProvider
           `主维度：${input.dimensionKey ?? "综合能力"}`,
           `策略意图：${input.strategyIntent ?? "按主维度收集具体证据"}`,
           `岗位描述：${input.trustedContext?.jobDescription ?? "未提供"}`,
+          `简历摘要：${input.trustedContext?.resumeSummary ? JSON.stringify(input.trustedContext.resumeSummary) : "未提供"}`,
+          input.toolResultContext ? `授权工具上下文：${input.toolResultContext}` : "",
           input.untrustedResearchContext ?? "",
         ].filter(Boolean).join("\n"),
       },

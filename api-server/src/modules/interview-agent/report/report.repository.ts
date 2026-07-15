@@ -22,7 +22,14 @@ export interface ReportDatabaseClient {
 const ResponseSchema = z.object({ data: z.unknown(), error: z.unknown().nullable() }).passthrough();
 const SessionSchema = z.object({ agent_config: z.object({ questionCount: z.number().int().min(3).max(10) }).passthrough(), agent_plan: z.object({ capabilityBlueprint: z.object({ dimensions: z.array(z.object({ key: z.string(), label: z.string(), weight: z.number().positive() }).passthrough()).min(1) }).passthrough() }).passthrough() }).strict();
 const QuestionSchema = z.object({ id: z.string().uuid(), order_index: z.number().int(), role_id: z.enum(["general","technical","manager","hr"]), score: z.number().int().min(0).max(100) }).strict();
-const EvaluationSchema = z.object({ question_id: z.string().uuid(), overall_score: z.number().int().min(0).max(100), dimensions: z.record(z.object({ score: z.number().int().min(0).max(100) }).passthrough()) }).strict();
+const EvaluationSchema = z.object({
+  question_id: z.string().uuid(), overall_score: z.number().int().min(0).max(100),
+  dimensions: z.record(z.object({
+    status: z.enum(["scored", "not_observed"]),
+    score: z.number().int().min(0).max(100).nullable(),
+    evidenceIds: z.array(z.string().uuid()),
+  }).passthrough()),
+}).strict();
 const ReceiptSchema: z.ZodType<AgentReportReceipt> = z.object({ committed:z.boolean(),duplicate:z.boolean(),operationKey:z.literal("finalize:report"),sessionId:z.string().uuid(),overallScore:z.number().int().min(0).max(100),eventSequence:z.number().int().positive() }).strict();
 
 /** 执行查询并隐藏数据库原始错误。 */

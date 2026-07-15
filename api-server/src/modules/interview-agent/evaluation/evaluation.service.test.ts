@@ -14,10 +14,11 @@ const CONTEXT: QuestionEvaluationContext = {
   sessionId: "11111111-1111-4111-8111-111111111111",
   questionId: "22222222-2222-4222-8222-222222222222",
   question: "请说明一次性能优化经历。",
-  promptVersion: "agent-v1-test",
+  promptVersion: "agent-v3-test",
   modelProvider: "deepseek",
   modelName: "deepseek-v4-flash",
-  rubricVersion: "rubric-v1",
+  rubricVersion: "rubric-v3",
+  primaryDimensionKey: "technical_depth",
   rubric: [
     { key: "technical_depth", label: "技术深度", weight: 2 },
     { key: "communication", label: "沟通表达", weight: 1 },
@@ -71,19 +72,48 @@ test("overall score is recomputed from frozen weights and evidence refs", () => 
   }] });
   const evaluation = buildQuestionEvaluation(CONTEXT, evidence, {
     dimensions: {
-      technical_depth: { score: 90, rationale: "有量化技术证据", evidenceIds: [evidence[0].id] },
-      communication: { score: 50, rationale: "证据不足", evidenceIds: [] },
+      technical_depth: { status: "scored", score: 90, rationale: "有量化技术证据", evidenceIds: [evidence[0].id] },
+      communication: { status: "not_observed", score: null, rationale: "证据不足", evidenceIds: [] },
     },
     feedback: "继续补充方案权衡。",
   });
-  assert.equal(evaluation.overallScore, 77);
+  assert.equal(evaluation.overallScore, 90);
   assert.throws(() => buildQuestionEvaluation(CONTEXT, evidence, {
     dimensions: {
-      technical_depth: { score: 90, rationale: "引用未知证据", evidenceIds: ["44444444-4444-4444-8444-444444444444"] },
-      communication: { score: 50, rationale: "证据不足", evidenceIds: [] },
+      technical_depth: { status: "scored", score: 90, rationale: "引用未知证据", evidenceIds: ["44444444-4444-4444-8444-444444444444"] },
+      communication: { status: "not_observed", score: null, rationale: "证据不足", evidenceIds: [] },
     },
     feedback: "反馈",
   }));
+});
+
+test("missing primary evidence scores zero while missing auxiliary evidence is not observed", () => {
+  const evaluation = buildQuestionEvaluation(CONTEXT, [], {
+    dimensions: {
+      technical_depth: {
+        status: "not_observed",
+        score: null,
+        rationale: "没有技术证据",
+        evidenceIds: [],
+      },
+      communication: {
+        status: "not_observed",
+        score: null,
+        rationale: "没有沟通证据",
+        evidenceIds: [],
+      },
+    },
+    feedback: "需要补充可验证的候选人原文。",
+  });
+  assert.deepEqual(evaluation.dimensions.technical_depth, {
+    status: "scored",
+    score: 0,
+    rationale: "主维度在追问上限内仍无可验证候选人原文证据。",
+    evidenceIds: [],
+  });
+  assert.equal(evaluation.dimensions.communication.status, "not_observed");
+  assert.equal(evaluation.dimensions.communication.score, null);
+  assert.equal(evaluation.overallScore, 0);
 });
 
 test("service repairs one invalid evaluation then commits once", async () => {
@@ -103,16 +133,16 @@ test("service repairs one invalid evaluation then commits once", async () => {
     },
     async evaluate(_context, evidence, repair): Promise<ModelEvaluationOutput> {
       attempts += 1;
-      if (!repair) return { dimensions: { technical_depth: { score: 90, rationale: "缺少维度", evidenceIds: [evidence[0].id] } }, feedback: "首次非法" };
+      if (!repair) return { dimensions: { technical_depth: { status: "scored", score: 90, rationale: "缺少维度", evidenceIds: [evidence[0].id] } }, feedback: "首次非法" };
       return { dimensions: {
-        technical_depth: { score: 90, rationale: "有量化证据", evidenceIds: [evidence[0].id] },
-        communication: { score: 50, rationale: "证据不足", evidenceIds: [] },
+        technical_depth: { status: "scored", score: 90, rationale: "有量化证据", evidenceIds: [evidence[0].id] },
+        communication: { status: "not_observed", score: null, rationale: "证据不足", evidenceIds: [] },
       }, feedback: "修复完成" };
     },
   });
   const receipt = await service.evaluateAndCommit(CONTEXT.sessionId, CONTEXT.questionId);
   assert.equal(attempts, 2);
-  assert.equal(receipt.overallScore, 77);
+  assert.equal(receipt.overallScore, 90);
   assert.equal(committed?.evaluation.feedback, "修复完成");
 });
 

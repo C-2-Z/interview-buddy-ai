@@ -30,6 +30,7 @@ export type VoiceDevicePreflight = Readonly<{
 /** 语音候场页的精简创建草稿。 */
 export type VoiceLobbyDraft = Readonly<{
   /** 单面试官或多角色面试。 */ mode: "single" | "panel";
+  /** 用户必须显式选择的体验模式。 */ experienceMode: "simulation" | "coaching" | "";
   /** 目标岗位。 */ position: string;
   /** 难度。 */ difficulty: "初级" | "中级" | "高级";
   /** 题目数量。 */ questionCount: number;

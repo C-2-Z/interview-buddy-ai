@@ -3,7 +3,8 @@ export type AgentMode="single"|"panel";
 export type AgentPhase="preparing"|"awaiting_answer"|"reasoning"|"speaking"|"scoring"|"role_handoff"|"reporting"|"completed"|"failed";
 export type AgentRoleId="general"|"technical"|"manager"|"hr";
 export type AgentPendingAction="ask"|"follow_up"|"score"|"handoff"|"finish";
-export type AgentVersion="agent-v1"|"agent-v2";
+export type AgentVersion="agent-v3";
+export type AgentExperienceMode="simulation"|"coaching";
 
 /** Agent 对用户公开的行动记录，不包含模型推理或原始工具结果。 */
 export type AgentActivity=Readonly<{
@@ -45,6 +46,7 @@ export type AgentSnapshot=Readonly<{
 export type CreateAgentSessionBody=Readonly<{
   /** 角色模式。 */ mode:AgentMode;
   /** 交互通道。 */ interviewMode:"text"|"voice";
+  /** 用户必须显式选择的体验模式。 */ experienceMode:AgentExperienceMode;
   /** 岗位。 */ position:string;
   /** 难度。 */ difficulty:"初级"|"中级"|"高级";
   /** 题数。 */ questionCount:number;
@@ -73,14 +75,14 @@ export type AgentWorkspaceQuestion={
   id:string;question:string;orderIndex:number;roleId:AgentRoleId;dimensionKey:string;source:"bank"|"model";score:number|null;feedback:string|null;
   messages:AgentWorkspaceMessage[];
   evidence:Array<{id:string;dimensionKey:string;claim:string;quote:string}>;
-  evaluation:null|{overallScore:number;dimensions:Record<string,{score:number;rationale:string;evidenceIds:string[]}>};
+  evaluation:null|{overallScore:number;dimensions:Record<string,{status:"scored"|"not_observed";score:number|null;rationale:string;evidenceIds:string[]}>};
 };
 /** 完整工作台读取模型。 */
 export type AgentWorkspace={
   /** 面向用户的业务生命周期状态。 */
   productStatus:"in_progress"|"paused"|"completed"|"abandoned"|"failed";
   snapshot:AgentSnapshot;
-  config:{position:string;difficulty:string;questionCount:number;targetCompany:string|null};
+  config:{position:string;difficulty:string;questionCount:number;targetCompany:string|null;experienceMode:AgentExperienceMode};
   research:{status:"pending"|"running"|"completed"|"skipped"|"failed";sources:Array<{id:string;category:"company"|"role"|"industry";title:string;url:string}>};
   strategy:AgentStrategyView|null;
   activities:AgentActivity[];
@@ -95,7 +97,7 @@ export type AgentSSEEvent=
   |{sequence:number;type:"agent.role_changed";data:{roleId:AgentRoleId}}
   |{sequence:number;type:"agent.question_ready";data:{id:string;question:string;orderIndex:number;roleId:AgentRoleId;dimensionKey:string;source:"bank"|"model"}}
   |{sequence:number;type:"agent.message_completed";data:{id:string;role:"assistant";content:string;roleId:AgentRoleId;createdAt:string;interrupted:boolean}}
-  |{sequence:number;type:"agent.score_completed";data:{questionId:string;overallScore:number;dimensions:Record<string,{score:number;rationale:string;evidenceIds:string[]}>}}
+  |{sequence:number;type:"agent.score_completed";data:{questionId:string;overallScore:number;dimensions:Record<string,{status:"scored"|"not_observed";score:number|null;rationale:string;evidenceIds:string[]}>}}
   |{sequence:number;type:"agent.session_completed";data:{sessionId:string;completedAt:string;overallScore?:number;overallFeedback?:string;dimensionSummary?:unknown}}
   |{sequence:number;type:"agent.activity";data:AgentActivity}
   |{sequence:number;type:"agent.error";data:{code:string;message:string;retryable:boolean}};

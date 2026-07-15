@@ -15,8 +15,11 @@ import type { InterviewAgentTools } from "./interview-agent.tools.js";
 import type {
   AgentQuestionCandidate,
   AgentResearchSource,
+  AgentResumeSummary,
+  CapabilityBlueprint,
   PreparedInterviewPlan,
 } from "./preparation.types.js";
+import type { AgentQuestionCriteria } from "../../agent-orchestration/agent-orchestration.types.js";
 import { selectQuestionWithFallback } from "./question-selector.js";
 import { conductPreInterviewResearch } from "./research.service.js";
 
@@ -54,6 +57,8 @@ function modelQuestionCandidate(
   output: Awaited<ReturnType<AgentModelProvider["generateQuestion"]>>,
   input: FrozenAgentConfig,
   dimensionKey: string,
+  roleId: "general" | "technical" | "manager" | "hr",
+  criteria: AgentQuestionCriteria,
 ): AgentQuestionCandidate {
   return {
     id: output.questionId,
@@ -62,9 +67,27 @@ function modelQuestionCandidate(
     difficulty: input.difficulty,
     type: dimensionKey,
     tags: [dimensionKey],
+    roleIds: [roleId],
+    dimensionKeys: [dimensionKey],
+    topicKeys: criteria.topicKeys,
+    evidenceGoalKeys: criteria.evidenceGoalKeys,
     source: "model",
   };
 }
+
+/** 首题选择前已冻结的安全上下文。 */
+export type PreparedInterviewContext = {
+  /** 代码冻结的角色与能力蓝图。 */
+  rolePlan: ReturnType<typeof buildRolePlan>;
+  /** 代码冻结的能力分配。 */
+  blueprint: CapabilityBlueprint & {
+    questionRoles: Array<"general" | "technical" | "manager" | "hr">;
+    questionDimensions: string[];
+  };
+  /** 只包含有限字段的简历摘要。 */ resumeSummary: AgentResumeSummary | null;
+  /** 已清洗且限长的研究引用。 */ research: Awaited<ReturnType<typeof conductPreInterviewResearch>>;
+  /** 当前岗位和难度的题库候选。 */ candidates: AgentQuestionCandidate[];
+};
 
 /** Interview Agent Phase 2 的开场准备服务。 */
 export class InterviewPreparationService {
@@ -78,19 +101,16 @@ export class InterviewPreparationService {
   ) {}
 
   /**
-   * 加载 Skill/简历/缓存，执行可降级研究，冻结蓝图并选择首题。
-   *
-   * 题量、角色和维度全部由代码决定；网页内容只作为不可执行数据传给模型，不能改变
-   * `rolePlan`、`questionCount` 或结束条件。题库存在合法候选时不会调用模型。
+   * 先冻结能力蓝图并加载有限上下文，不在此阶段选择或生成首题。
    *
    * @param input - 会话标识、模式和冻结配置。
-   * @param signal - Worker 或请求取消信号。
-   * @returns 可持久化的 plan-v1。
+   * @param signal - 可选取消信号。
+   * @returns Planner 可安全使用的准备上下文。
    */
-  async prepare(
+  async prepareContext(
     input: PrepareInterviewInput,
     signal?: AbortSignal,
-  ): Promise<PreparedInterviewPlan> {
+  ): Promise<PreparedInterviewContext> {
     const [skill, resumeSummary, cachedSources] = await Promise.all([
       this.dependencies.tools.loadSkill(input.config.skillId),
       this.dependencies.tools.loadResumeSummary(input.config.resumeId),
@@ -103,76 +123,122 @@ export class InterviewPreparationService {
       rolePlan,
       skill,
     });
-    const research = await conductPreInterviewResearch(
-      this.dependencies.webSearchProvider,
-      {
-        enabled: input.config.webResearch,
+    const [research, candidates] = await Promise.all([
+      conductPreInterviewResearch(this.dependencies.webSearchProvider, {
+        // Agent 3 的实时联网只能由 Planner 授权；准备阶段仅复用已经清洗的缓存引用。
+        enabled: false,
         position: input.config.position,
         targetCompany: input.config.targetCompany,
         cachedSources,
-      },
-      signal,
-    );
-    const candidates = await this.dependencies.tools.searchQuestionBank({
-      position: input.config.position,
-      difficulty: input.config.difficulty,
-      limit: 50,
-    });
-    const firstRole = blueprint.questionRoles[0];
-    const firstDimension = blueprint.questionDimensions[0];
-    const firstQuestion = await selectQuestionWithFallback(
-      candidates,
-      {
+      }, signal),
+      this.dependencies.tools.searchQuestionBank({
         position: input.config.position,
         difficulty: input.config.difficulty,
-        roleId: firstRole,
-        dimensionKey: firstDimension,
-        excludedQuestionIds: new Set(),
-        excludedQuestionTexts: new Set(),
-        excludedTopicKeys: new Set(),
-      },
-      async () =>
-        modelQuestionCandidate(
-          await this.dependencies.modelProvider.generateQuestion(
-            {
-              sessionId: input.sessionId,
-              questionIndex: 0,
-              roleId: firstRole,
-              persona: getRolePersona(firstRole),
-              position: input.config.position,
-              difficulty: input.config.difficulty,
-              promptVersion: input.config.promptVersion,
-              modelProvider: input.config.modelProvider,
-              modelName: input.config.modelName,
-              dimensionKey: firstDimension,
-              trustedContext: {
-                jobDescription: input.config.jobDescription,
-                resumeSummary,
-              },
-              untrustedResearchContext: formatUntrustedResearchForPrompt(
-                research.sources,
-              ),
-            },
-            signal,
-          ),
-          input.config,
-          firstDimension,
-        ),
-    );
+        limit: 50,
+      }),
+    ]);
+    return { rolePlan, blueprint, resumeSummary, research, candidates };
+  }
 
+  /**
+   * 按 Planner 已提交标准选择首题；不满足角色、难度、主维度和策略条件时使用模型生成。
+   *
+   * @param input - 冻结会话配置。
+   * @param context - 已冻结且可复用的准备上下文。
+   * @param criteria - Planner 的结构化选题标准。
+   * @param signal - 可选取消信号。
+   * @returns 包含首题和每题适用维度/证据目标的 plan-v3。
+   */
+  async selectFirstQuestion(
+    input: PrepareInterviewInput,
+    context: PreparedInterviewContext,
+    criteria: AgentQuestionCriteria,
+    toolResultContexts: string[] = [],
+    signal?: AbortSignal,
+  ): Promise<PreparedInterviewPlan> {
+    const firstRole = context.blueprint.questionRoles[0];
+    const primaryDimension = criteria.primaryDimension;
+    const firstQuestion = await selectQuestionWithFallback(context.candidates, {
+      position: input.config.position,
+      difficulty: input.config.difficulty,
+      roleId: firstRole,
+      dimensionKey: primaryDimension,
+      desiredTopicKeys: criteria.topicKeys,
+      evidenceGoalKeys: criteria.evidenceGoalKeys,
+      excludedQuestionIds: new Set(),
+      excludedQuestionTexts: new Set(),
+      excludedTopicKeys: new Set(),
+    }, async () => modelQuestionCandidate(
+      await this.dependencies.modelProvider.generateQuestion({
+        sessionId: input.sessionId,
+        questionIndex: 0,
+        roleId: firstRole,
+        persona: getRolePersona(firstRole),
+        position: input.config.position,
+        difficulty: input.config.difficulty,
+        promptVersion: input.config.promptVersion,
+        modelProvider: input.config.modelProvider,
+        modelName: input.config.modelName,
+        dimensionKey: primaryDimension,
+        strategyIntent: criteria.questionIntent,
+        trustedContext: {
+          jobDescription: input.config.jobDescription,
+          resumeSummary: context.resumeSummary,
+        },
+        untrustedResearchContext: formatUntrustedResearchForPrompt(context.research.sources),
+        toolResultContext: toolResultContexts.join("\n").slice(0, 12_000),
+      }, signal),
+      input.config,
+      primaryDimension,
+      firstRole,
+      criteria,
+    ));
+    const questionDimensions = [...context.blueprint.questionDimensions];
+    questionDimensions[0] = primaryDimension;
+    const questionApplicableDimensions = questionDimensions.map((dimension, index) => [
+      dimension,
+      "COMMUNICATION",
+      ...(["general", "technical", "manager"].includes(context.blueprint.questionRoles[index])
+        ? ["LOGICAL_THINKING"]
+        : []),
+    ].filter((value, index, values) => values.indexOf(value) === index));
     return {
-      version: "plan-v1",
-      rolePlan,
-      capabilityBlueprint: {
-        version: blueprint.version,
-        questionCount: blueprint.questionCount,
-        dimensions: blueprint.dimensions,
-      },
-      questionRoles: blueprint.questionRoles,
-      questionDimensions: blueprint.questionDimensions,
+      version: "plan-v3",
+      rolePlan: context.rolePlan,
+      capabilityBlueprint: context.blueprint,
+      questionRoles: context.blueprint.questionRoles,
+      questionDimensions,
+      questionApplicableDimensions,
+      questionEvidenceGoals: questionDimensions.map((_, index) => index === 0
+        ? criteria.evidenceGoalKeys
+        : ["situation", "action", "result"]),
       firstQuestion,
-      researchStatus: research.status,
-      researchSources: research.sources,
+      researchStatus: context.research.status,
+      researchSources: context.research.sources,
     };
+  }
+
+  /**
+   * 加载 Skill/简历/缓存，执行可降级研究，冻结蓝图并选择首题。
+   *
+   * 题量、角色和维度全部由代码决定；网页内容只作为不可执行数据传给模型，不能改变
+   * `rolePlan`、`questionCount` 或结束条件。题库存在合法候选时不会调用模型。
+   *
+   * @param input - 会话标识、模式和冻结配置。
+   * @param signal - Worker 或请求取消信号。
+   * @returns 可持久化的 plan-v3。
+   */
+  async prepare(
+    input: PrepareInterviewInput,
+    signal?: AbortSignal,
+  ): Promise<PreparedInterviewPlan> {
+    const context = await this.prepareContext(input, signal);
+    const primaryDimension = context.blueprint.questionDimensions[0];
+    return this.selectFirstQuestion(input, context, {
+      primaryDimension,
+      topicKeys: [input.config.position],
+      evidenceGoalKeys: ["situation", "action", "result"],
+      questionIntent: "通过具体经历、行动和结果验证候选人的真实能力",
+    }, [], signal);
   }
 }

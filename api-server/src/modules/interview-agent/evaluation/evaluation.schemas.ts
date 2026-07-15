@@ -16,7 +16,8 @@ export const ModelEvidenceOutputSchema = z.object({
 /** 模型评分输出；overallScore 由代码计算，因此不接受模型提供。 */
 export const ModelEvaluationOutputSchema = z.object({
   dimensions: z.record(z.object({
-    score: z.number().int().min(0).max(100),
+    status: z.enum(["scored", "not_observed"]),
+    score: z.number().int().min(0).max(100).nullable(),
     rationale: z.string().trim().min(1).max(1_000),
     evidenceIds: z.array(z.string().uuid()).max(50),
   }).strict()),

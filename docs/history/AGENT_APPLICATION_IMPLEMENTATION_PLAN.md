@@ -1,4 +1,6 @@
-# ezmock LangGraph Agent 应用实施与交接计划
+# ezmock LangGraph Agent 应用实施与交接计划（历史归档）
+
+> **已退役：** 本文描述早期 Agent v1 方案，不可作为当前实现依据。请阅读 `docs/NEXT_AI_AGENT_V3_HANDOFF_2026-07-15.md`。
 
 > 文档状态：已完成架构决策，可直接交给其他 AI 或工程师继续实施。
 > 编写日期：2026-07-11

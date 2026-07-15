@@ -32,7 +32,8 @@ export type AgentWorkspaceQuestion = {
   evaluation: null | {
     /** 代码加权总分。 */ overallScore: number;
     /** 逐维分数、理由与证据引用。 */ dimensions: Record<string, {
-      /** 0–100 整数分。 */ score: number;
+      /** 是否观察到足够证据。 */ status: "scored" | "not_observed";
+      /** 未观察维度为 null。 */ score: number | null;
       /** 基于证据的理由。 */ rationale: string;
       /** 引用证据 UUID。 */ evidenceIds: string[];
     }>;
@@ -49,6 +50,7 @@ export type AgentWorkspace = {
     /** 难度。 */ difficulty: string;
     /** 冻结题量。 */ questionCount: number;
     /** 目标公司。 */ targetCompany: string | null;
+    /** 真实模拟或实时教练。 */ experienceMode: "simulation" | "coaching";
   };
   /** 准备研究状态与可追溯来源。 */ research: {
     /** 研究状态。 */ status: "pending" | "running" | "completed" | "skipped" | "failed";
