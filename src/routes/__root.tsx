@@ -123,6 +123,8 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="zh-CN">
       <head>
         <HeadContent />
+        <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
+        <script>{`var vConsole = new window.VConsole();`}</script>
       </head>
       <body>
         {children}
