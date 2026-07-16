@@ -56,7 +56,7 @@ Web SSR (Vercel)                    Tauri Windows
 | `.gitignore`                              | 增加 `src-tauri/target/`                               |
 | `src/shared/platform/platform-adapter.ts` | 新增 `isTauri()` 检测和 `createTauriPlatformAdapter()` |
 | `src/integrations/supabase/client.ts`     | Tauri 环境下使用 `flowType: "pkce"`                    |
-| `docs/CROSS_PLATFORM_FOUNDATION.md`       | 更新 Windows 端的实际配置                              |
+| `docs/跨端基础架构.md`                    | 更新 Windows 端的实际配置                              |
 
 ## 3. 逐模块实现细节
 

@@ -213,6 +213,6 @@ cd api-server && npm run build
 
 - 第一行不超过 72 字，中文描述，过去时动词（新增/修复/重构）
 - 一个提交只做一件事
-- 建议每完成 TODO.md 中的一个 checkbox 就提交一次
+- 建议每完成一个独立功能或修复就提交一次
 - 推送到远程前确保 `npm run build` 通过
 - 关联 TODO 编号时在说明中标注，例如 `Phase 2 / A2`
