@@ -202,7 +202,7 @@ interviewAgentRoutes.post(
     }
     const authorization = context.req.header("authorization") ?? "";
     const accessToken = authorization.replace(/^Bearer\s+/i, "");
-    const { token, expiresAt } = createVoiceSocketToken({
+    const { token, expiresAt } = await createVoiceSocketToken({
       sessionId,
       userId: context.var.userId,
       accessToken,

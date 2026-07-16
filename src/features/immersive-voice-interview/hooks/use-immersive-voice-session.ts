@@ -7,6 +7,7 @@ import {
 } from "@/features/interview-agent/hooks/use-agent-voice";
 import type { ImmersiveVoiceState, VoiceCaptionView, VoiceRecoveryIssue } from "../types";
 import { reduceVoiceExperienceState, type VoiceExperienceSignal } from "./voice-experience-state";
+import { selectVoicePromptQuestion } from "./voice-prompt-listener";
 
 /** 管理单个 voice Agent 会话的自动播报、收音、恢复与字幕状态。 */
 export function useImmersiveVoiceSession(sessionId: string) {
@@ -22,6 +23,7 @@ export function useImmersiveVoiceSession(sessionId: string) {
   const connectStartedRef = useRef(false);
   const pausedRef = useRef(false);
   const lastListenTurnRef = useRef<string | null>(null);
+  const lastPromptRequestRef = useRef<string | null>(null);
   const startRef = useRef<() => Promise<void>>(async () => undefined);
 
   /** 应用一个可测试状态信号。 */
@@ -96,6 +98,7 @@ export function useImmersiveVoiceSession(sessionId: string) {
   const interruptVoice = voice.interrupt;
   const startVoice = voice.start;
   const stopVoice = voice.stop;
+  const promptVoiceQuestion = voice.promptQuestion;
   startRef.current = startVoice;
 
   useEffect(() => {
@@ -110,6 +113,24 @@ export function useImmersiveVoiceSession(sessionId: string) {
     transition("connect");
     void connectVoice();
   }, [connectVoice, session.snapshot, transition]);
+
+  useEffect(() => {
+    const lastEvent = session.lastEvent;
+    const questionId = selectVoicePromptQuestion({
+      connected: voice.connected,
+      lastEvent: lastEvent
+        ? {
+            type: lastEvent.type,
+            questionId:
+              lastEvent.type === "agent.question_ready" ? lastEvent.data.id : undefined,
+          }
+        : null,
+      snapshotQuestionId: session.snapshot?.currentQuestionId ?? null,
+      lastRequestedQuestionId: lastPromptRequestRef.current,
+    });
+    if (!questionId || !promptVoiceQuestion(questionId)) return;
+    lastPromptRequestRef.current = questionId;
+  }, [promptVoiceQuestion, session.lastEvent, session.snapshot?.currentQuestionId, voice.connected]);
 
   useEffect(() => {
     if (!listenRequest || pausedRef.current || completedRef.current) return;

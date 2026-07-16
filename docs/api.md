@@ -133,13 +133,17 @@
 
 1. 调用 voice/connect 获取 `wsUrl`。
 2. 连接 `WS /api/voice/ws?token=...`。
-3. 发送 `audio_start` JSON、二进制 PCM、`audio_end`。
+3. 发送 `hello`，并每 10 秒发送 `heartbeat`。
+4. 发送 `audio_start` JSON、二进制 PCM、`audio_end`；重连发送 `resume_session`。
 
 客户端控制事件：
 
 ```json
 {
   "type": "audio_start",
+  "protocolVersion": 1,
+  "eventId": "uuid",
+  "sequence": 3,
   "sessionId": "uuid",
   "questionId": "uuid",
   "turnId": "stable",
@@ -147,7 +151,7 @@
 }
 ```
 
-服务端返回 ready、session_ready、voice_stage、transcript_partial/final、assistant_audio_*、interrupted、question_scored、next_question、session_completed 或 error。
+所有 JSON 事件统一携带 `protocolVersion`、`eventId`、`sequence`。服务端返回 ready、session_ready、connection_state、voice_stage、transcript_partial/final、assistant_audio_*、interrupted、turn_rejected、question_scored、next_question、session_completed 或 error。浏览器本地播放结束后发送 `playback_completed`。
 
 ## 7. 题库与简历
 

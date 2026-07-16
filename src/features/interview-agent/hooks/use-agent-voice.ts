@@ -3,9 +3,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { connectAgentVoice } from "../api";
 import { platformAdapter } from "@/shared/platform/platform-adapter";
 import { resolveWebSocketUrl, runtimeConfig } from "@/shared/runtime/runtime-config";
+import { nextVoiceReconnectDelay } from "./voice-reconnect-policy";
+
+/** 语音线路事件的统一版本与有序元数据。 */
+type VoiceWireMetadata = {
+  /** 协议主版本。 */ protocolVersion: 1;
+  /** 连接内唯一事件 ID。 */ eventId: string;
+  /** 连接内严格递增序号。 */ sequence: number;
+};
 
 /** 后端语音事件的页面所需子集。 */
-export type AgentVoiceEvent =
+export type AgentVoiceEvent = VoiceWireMetadata & (
   | { type: "ready" | "assistant_text_done" | "generation_cancelled"; turnId?: string }
   | {
       type: "session_ready";
@@ -46,7 +54,12 @@ export type AgentVoiceEvent =
       totalQuestions: number;
     }
   | { type: "question_scored"; questionId: string; score: number; feedback: string }
-  | { type: "session_completed"; overallScore: number; overallFeedback: string };
+  | { type: "session_completed"; overallScore: number; overallFeedback: string }
+  | { type: "connection_state"; state: "connected" | "resumed" | "closing" }
+  | { type: "resume_snapshot"; sessionId: string; questionId: string | null; currentQuestionIndex: number; totalQuestions: number }
+  | { type: "rate_limited"; code: string; message: string; turnId?: string }
+  | { type: "turn_rejected"; code: string; message: string; turnId: string }
+);
 
 /** Hook 输入。 */
 export type UseAgentVoiceInput = {
@@ -106,6 +119,27 @@ export function useAgentVoice({
   const sampleRateRef = useRef(24_000);
   const stopRef = useRef<() => Promise<void>>(async () => undefined);
   const playbackTimersRef = useRef(new Set<number>());
+  const clientSequenceRef = useRef(0);
+  const lastServerSequenceRef = useRef(0);
+  const reconnectAttemptRef = useRef(0);
+  const reconnectTimerRef = useRef<number | null>(null);
+  const heartbeatTimerRef = useRef<number | null>(null);
+  const disposedRef = useRef(false);
+  const connectRef = useRef<() => Promise<void>>(async () => undefined);
+
+  /** 发送带版本、唯一 ID 和有序序号的控制事件。 */
+  const sendControl = useCallback((event: Record<string, unknown>) => {
+    const socket = socketRef.current;
+    if (socket?.readyState !== WebSocket.OPEN) return false;
+    clientSequenceRef.current += 1;
+    socket.send(JSON.stringify({
+      ...event,
+      protocolVersion: 1,
+      eventId: crypto.randomUUID(),
+      sequence: clientSequenceRef.current,
+    }));
+    return true;
+  }, []);
 
   /** 停止并清空所有尚未播放的 TTS。 */
   const stopPlayback = useCallback(() => {
@@ -132,13 +166,13 @@ export function useAgentVoice({
     const turnId = turnRef.current;
     if (preserveTurn && turnId) preservedTurnRef.current = turnId;
     if (sendEnd && turnId && socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({ type: "audio_end", turnId }));
+      sendControl({ type: "audio_end", turnId });
       preservedTurnRef.current = null;
     }
     turnRef.current = null;
     endingRef.current = false;
     setRecording(false);
-  }, []);
+  }, [sendControl]);
 
   /** 结束采集并要求 ASR 返回 final。 */
   const stop = useCallback(async () => {
@@ -194,16 +228,36 @@ export function useAgentVoice({
       socket.binaryType = "arraybuffer";
       socketRef.current = socket;
       socket.onopen = () => {
+        const resumeFromSequence = lastServerSequenceRef.current;
+        const reconnecting = reconnectAttemptRef.current > 0 || resumeFromSequence > 0;
+        // 每条新 WebSocket 的服务端序号从 1 开始，旧水位只用于 resume 请求。
+        lastServerSequenceRef.current = 0;
+        reconnectAttemptRef.current = 0;
         setConnected(true);
         setConnecting(false);
         setStage("语音服务已连接");
+        sendControl(reconnecting
+          ? { type: "resume_session", sessionId, lastServerSequence: resumeFromSequence }
+          : { type: "hello", sessionId });
+        heartbeatTimerRef.current = window.setInterval(() => {
+          sendControl({ type: "heartbeat" });
+        }, 10_000);
       };
       socket.onclose = () => {
         if (socketRef.current !== socket) return;
+        if (heartbeatTimerRef.current !== null) window.clearInterval(heartbeatTimerRef.current);
+        heartbeatTimerRef.current = null;
         setConnected(false);
         setConnecting(false);
         if (turnRef.current) void releaseCapture(false, true);
-        setStage("语音连接已断开，可安全重连");
+        if (disposedRef.current) return;
+        const delay = nextVoiceReconnectDelay(reconnectAttemptRef.current);
+        reconnectAttemptRef.current += 1;
+        setStage(`语音连接已断开，${Math.ceil(delay / 1_000)} 秒后自动重连`);
+        reconnectTimerRef.current = window.setTimeout(() => {
+          reconnectTimerRef.current = null;
+          void connectRef.current();
+        }, delay);
       };
       socket.onerror = () => {
         setError({ code: "voice_socket_failed", message: "语音连接异常，请检查网络后重试。" });
@@ -216,6 +270,12 @@ export function useAgentVoice({
         }
         try {
           const event = JSON.parse(String(message.data)) as AgentVoiceEvent;
+          if (
+            event.protocolVersion !== 1 ||
+            !Number.isSafeInteger(event.sequence) ||
+            event.sequence <= lastServerSequenceRef.current
+          ) return;
+          lastServerSequenceRef.current = event.sequence;
           // Provider 已发完 PCM 不代表浏览器已播放完；结束类事件等本地队列清空后再驱动自动收音。
           if (event.type === "assistant_audio_end" || event.type === "interviewer_prompt_end") {
             const context = playbackContextRef.current;
@@ -227,6 +287,7 @@ export function useAgentVoice({
               if (event.type === "assistant_audio_end") {
                 outputTurnRef.current = null;
                 setSpeaking(false);
+                sendControl({ type: "playback_completed", turnId: event.turnId });
               }
               onEvent(event);
             }, delayMs);
@@ -268,7 +329,8 @@ export function useAgentVoice({
       });
       setStage("语音连接失败");
     }
-  }, [onEvent, playChunk, releaseCapture, sessionId, stopPlayback]);
+  }, [onEvent, playChunk, releaseCapture, sendControl, sessionId, stopPlayback]);
+  connectRef.current = connect;
 
   /** 开始采集麦克风；沉浸模式在检测到回答后的连续静音时自动结束。 */
   const start = useCallback(async () => {
@@ -278,9 +340,7 @@ export function useAgentVoice({
       const outputTurnId = outputTurnRef.current;
       stopPlayback();
       if (outputTurnId)
-        socketRef.current?.send(
-          JSON.stringify({ type: "interrupt", questionId, turnId: outputTurnId }),
-        );
+        sendControl({ type: "interrupt", questionId, turnId: outputTurnId });
     }
     try {
       const stream = await platformAdapter.voice.requestMicrophone({
@@ -296,9 +356,7 @@ export function useAgentVoice({
       const turnId = preservedTurnRef.current ?? crypto.randomUUID();
       preservedTurnRef.current = null;
       turnRef.current = turnId;
-      socketRef.current?.send(
-        JSON.stringify({ type: "audio_start", sessionId, questionId, turnId, sampleRate: 16_000 }),
-      );
+      sendControl({ type: "audio_start", sessionId, questionId, turnId, sampleRate: 16_000 });
       const startedAt = performance.now();
       let speechDetected = false;
       let lastSpeechAt = startedAt;
@@ -343,18 +401,29 @@ export function useAgentVoice({
       });
       setStage("麦克风不可用");
     }
-  }, [autoStopOnSilence, connected, questionId, recording, sessionId, speaking, stopPlayback]);
+  }, [autoStopOnSilence, connected, questionId, recording, sendControl, sessionId, speaking, stopPlayback]);
 
   /** 打断正在播放的 Agent TTS。 */
   const interrupt = useCallback(() => {
     const turnId = outputTurnRef.current;
     if (turnId && questionId)
-      socketRef.current?.send(JSON.stringify({ type: "interrupt", questionId, turnId }));
+      sendControl({ type: "interrupt", questionId, turnId });
     stopPlayback();
-  }, [questionId, stopPlayback]);
+  }, [questionId, sendControl, stopPlayback]);
+
+  /** 请求服务端校验并播报已经持久化的当前题目。 */
+  const promptQuestion = useCallback(
+    (nextQuestionId: string) => sendControl({ type: "prompt_question", questionId: nextQuestionId }),
+    [sendControl],
+  );
 
   /** 关闭 MediaStream、AudioContext 与 WebSocket。 */
   const dispose = useCallback(async () => {
+    disposedRef.current = true;
+    if (reconnectTimerRef.current !== null) window.clearTimeout(reconnectTimerRef.current);
+    reconnectTimerRef.current = null;
+    if (heartbeatTimerRef.current !== null) window.clearInterval(heartbeatTimerRef.current);
+    heartbeatTimerRef.current = null;
     await releaseCapture(false, false);
     socketRef.current?.close();
     socketRef.current = null;
@@ -384,6 +453,7 @@ export function useAgentVoice({
     start,
     stop,
     interrupt,
+    promptQuestion,
     dispose,
   };
 }

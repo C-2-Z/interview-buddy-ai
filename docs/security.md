@@ -70,12 +70,12 @@
 ## 9. 语音安全
 
 - voice/connect 只允许冻结为 voice 的所属会话。
-- WSS 使用两分钟、单次消费 HMAC token，并再次验证 Supabase JWT。
+- WSS 使用两分钟、单次消费 HMAC token；票据保存在共享 Supabase 表，Access Token 仅以 AES-256-GCM 密文短暂保存，消费时原子删除并再次验证 Supabase JWT。
 - 音频必须关联当前题和合法 turnId。
 - 原始 PCM 不写数据库；只保存 final transcript。
 - 生产只允许 WSS。
 
-当前 token 存在 API 进程内存：单副本可用，多副本必须使用粘性路由或共享一次性存储，并实现未消费 token 的过期清理。
+票据表禁止 anon/authenticated 访问，service role 在签发时清理过期记录；URL 中只包含随机 ID 与 HMAC，不包含 Supabase Access Token。
 
 ## 10. 前端与跨端
 

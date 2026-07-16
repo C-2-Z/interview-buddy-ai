@@ -142,9 +142,9 @@ Planner 输出目标、主维度、主题、证据目标、问题意图和工具
 
 ### 5.2 协议
 
-客户端控制事件：`audio_start`、`audio_end`、`interrupt`。二进制帧为 PCM。
+客户端控制事件：`hello`、`heartbeat`、`resume_session`、`audio_start`、`audio_end`、`interrupt`、`playback_completed`。二进制帧为 PCM。JSON 事件统一携带 `protocolVersion`、`eventId` 和连接内递增 `sequence`。
 
-服务端事件包括 ready、session_ready、字幕、播报开始/分片/结束、interrupted、question_scored、next_question、session_completed 和稳定 error。
+服务端事件包括 ready、session_ready、connection_state、字幕、播报开始/分片/结束、interrupted、question_scored、next_question、session_completed、turn_rejected 和稳定 error。
 
 ### 5.3 幂等和打断
 
@@ -152,6 +152,9 @@ Planner 输出目标、主维度、主题、证据目标、问题意图和工具
 - 重复 turn 不读取或播报新增事件。
 - 打断同时取消当前 ASR、TTS 和 Agent 输出语义。
 - 断开连接后清理 Provider 会话和 AbortController。
+- 客户端每 10 秒发送心跳，服务端 30 秒无心跳关闭连接；客户端使用 0.5–8 秒有界指数退避申请新票据。
+- 单次回答最多 120 秒或 3.84 MB PCM，`audio_start` 验证期最多缓冲 256 KB。
+- Provider 结束只表示 PCM 已发送；浏览器播放队列清空后发送 `playback_completed`，再进入聆听状态。
 
 ## 6. 知识库设计
 

@@ -1,6 +1,18 @@
 /** Agent 语音 WebSocket 控制与输出事件类型。 */
 
-export type VoiceClientEvent =
+/** 每个控制事件都携带的协议元数据。 */
+export type VoiceEventMetadata = {
+  /** 协议主版本。 */ protocolVersion: 1;
+  /** 连接内唯一事件 ID。 */ eventId: string;
+  /** 连接内严格递增序号。 */ sequence: number;
+};
+
+export type VoiceClientEvent = VoiceEventMetadata & (
+  | { type: "hello"; sessionId: string }
+  | { type: "heartbeat" }
+  | { type: "resume_session"; sessionId: string; lastServerSequence: number }
+  | { type: "prompt_question"; questionId: string }
+  | { type: "playback_completed"; turnId: string }
   | {
       type: "audio_start";
       sessionId: string;
@@ -9,9 +21,11 @@ export type VoiceClientEvent =
       sampleRate: number;
     }
   | { type: "audio_end"; turnId: string }
-  | { type: "interrupt"; questionId: string; turnId: string };
+  | { type: "interrupt"; questionId: string; turnId: string }
+);
 
-export type VoiceServerEvent =
+/** 服务端事件不含统一传输元数据的业务载荷。 */
+export type VoiceServerEventPayload =
   | { type: "ready"; sessionId: string }
   | {
       type: "session_ready";
@@ -70,4 +84,17 @@ export type VoiceServerEvent =
       type: "session_completed";
       overallScore: number;
       overallFeedback: string;
-    };
+    }
+  | { type: "connection_state"; state: "connected" | "resumed" | "closing" }
+  | {
+      type: "resume_snapshot";
+      sessionId: string;
+      questionId: string | null;
+      currentQuestionIndex: number;
+      totalQuestions: number;
+    }
+  | { type: "rate_limited"; code: string; message: string; turnId?: string }
+  | { type: "turn_rejected"; code: string; message: string; turnId: string };
+
+/** 实际在线路上传输的服务端事件。 */
+export type VoiceServerEvent = VoiceEventMetadata & VoiceServerEventPayload;

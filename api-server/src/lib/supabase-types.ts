@@ -15,6 +15,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      voice_socket_tickets: {
+        Row: {
+          access_token_ciphertext: string
+          created_at: string
+          expires_at: string
+          id: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          access_token_ciphertext: string
+          created_at?: string
+          expires_at: string
+          id: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          access_token_ciphertext?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_socket_tickets_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "interview_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_questions: {
         Row: {
           answer: string | null
