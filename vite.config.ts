@@ -25,5 +25,8 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
       },
     },
+    watch: {
+      ignored: ["**/src-tauri/target/**"],
+    },
   },
 }));

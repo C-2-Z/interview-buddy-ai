@@ -1,5 +1,7 @@
 /** 平台适配边界：集中封装 Web、Android WebView 与 WebView2 的设备能力入口。 */
 import { runtimeConfig, type AppTarget } from "@/shared/runtime/runtime-config";
+import { isTauri } from "./env-detect";
+import { createTauriPlatformAdapter } from "./tauri-adapter";
 
 /** Wake Lock API 的最小跨端契约。 */
 export type WakeLockSentinelLike = {
@@ -143,4 +145,7 @@ export function createWebPlatformAdapter(target: AppTarget): PlatformAdapter {
 }
 
 /** 当前 Web SSR 或 WebView 构建共用的平台单例。 */
-export const platformAdapter = createWebPlatformAdapter(runtimeConfig.target);
+/** 自动检测 Tauri 环境使用对应适配器，否则使用标准浏览器适配器。 */
+export const platformAdapter = isTauri()
+  ? createTauriPlatformAdapter()
+  : createWebPlatformAdapter(runtimeConfig.target);

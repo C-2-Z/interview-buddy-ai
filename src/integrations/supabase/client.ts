@@ -2,6 +2,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { platformAdapter } from "@/shared/platform/platform-adapter";
 import { runtimeConfig } from "@/shared/runtime/runtime-config";
+import { isTauri } from "@/shared/platform/env-detect";
 
 /**
  * passthrough 获取
@@ -36,6 +37,7 @@ function createSupabaseClient() {
       fetch: passthroughFetch,
     },
     auth: {
+      flowType: isTauri() ? "pkce" : "implicit",
       storage: platformAdapter.getAuthStorage(),
       persistSession: true,
       autoRefreshToken: true,

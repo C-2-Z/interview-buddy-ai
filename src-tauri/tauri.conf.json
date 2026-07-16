@@ -1,0 +1,37 @@
+{
+  "productName": "EZMock AI面试模拟器",
+  "version": "0.1.0",
+  "identifier": "com.ezmock.interview-buddy",
+  "build": {
+    "frontendDist": "../dist-native/client",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "npm run build:native",
+    "beforeDevCommand": "npm run dev"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "EZMock AI面试模拟器",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:* https://*.supabase.co https://backend.ezmock.site wss://backend.ezmock.site https://*.openai.azure.com; img-src 'self' data: blob:; font-src 'self' data:;"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "msi",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico"],
+    "windows": {
+      "wix": {
+        "language": "zh-CN"
+      }
+    }
+  }
+}

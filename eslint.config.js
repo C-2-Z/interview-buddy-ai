@@ -13,6 +13,8 @@ export default tseslint.config(
       "dist/**",
       "dist-native/**",
       "api-server/dist/**",
+      "src-tauri/target/**",
+      "src-tauri/gen/schemas/**",
       ".runtime/**",
       ".tanstack/**",
       ".output/**",
