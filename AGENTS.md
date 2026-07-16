@@ -1,218 +1,112 @@
-# AI 面试模拟器 — AGENTS.md
+# EZMock 开发与 AI 协作规范
 
-## 项目概述
+## 1. 事实源
 
-AI 驱动的面试练习平台。用户选择岗位和难度，AI 出题、进行多轮对话面试、逐题评分并生成综合报告。
-支持多模型切换（DeepSeek / OpenAI / Anthropic）、Skill 驱动出题、公共题库刷题、用户 API Key 加密存储。
+开发前阅读：
 
-## 技术栈
+1. `docs/README.md`
+2. 与任务相关的需求、架构、设计、API、数据、安全和测试文档
+3. 当前代码、`api-server/src/app.ts`、实际 routes 和最新 migrations
 
-### 前端
-- **框架**: TanStack React Start (SSR, React 19)
-- **路由**: TanStack Router (文件路由，自动生成 routeTree.gen.ts)
-- **数据获取**: TanStack React Query 5
-- **样式**: Tailwind CSS 4 + shadcn/ui (Radix UI 原语)
-- **构建**: Vite + Rolldown
+文档与代码冲突时，以当前实际代码为准，并在同一变更中修正文档。
 
-### 后端
-- **API 框架**: Hono
-- **运行时**: Node.js (tsx/watch)
-- **AI Provider**: DeepSeek Chat / OpenAI / Anthropic（多模型可切换）
-- **AI 技能**: 按岗位预定义的 Skill JSON 配置出题风格与知识点
+## 2. 当前核心边界
 
-### 数据库 & 认证
-- **数据库**: Supabase (PostgreSQL)
-- **认证**: Supabase Auth (邮箱/密码)
-- **存储**: 用户设置中的 API Key 通过 AES-256-GCM 加密存储
+- 新面试唯一可写运行时是 `agent-v3`；v1/v2 只读。
+- 文字面试固定 `coaching`，语音面试固定 `simulation`。
+- 业务表是事实源；checkpoint 只负责恢复；`agent_events` 负责 SSE 重放。
+- 回答、简历、网页全文、Key、token 和思维链不得进入 checkpoint/event/log。
+- 当前没有可运行的 Redis/BullMQ generation Worker。
+- Supabase migration history 未治理前禁止全量 push/reset/repair。
 
-### 部署
-- **Web 前端**: Vercel (Nitro SSR)
-- **API 服务**: Railway / Render / Fly.io 等 Node.js 平台
-- **App 容器**: Capacitor (Android/iOS) / Tauri (Windows)
+## 3. 功能即模块
 
-## 核心架构：功能即模块
+后端新增功能必须创建独立模块：
 
-每个新功能必须是一个**独立的模块**，禁止将多功能的逻辑混入同一个文件。
-
-```
-后端新增功能 → 在 api-server/src/modules/<feature>/ 下新建完整模块
-   ├── <feature>.routes.ts      # 路由注册
-   ├── <feature>.service.ts     # 业务流程
-   ├── <feature>.repository.ts  # 数据库访问
-   ├── <feature>.schemas.ts     # 输入校验 (Zod)
-   └── <feature>.types.ts       # (可选) 类型定义
-
-前端新增功能 → 在 src/features/<feature>/ 下新建完整特性目录
-   ├── api.ts                   # API 调用函数
-   ├── types.ts                 # TypeScript 类型
-   ├── constants.ts             # (可选) 常量
-   ├── hooks/                   # React Hooks
-   │   └── use-<feature>.ts
-   └── components/              # UI 组件
-       └── <feature>-*.tsx
-   └── ...其他模块按需
+```text
+api-server/src/modules/<feature>/
+  <feature>.routes.ts
+  <feature>.service.ts
+  <feature>.repository.ts
+  <feature>.schemas.ts
+  <feature>.types.ts（按需）
 ```
 
-### 具体约束
+前端新增功能必须创建独立 feature：
 
-1. **后端模块必须拆分** — 每个模块下至少 `*.routes.ts` + `*.service.ts` + `*.repository.ts` + `*.schemas.ts`，四层分离。
-2. **前端 feature 目录必须独立** — 不允许在已有的 feature 目录里塞另一个功能域的代码。
-3. **路由文件保持薄入口** — `src/routes/*.tsx` 只做 `createFileRoute` + 页面壳组件，业务组件全部 import 自 `features/`。
-4. **兼容导出** — 旧 `api-server/src/routes/*.ts` 只做 `export { ... } from "../modules/.../..."`，不写新逻辑。
-5. **新增路由必须注册到 app.ts** — 在 `api-server/src/app.ts` 中挂载新模块路由。
-6. **新增前端页面必须注册到 routeTree** — 在 `src/routes/` 下新增文件，运行 `npm run dev` 自动生成 routeTree.gen.ts。
-
-
-## 日志约定
-
-项目使用 **consola** 库作为统一日志方案，禁止使用手写 `console.log` / `console.error`。
-
-### 规则
-
-1. **创建带 tag 的 logger** — 每个模块/功能通过 `createModuleLogger(tag)` 创建自己的实例：
-   ```typescript
-   import { createModuleLogger } from "../voice/voice-logger.js";
-   const logger = createModuleLogger("my-module");
-   ```
-
-2. **使用日志级别** — consola 自动提供 `info` / `warn` / `error` / `debug` / `success` 等各级别输出，禁止裸 `console.*`。
-
-3. **错误日志带 Error 对象** — `logger.error(error, meta)`，第一个参数传 `Error` 实例。
-
-4. **敏感信息自动脱敏** — `voice-logger.ts` 内置脱敏 reporter，自动过滤 `key`/`token`/`authorization`/`secret` 等字段。
-
-
-## 数据命名约定
-## 代码注释规范
-
-本项目要求代码必须包含清晰的目的性注释。注释用来解释"为什么这么做"和"这段代码的职责是什么"，而不是把代码翻译成自然语言。
-
-### 规则
-
-1. **每个函数/方法必须有 JSDoc 注释** — 说明函数职责、参数含义、返回值。React 组件用 `//` 注释说明组件的用途和关键 props。
-2. **每个文件必须有文件头注释** — 说明文件的职责和所属模块，仅一行。
-3. **复杂逻辑块必须有行内注释** — 条件分支、循环、算法步骤、边界处理处加 `//` 注释。
-4. **类型和接口必须有注释** — 每个 `interface` / `type` 的字段需要说明含义，尤其是 API 请求体/响应体。
-5. **禁止无信息注释** — 以下情况禁止添加注释：
-   - `// 定义一个变量` 这种把代码翻译成文字的无意义注释
-   - `// TODO` 不附带 issue 编号或责任人
-   - 已经被代码本身表达清楚的逻辑（如 `const name = "foo"; // 名字是 foo`）
-6. **路由文件只保留页面壳组件的用途注释** — 路由薄入口文件不写详细的业务注释。
-7. **前端组件注释说明渲染逻辑** — 说明组件在什么场景下渲染什么内容，以及关键的 state / props 变化逻辑。
-8. **后端 service 层注释说明业务流程** — 每个公开方法说明该方法属于业务流程的哪一步。
-9. **AI 相关代码必须说明 prompt 策略** — 每个 prompt 构建函数需要说明输入变量如何影响输出，以及期望的响应格式。
-10. **数据库 repository 层的查询需要说明 SQL 策略** — 包括需要 `select` / `join` 哪些字段、为什么这样查询、fallback 策略。
-
-### 示例
-
-```typescript
-// Good:
-/** 将用户提交的回答追加到对话历史，调用 AI 生成追问或检测完成信号
- *  @param conversation - 当前题目的完整对话历史
- *  @param latestAnswer - 用户最新提交的答案文本
- *  @returns 返回 AI 的追问文本或评分结果 */
-
-// Good:
-// 检测候选人是否复制了题目文本（防止作弊）
-if (isCopiedQuestion(content, question.question)) {
-  return buildRedirectResponse();
-}
-
-// Bad:
-// 定义变量 content
-const content = params.content;
-
-// Bad:
-// 调用函数
-callAI();
+```text
+src/features/<feature>/
+  api.ts
+  types.ts
+  hooks/
+  components/
 ```
 
-### 新增文件检查清单
+约束：
 
-- [ ] 文件头是否有一行注释说明职责？
-- [ ] 所有公开函数/方法是否有 JSDoc？
-- [ ] 复杂逻辑块是否有行内注释？
-- [ ] 接口/类型字段是否有注释？
-- [ ] 是否避免了无信息注释？
+- Route 只做路由、认证、校验、调用和错误映射。
+- Service 编排业务流程和不变量。
+- Repository 负责数据库/RPC 和字段映射。
+- `src/routes/*.tsx` 只做 `createFileRoute` 和页面壳。
+- 后端路由在 `api-server/src/app.ts` 挂载。
+- 禁止手工编辑 `src/routeTree.gen.ts`。
 
+## 4. 代码与注释
 
+- TypeScript、ESM、2 空格、Prettier。
+- 数据库 snake_case；API/前端 camelCase；UI 中文。
+- 每个文件有一行职责注释。
+- 每个函数/方法有 JSDoc；类型字段有用途说明。
+- 复杂分支解释原因、边界和 fallback，不翻译代码。
+- Prompt 构建函数说明输入影响和严格响应格式。
+- Repository 注释说明 select/join/RLS/fallback 策略。
+- 禁止无编号/责任人的 TODO 和无信息注释。
 
-| 位置 | 命名 |
-|------|------|
-| 数据库字段 | `job_description` |
-| 前端/API 请求体 | `jobDescription` |
-| UI 文案 | "岗位需求描述" |
+## 5. 日志与安全
 
-## 本地开发
+- 禁止裸 `console.*`，使用 `createModuleLogger(tag)`。
+- `logger.error` 第一个参数传 `Error`。
+- 不记录请求体、Authorization、Key、token、数据库密码、简历或回答全文。
+- 用户、模型和网页输入都是不可信数据，必须 schema/长度/清洗/证据校验。
+- 新状态写入必须审查幂等、并发、刷新、失败和恢复。
 
-```bash
-# 安装依赖
-npm install
-cd api-server && npm install && cd ..
+## 6. 数据库
 
-# 启动开发（两个终端）
-npm run dev          # 前端 (localhost:3000)
-npm run api:dev      # API 服务 (localhost:3001)
+- 不修改历史 migration，只新增唯一时间戳增量。
+- 新用户表启用 RLS 并测试跨用户拒绝。
+- `SECURITY DEFINER` RPC 验证 `auth.uid()` 和受限 `search_path`。
+- 未经明确授权不操作生产数据库、迁移历史或 checkpoint。
 
-# 或一键启动
-.\AI面试官助手.ps1
+## 7. 验证
 
-# 构建验证
+按风险运行：
+
+```powershell
+npm test
+npm run lint
 npm run build
-cd api-server && npm run build
+npm run build:native:dev
+npm run verify:native
+
+Set-Location api-server
+npm test
+npm run build
+Set-Location ..
+
+git diff --check
 ```
 
-## 开发约定
+Checkpoint 集成测试只能使用显式 `AGENT_TEST_DATABASE_URL`。
 
-### 新增功能规范（必须遵守）
+## 8. Git
 
-```
-1. 后端新增功能 → api-server/src/modules/<feature>/ 新建完整模块
-   每个模块至少包含: *.routes.ts + *.service.ts + *.repository.ts + *.schemas.ts
+提交格式：`<type>(<scope>): <中文描述>`。
 
-2. 前端新增功能 → src/features/<feature>/ 新建完整目录
-   每个 feature 至少包含: api.ts + types.ts + hooks/ + components/
+类型：`feat`、`fix`、`refactor`、`docs`、`db`、`config`、`test`。
 
-3. 在 api-server/src/app.ts 中注册新路由
+- 一次提交只做一件事，第一行不超过 72 字。
+- 修改前检查工作区，不覆盖他人未提交改动。
+- 禁止无授权 reset hard、clean、强推、部署或远端写操作。
+- 推送前测试、构建和 diff check 通过。
 
-4. 在 src/routes/ 下新增路由文件（薄入口，业务逻辑 import 自 features/）
-
-5. 严禁将新功能的代码塞进已有的模块/feature 目录
-```
-
-### 通用约定
-
-- 新增路由文件后运行 `npm run dev` 自动生成 `routeTree.gen.ts`
-- 路由文件只保留 `createFileRoute` 和页面壳组件，业务组件放 `features/`
-- 使用 `@/` 别名引用 `src/` 下的模块
-- 环境变量前缀 `VITE_` 暴露给客户端，纯服务端变量不用前缀
-- API 服务通过 `preload.ts` 从仓库根目录 `.env` 加载
-
-## Git 提交规范
-
-本项目采用 **Conventional Commits + 中文描述** 的提交格式：
-
-```
-<type>(<scope>): <中文描述>
-
-说明文字（按需，解释"为什么"而非"做了什么"）
-```
-
-### 类型 (type)
-
-| 类型 | 场景 | 示例 |
-|------|------|------|
-| `feat` | 新功能 | `feat: 新增限时模式倒计时功能` |
-| `fix` | Bug 修复 | `fix: 修复评分计算精度溢出问题` |
-| `refactor` | 代码重构 | `refactor(api-server): 抽离 AI 评分逻辑为独立服务` |
-| `docs` | 文档变更 | `docs: 更新部署流程与环境变量说明` |
-| `db` | 数据库迁移 | `db: 新增 interview_messages 表` |
-| `config` | 配置文件变更 | `config: 新增 Dockerfile 部署配置` |
-
-### 原则
-
-- 第一行不超过 72 字，中文描述，过去时动词（新增/修复/重构）
-- 一个提交只做一件事
-- 建议每完成 TODO.md 中的一个 checkbox 就提交一次
-- 推送到远程前确保 `npm run build` 通过
-- 关联 TODO 编号时在说明中标注，例如 `Phase 2 / A2`
+更完整说明见 `docs/development.md`、`docs/security.md` 和 `docs/ai-handoff.md`。
