@@ -40,7 +40,9 @@ export function ForgotPasswordForm({ initialEmail = "", onBack }: ForgotPassword
   if (sent) {
     return (
       <div className="space-y-4 text-sm">
-        <p className="rounded-md bg-muted p-3 text-muted-foreground">{PASSWORD_RESET_SENT_MESSAGE}</p>
+        <p className="rounded-md bg-muted p-3 text-muted-foreground">
+          {PASSWORD_RESET_SENT_MESSAGE}
+        </p>
         <Button type="button" variant="outline" className="w-full" onClick={onBack}>
           返回登录
         </Button>

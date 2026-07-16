@@ -29,11 +29,7 @@ function fakeAuth(calls: Array<Readonly<Record<string, unknown>>>): PasswordReco
 test("request uses a trimmed email and platform recovery redirect", async () => {
   const calls: Array<Readonly<Record<string, unknown>>> = [];
 
-  await requestPasswordResetWithAuth(
-    fakeAuth(calls),
-    " user@example.com ",
-    "https://app.test",
-  );
+  await requestPasswordResetWithAuth(fakeAuth(calls), " user@example.com ", "https://app.test");
 
   assert.deepEqual(calls[0], {
     operation: "reset",

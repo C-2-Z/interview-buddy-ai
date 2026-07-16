@@ -4,10 +4,11 @@ import test from "node:test";
 import { parseAuthDeepLink } from "./api";
 
 test("parser accepts only known interviewbuddy auth callbacks", () => {
-  assert.deepEqual(
-    parseAuthDeepLink("interviewbuddy://auth/reset-password?code=abc&state=s"),
-    { kind: "password-recovery", code: "abc", state: "s" },
-  );
+  assert.deepEqual(parseAuthDeepLink("interviewbuddy://auth/reset-password?code=abc&state=s"), {
+    kind: "password-recovery",
+    code: "abc",
+    state: "s",
+  });
   assert.deepEqual(parseAuthDeepLink("interviewbuddy://auth/callback?code=abc"), {
     kind: "auth-callback",
     code: "abc",

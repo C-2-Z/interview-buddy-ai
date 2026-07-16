@@ -168,20 +168,21 @@ Hono API 服务 (api-server/)
 
 ## 路由表
 
-| 路径               | 前端文件                                | 后端模块                                        | 认证 | 说明                     |
-| ------------------ | --------------------------------------- | ----------------------------------------------- | ---- | ------------------------ |
-| /                  | routes/index.tsx                        | —                                               | 否   | 着陆页                   |
-| /auth              | routes/auth.tsx                         | —                                               | 否   | 登录 / 注册              |
-| /interview-hub     | routes/\_authenticated/interview-hub.tsx | modules/agent-readiness/                        | 是   | 保留侧栏的文本 / 语音双入口首页 |
-| /voice/new         | routes/\_focus/voice.new.tsx            | modules/interview-agent/                        | 是   | 语音面试准备与设备校准   |
-| /voice/session/$id | routes/\_focus/voice.session.\$id.tsx   | modules/voice/ +<br>modules/interview-agent/    | 是   | 沉浸式语音面试           |
-| /dashboard         | routes/\_authenticated/dashboard.tsx    | —                                               | 是   | 仪表盘                   |
-| /new               | routes/\_authenticated/new.tsx          | modules/sessions/                               | 是   | 创建新面试               |
-| /history           | routes/\_authenticated/history.tsx      | modules/sessions/                               | 是   | 历史记录                 |
-| /session/$id       | routes/\_authenticated/session.\$id.tsx | modules/interview-agent/                        | 是   | 文本面试与统一报告       |
-| /bank              | routes/\_authenticated/bank/index.tsx   | modules/bank/                                   | 是   | 题库列表                 |
-| /bank/$id          | routes/\_authenticated/bank/\$id.tsx    | modules/bank/                                   | 是   | 题库题目详情             |
-| /settings          | routes/\_authenticated/settings.tsx     | modules/settings/ +<br>modules/model-providers/ | 是   | 用户设置（模型/API Key） |
+| 路径                 | 前端文件                                 | 后端模块                                        | 认证 | 说明                            |
+| -------------------- | ---------------------------------------- | ----------------------------------------------- | ---- | ------------------------------- |
+| /                    | routes/index.tsx                         | —                                               | 否   | 着陆页                          |
+| /auth                | routes/auth.tsx                          | —                                               | 否   | 登录 / 注册                     |
+| /auth/reset-password | routes/auth.reset-password.tsx           | —                                               | 否   | 设置密码恢复邮件中的新密码      |
+| /interview-hub       | routes/\_authenticated/interview-hub.tsx | modules/agent-readiness/                        | 是   | 保留侧栏的文本 / 语音双入口首页 |
+| /voice/new           | routes/\_focus/voice.new.tsx             | modules/interview-agent/                        | 是   | 语音面试准备与设备校准          |
+| /voice/session/$id   | routes/\_focus/voice.session.\$id.tsx    | modules/voice/ +<br>modules/interview-agent/    | 是   | 沉浸式语音面试                  |
+| /dashboard           | routes/\_authenticated/dashboard.tsx     | —                                               | 是   | 仪表盘                          |
+| /new                 | routes/\_authenticated/new.tsx           | modules/sessions/                               | 是   | 创建新面试                      |
+| /history             | routes/\_authenticated/history.tsx       | modules/sessions/                               | 是   | 历史记录                        |
+| /session/$id         | routes/\_authenticated/session.\$id.tsx  | modules/interview-agent/                        | 是   | 文本面试与统一报告              |
+| /bank                | routes/\_authenticated/bank/index.tsx    | modules/bank/                                   | 是   | 题库列表                        |
+| /bank/$id            | routes/\_authenticated/bank/\$id.tsx     | modules/bank/                                   | 是   | 题库题目详情                    |
+| /settings            | routes/\_authenticated/settings.tsx      | modules/settings/ +<br>modules/model-providers/ | 是   | 用户设置（模型/API Key）        |
 
 ## API 端点
 
@@ -270,12 +271,23 @@ VITE_SUPABASE_PROJECT_ID=
 VITE_SUPABASE_PUBLISHABLE_KEY=
 VITE_SUPABASE_URL=
 VITE_API_URL=
+VITE_AUTH_REDIRECT_URL=
+VITE_PASSWORD_RECOVERY_REDIRECT_URL=
 
 DEEPSEEK_API_KEY=
 OPENAI_API_KEY=
 ANTHROPIC_API_KEY=
 ENCRYPTION_KEY=
 ```
+
+### 密码恢复回跳
+
+Supabase Auth 的 Redirect URLs 必须加入 Web 生产地址
+`https://<your-domain>/auth/reset-password` 和桌面端协议
+`interviewbuddy://auth/reset-password`。Web 默认基于当前 origin 生成恢复地址，
+Native 默认使用 `interviewbuddy://`；只有需要独立认证域名或 HTTPS 中转页时才配置
+`VITE_PASSWORD_RECOVERY_REDIRECT_URL`。中转页不得记录或持久化回调中的 `code`、
+`token` 或其他认证参数。
 
 ## 本地开发
 
