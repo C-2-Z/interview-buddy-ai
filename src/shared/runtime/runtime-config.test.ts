@@ -1,7 +1,12 @@
 /** 跨端运行时配置测试：锁定 Web 同源、Native HTTPS 与 WebSocket 规则。 */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveApiUrl, resolveRuntimeConfig, resolveWebSocketUrl } from "./runtime-config";
+import {
+  resolveApiUrl,
+  resolvePasswordRecoveryRedirectUrl,
+  resolveRuntimeConfig,
+  resolveWebSocketUrl,
+} from "./runtime-config";
 
 /** 创建不依赖真实环境变量的测试配置。 */
 function config(target: "web" | "native", apiBaseUrl: string, production = false) {
@@ -42,5 +47,32 @@ test("production rejects insecure WebSocket URLs", () => {
   assert.throws(
     () => resolveWebSocketUrl(config("web", "https://api.example.com", true), "ws://x/ws"),
     /WSS/,
+  );
+});
+
+test("password recovery redirects stay inside the active platform", () => {
+  assert.equal(
+    resolvePasswordRecoveryRedirectUrl(
+      resolveRuntimeConfig({ target: "web" }),
+      "https://app.example.com",
+    ),
+    "https://app.example.com/auth/reset-password",
+  );
+  assert.equal(
+    resolvePasswordRecoveryRedirectUrl(
+      resolveRuntimeConfig({ target: "native", apiBaseUrl: "https://api.example.com" }),
+      "tauri://localhost",
+    ),
+    "interviewbuddy://auth/reset-password",
+  );
+  assert.equal(
+    resolvePasswordRecoveryRedirectUrl(
+      resolveRuntimeConfig({
+        target: "web",
+        passwordRecoveryRedirectUrl: "https://accounts.example.com/recover/",
+      }),
+      "https://app.example.com",
+    ),
+    "https://accounts.example.com/recover",
   );
 });

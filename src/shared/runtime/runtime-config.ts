@@ -17,6 +17,8 @@ export type RuntimeConfigInput = Readonly<{
   supabasePublishableKey?: string;
   /** 邮件认证完成后的可选显式回调地址。 */
   authRedirectUrl?: string;
+  /** 密码恢复邮件完成后的可选显式回调地址。 */
+  passwordRecoveryRedirectUrl?: string;
 }>;
 
 /** 经过规范化、可供业务基础设施消费的运行时配置。 */
@@ -33,6 +35,8 @@ export type RuntimeConfig = Readonly<{
   supabasePublishableKey: string;
   /** 邮件认证完成后的可选回调地址。 */
   authRedirectUrl: string;
+  /** 密码恢复邮件完成后的可选回调地址。 */
+  passwordRecoveryRedirectUrl: string;
 }>;
 
 /** 去掉地址尾部斜杠，避免基础地址与 API path 拼接出重复分隔符。 */
@@ -81,6 +85,7 @@ export function resolveRuntimeConfig(input: RuntimeConfigInput): RuntimeConfig {
     supabaseUrl: trimTrailingSlash(input.supabaseUrl ?? ""),
     supabasePublishableKey: input.supabasePublishableKey?.trim() ?? "",
     authRedirectUrl: trimTrailingSlash(input.authRedirectUrl ?? ""),
+    passwordRecoveryRedirectUrl: trimTrailingSlash(input.passwordRecoveryRedirectUrl ?? ""),
   };
 }
 
@@ -141,6 +146,7 @@ export const runtimeConfig = resolveRuntimeConfig({
     viteEnv?.VITE_SUPABASE_PUBLISHABLE_KEY ??
     (typeof process !== "undefined" ? process.env.SUPABASE_PUBLISHABLE_KEY : undefined),
   authRedirectUrl: viteEnv?.VITE_AUTH_REDIRECT_URL,
+  passwordRecoveryRedirectUrl: viteEnv?.VITE_PASSWORD_RECOVERY_REDIRECT_URL,
 });
 
 /** 返回当前 API origin；同源 Web 模式没有独立 origin。 */
@@ -151,4 +157,31 @@ export function getApiOrigin(): string | null {
 /** 返回认证邮件回调地址，未显式配置时保持原有页面 origin 行为。 */
 export function getAuthRedirectUrl(currentOrigin: string): string {
   return runtimeConfig.authRedirectUrl || currentOrigin;
+}
+
+/**
+ * 为指定运行目标生成密码恢复回跳地址。
+ *
+ * @param config - 当前构建目标的运行时配置。
+ * @param currentOrigin - Web 页面当前 origin。
+ * @returns Web 路由或 Native 自定义协议地址。
+ */
+export function resolvePasswordRecoveryRedirectUrl(
+  config: RuntimeConfig,
+  currentOrigin: string,
+): string {
+  if (config.passwordRecoveryRedirectUrl) return config.passwordRecoveryRedirectUrl;
+  return config.target === "native"
+    ? "interviewbuddy://auth/reset-password"
+    : `${trimTrailingSlash(currentOrigin)}/auth/reset-password`;
+}
+
+/**
+ * 返回当前应用构建目标的密码恢复邮件回跳地址。
+ *
+ * @param currentOrigin - Web 页面当前 origin。
+ * @returns 当前平台可处理的密码恢复地址。
+ */
+export function getPasswordRecoveryRedirectUrl(currentOrigin: string): string {
+  return resolvePasswordRecoveryRedirectUrl(runtimeConfig, currentOrigin);
 }
