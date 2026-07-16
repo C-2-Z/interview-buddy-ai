@@ -2,6 +2,7 @@
 import { Outlet } from "@tanstack/react-router";
 import { AppShell } from "@/features/app-shell/components/app-shell";
 import { useAuthenticatedUser } from "../hooks/use-authenticated-user";
+import { useProfile } from "@/features/profile/hooks/use-profile";
 
 /** 认证布局的显示选项。 */
 export type AuthenticatedLayoutProps = Readonly<{
@@ -12,6 +13,7 @@ export type AuthenticatedLayoutProps = Readonly<{
 // 会话确认前渲染固定高度加载壳；确认后再决定是否包裹 AppShell。
 export function AuthenticatedLayout({ withAppShell }: AuthenticatedLayoutProps) {
   const { user, checking } = useAuthenticatedUser();
+  const { profile } = useProfile();
 
   if (checking || !user) {
     return (
@@ -26,7 +28,7 @@ export function AuthenticatedLayout({ withAppShell }: AuthenticatedLayoutProps) 
 
   if (!withAppShell) return <Outlet />;
   return (
-    <AppShell userEmail={user.email}>
+    <AppShell userEmail={user.email} profile={profile}>
       <Outlet />
     </AppShell>
   );
