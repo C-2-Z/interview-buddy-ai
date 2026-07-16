@@ -76,6 +76,11 @@ export function createServiceClient() {
       persistSession: false,
       autoRefreshToken: false,
     },
+    realtime: {
+      // Railway 当前使用 Node 20；显式 transport 避免 Supabase 构造时依赖 Node 22 全局 WebSocket。
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ws 与 DOM WebSocket 仅类型声明不同
+      transport: WebSocket as any,
+    },
   });
 }
 
