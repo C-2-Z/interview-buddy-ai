@@ -1,7 +1,8 @@
 /** auth-session：在 hydration 后检查浏览器登录态并执行安全跳转。 */
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { getAuthenticatedUser } from "../api";
+import { getLocalSessionUser, getVerifiedUser } from "../api";
+import { recoverAuthenticatedUser } from "../session-recovery";
 import type { AuthSessionState } from "../types";
 
 /**
@@ -15,13 +16,19 @@ export function useAuthenticatedUser(): AuthSessionState {
 
   useEffect(() => {
     let active = true;
-    void getAuthenticatedUser().then((user) => {
+    void recoverAuthenticatedUser(
+      { getLocalUser: getLocalSessionUser, getVerifiedUser },
+      (localUser) => {
+        if (active) setState({ user: localUser, checking: false });
+      },
+    ).then((verifiedUser) => {
       if (!active) return;
-      if (!user) {
+      if (!verifiedUser) {
+        setState({ user: null, checking: false });
         void navigate({ to: "/auth", replace: true });
         return;
       }
-      setState({ user, checking: false });
+      setState({ user: verifiedUser, checking: false });
     });
     return () => {
       active = false;
