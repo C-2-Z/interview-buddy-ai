@@ -13,3 +13,10 @@ export type AuthCallbackParams = Readonly<{
   /** 用于验证 PKCE 流的 state 参数。 */
   state?: string;
 }>;
+
+/** 认证深链允许触发的应用流程。 */
+export type AuthDeepLink = AuthCallbackParams &
+  Readonly<{
+    /** 普通认证回调进入工作台，密码恢复回调进入新密码页面。 */
+    kind: "auth-callback" | "password-recovery";
+  }>;
