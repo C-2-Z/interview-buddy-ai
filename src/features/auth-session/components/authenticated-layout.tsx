@@ -1,6 +1,5 @@
 /** auth-session：为普通 AppShell 与沉浸式 focus 路由复用同一登录守卫。 */
 import { Outlet } from "@tanstack/react-router";
-import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/features/app-shell/components/app-shell";
 import { useAuthenticatedUser } from "../hooks/use-authenticated-user";
 
@@ -25,20 +24,10 @@ export function AuthenticatedLayout({ withAppShell }: AuthenticatedLayoutProps) 
     );
   }
 
-  if (!withAppShell) {
-    return (
-      <>
-        <Outlet />
-        <Toaster richColors position="top-center" />
-      </>
-    );
-  }
+  if (!withAppShell) return <Outlet />;
   return (
-    <>
-      <AppShell userEmail={user.email}>
-        <Outlet />
-      </AppShell>
-      <Toaster richColors position="top-center" />
-    </>
+    <AppShell userEmail={user.email}>
+      <Outlet />
+    </AppShell>
   );
 }
