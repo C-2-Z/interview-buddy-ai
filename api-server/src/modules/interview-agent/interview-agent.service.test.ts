@@ -562,12 +562,21 @@ async function waitForPhase(
 const CREATE_INPUT = {
   mode: "single",
   interviewMode: "text",
-  experienceMode: "coaching",
   position: "后端工程师",
   difficulty: "中级",
   questionCount: 3,
   webResearch: true,
 } as const;
+
+test("text and voice channels derive coaching and simulation internally", async () => {
+  const textHarness = createHarness();
+  await textHarness.service.createSession(CREATE_INPUT);
+  assert.equal(await textHarness.service.getExperienceMode(SESSION_ID), "coaching");
+
+  const voiceHarness = createHarness();
+  await voiceHarness.service.createSession({ ...CREATE_INPUT, interviewMode: "voice" });
+  assert.equal(await voiceHarness.service.getExperienceMode(SESSION_ID), "simulation");
+});
 
 test("disabled Agent creation never falls back to legacy writes", async () => {
   const harness = createHarness({ ...ENABLED_RUNTIME, enabled: false });

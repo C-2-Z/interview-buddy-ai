@@ -18,10 +18,10 @@ export class AgentWorkspaceService {
   async load(sessionId: string): Promise<AgentWorkspace> {
     const workspace = await this.repository.load(sessionId);
     if (
-      workspace.config.experienceMode !== "simulation"
+      workspace.snapshot.interviewMode !== "voice"
       || workspace.productStatus === "completed"
     ) return workspace;
-    // 模拟进行中只返回真实对话和题目身份；所有过程评估由服务端统一清空。
+    // 语音面试进行中只返回真实对话和题目身份；所有过程评估由服务端统一清空。
     return {
       ...workspace,
       research: { status: "skipped", sources: [] },

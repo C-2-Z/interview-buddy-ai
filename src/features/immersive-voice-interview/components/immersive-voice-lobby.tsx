@@ -107,7 +107,6 @@ export function ImmersiveVoiceLobby() {
   async function enterInterview() {
     if (
       !draft.position.trim() ||
-      !draft.experienceMode ||
       readiness.data?.status === "blocked" ||
       !readiness.data ||
       entering
@@ -128,7 +127,6 @@ export function ImmersiveVoiceLobby() {
       const sessionId = await session.create({
         mode: draft.mode,
         interviewMode: "voice",
-        experienceMode: draft.experienceMode,
         position: draft.position.trim(),
         difficulty: draft.difficulty,
         questionCount: draft.questionCount,
@@ -157,7 +155,6 @@ export function ImmersiveVoiceLobby() {
   const deviceBlocked = Boolean(device.preflight.error);
   const canEnter = Boolean(
     draft.position.trim() &&
-    draft.experienceMode &&
     readiness.data &&
     readiness.data.status !== "blocked" &&
     !deviceBlocked &&
@@ -178,7 +175,7 @@ export function ImmersiveVoiceLobby() {
         </Button>
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
           <section>
-            <p className="text-sm font-medium text-primary">沉浸式模拟模式</p>
+            <p className="text-sm font-medium text-primary">语音面试</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">准备进入语音面试</h1>
             <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
               进入后系统会自动播报、聆听并推进问答。请在安静环境中佩戴耳机，避免扬声器回声影响识别。
@@ -279,28 +276,6 @@ export function ImmersiveVoiceLobby() {
                       多角色面试
                     </Button>
                   </div>
-                </fieldset>
-                <fieldset className="space-y-2">
-                  <legend className="text-sm font-medium">体验模式（必选）</legend>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      type="button"
-                      variant={draft.experienceMode === "simulation" ? "default" : "outline"}
-                      onClick={() => patch({ experienceMode: "simulation" })}
-                    >
-                      真实模拟
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={draft.experienceMode === "coaching" ? "default" : "outline"}
-                      onClick={() => patch({ experienceMode: "coaching" })}
-                    >
-                      教练模式
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    真实模拟完成前不会播报逐题评分；教练模式实时反馈。
-                  </p>
                 </fieldset>
                 <div className="space-y-2">
                   <Label htmlFor="voice-company">目标公司（选填）</Label>

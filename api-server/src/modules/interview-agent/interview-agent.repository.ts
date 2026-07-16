@@ -179,6 +179,8 @@ export type FailAgentOperationInput = {
 
 /** Repository 创建 RPC 需要的服务端增强参数，promptVersion 不允许由 HTTP 客户端提交。 */
 export type CreateAgentSessionRepositoryInput = CreateAgentSessionInput & {
+  /** 服务端根据交互通道派生：文字为 coaching，语音为 simulation。 */
+  experienceMode: "simulation" | "coaching";
   /** 服务端当前启用的 Prompt 契约版本。 */
   promptVersion: string;
   /** 服务端按灰度开关选择的持久化与 Graph 版本。 */
@@ -546,6 +548,7 @@ const FailInputSchema = z
   })
   .strict();
 const CreateSessionRepositoryInputSchema = CreateAgentSessionSchema.extend({
+  experienceMode: z.enum(["simulation", "coaching"]),
   promptVersion: z.string().trim().min(1).max(100),
   agentVersion: z.literal("agent-v3"),
 });

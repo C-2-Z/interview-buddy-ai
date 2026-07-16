@@ -49,7 +49,7 @@ export type AgentModelProvider = "deepseek" | "openai" | "anthropic";
 export type FrozenAgentConfig = Readonly<{
   /** 文本或语音面试通道。 */
   interviewMode: AgentInterviewMode;
-  /** 真实模拟隐藏过程反馈，教练模式实时展示。 */
+  /** 服务端按交互通道冻结的过程反馈策略。 */
   experienceMode: AgentExperienceMode;
   /** 用户选择的目标岗位。 */
   position: string;
@@ -347,8 +347,6 @@ export type CreateAgentSessionBody = {
   mode: AgentMode;
   /** 文本或语音面试通道。 */
   interviewMode: AgentInterviewMode;
-  /** 必须由用户明确选择的面试体验。 */
-  experienceMode: AgentExperienceMode;
   /** 目标岗位。 */
   position: string;
   /** 面试难度。 */
