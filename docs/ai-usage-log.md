@@ -1,187 +1,68 @@
-# AI 使用日志 — EZMock (A5 AI 面试模拟官)
+# AI 使用与反思日志 — EZMock
 
-> 版本: v1.0
-> 更新时间: 2026-07-11
-> 说明: 记录项目中各功能模块的 AI 使用方式、模型和 Prompt 策略。
+> 版本：Sprint 2 验收版
+> 更新时间：2026-07-14
+> 口径：按“问了什么 → AI 给了什么 → 团队改了什么”记录。下表是根据 Git 提交、设计文档和测试反推的可核验摘要；现场讲解时应由实际负责人补充自己当时的原始提问措辞，不得把本日志当作不存在的人类 Review 记录。
 
----
+## 1. Sprint 2 功能点反思记录
 
-## 总览
+| 功能点                   | 问了什么                                                                                           | AI 给了什么                                        | 团队审查后改了什么                                                                                                                                  | 可核验代码/证据                                                    |
+| ------------------------ | -------------------------------------------------------------------------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| LangGraph 面试主流程     | 如何把出题、等待输入、追问、评分、换题和报告组织成可恢复流程？                                     | 建议使用图状态机、checkpoint 和 interrupt/resume。 | 把控制节点和状态字段冻结；答案正文不进入 checkpoint，只保存持久化输入回执 ID；旧写状态机被关闭。                                                    | `interview-agent/graph/`、`docs/architecture.md`、跨实例恢复测试   |
+| 受控 Agent 3             | 如何在不放开任意工具和任意循环的前提下增加规划、执行、反思？                                       | 建议 planner/executor/reflector 结构和工具调用。   | 工具缩为只读 allowlist，限制预算与去重；模型输出严格校验，最多修复一次，失败走确定性 fallback；不存储模型思维链。                                   | `agent-orchestration/`、`agent-orchestration.service.test.ts`      |
+| 创建前就绪检查与失败恢复 | 如何避免用户填写完表单才发现模型、迁移或语音不可用？                                               | 建议 preflight/readiness 和可恢复错误提示。        | 新建独立 readiness 模块；只读探测开关、Key、checkpoint、迁移、研究和语音能力；前端使用稳定错误码，失败保留草稿。                                    | `agent-readiness/`、`agent-create-recovery/`、12 项相关测试        |
+| 题库优先与联网研究       | 如何用题库、简历和公开资料增强问题，同时防止网页指令污染 Prompt？                                  | 建议 RAG、搜索缓存和外部资料拼接。                 | 题库存在候选时不调用模型；联网资料经过固定 Provider、长度限制、HTML 清理、URL 校验、去重和“不可信资料”边界包装；工具不允许任意 SQL/命令。           | `interview-agent/tools/`、`providers/web-search.provider.ts`       |
+| 追问与输入防护           | 如何根据回答质量追问，又不泄露答案或被 Prompt 注入改变流程？                                       | 建议让模型判断充分度并生成追问。                   | 充分度和最多 3 次追问由代码决定；空输入、超长输入、复制题目和中英文 Prompt 注入先由 guard 拦截；模型只能在给定证据缺口内输出一句追问。              | `graph/input-guard.ts`、`agent-orchestration.service.ts`、相关测试 |
+| 证据评分与冻结报告       | 如何让评分可解释、可复现，避免模型直接决定总分？                                                   | 建议结构化维度评分和报告总结。                     | 证据只能引用候选人消息；维度和权重在会话开始时冻结；代码重新计算 overallScore；非法输出只修复一次；报告只聚合完整冻结评分，不再让模型自由改总分。   | `evaluation/`、`report/`、8 项相关测试                             |
+| 实时语音桥接             | 如何把 Qwen ASR/TTS 接入同一 Agent 流程并处理打断、重连和重复提交？                                | 建议 WebSocket 流、ASR/TTS 会话和语音状态机。      | 文本与语音复用 Canonical Agent 写流程；同一 turn 使用稳定 inputId；TTS 只消费已提交事件；打断同时取消 Agent 和 Provider，任一取消失败不遮蔽另一方。 | `voice/`、`voice-bridge/`、4 项语音测试                            |
+| 产品闭环与跨端基础       | 如何把技术 Agent 能力包装成普通求职者能理解的创建、面试、报告流程，并为 Web/Android/Windows 共用？ | 建议统一入口、路由拆分和平台适配层。               | 技术状态转成用户可执行文案；保留文本降级与刷新恢复；抽出 runtime config、HTTP client、平台 adapter，生产 Native 强制 HTTPS/WSS。                    | `src/features/`、`src/shared/`、16 项前端测试                      |
+| 测试与边界补强           | 哪些失败路径最容易被 AI 生成代码忽略？                                                             | 建议补充异常输出、网络失败、重复提交和持久化测试。 | 团队选择可复现的边界写成测试：非法模型 JSON、一次修复失败、重复 inputId、并发 claim、迁移缺失、网络断开、敏感字段泄漏和跨进程恢复。                 | `api-server/src/**/*.test.ts`、`src/**/*.test.ts`                  |
 
-| 功能模块 | AI 能力 | 模型 | Prompt 策略 | 禁飞区 |
-|----------|---------|------|-------------|--------|
-| 出题 (Question Generation) | 文本生成 | DeepSeek/OpenAI/Anthropic | Skill JSON 驱动 | 禁飞区 1 |
-| 面试对话 (Interview Session) | 多轮对话 | 同上 | 追问递进策略（手写）| 禁飞区 1 |
-| 评分 (Evaluation) | 结构化输出 | 同上 | 多维度评分 Prompt | 禁飞区 2 |
-| 综合报告 (Report) | 文本摘要 | 同上 | 总结 Prompt | 禁飞区 3 |
-| 语音识别 (ASR) | Qwen ASR | qwen3-asr-flash-realtime | 无 Prompt | - |
-| 语音合成 (TTS) | Qwen TTS | qwen3-tts-flash-realtime | 无 Prompt | - |
+## 2. 当前 AI Prompt 策略
 
----
+### 2.1 初始问题生成
 
-## 1. AI 出题 (Question Generation)
+- 入口：`api-server/src/modules/interview-agent/providers/production-agent-model.provider.ts`
+- 输入影响：岗位、难度、角色、能力维度、题号、已使用主题和可信上下文共同限定题目。
+- 响应格式：只接受严格 JSON `{"question":"一道面试题"}`。
+- 人工边界：题量、角色计划、维度计划、结束条件和是否优先题库均由代码决定，模型不得修改流程。
 
-### 文件位置
-- api-server/src/modules/sessions/question-generation.service.ts
-- api-server/src/lib/skills/ (Skill 定义 JSON 文件)
+### 2.2 聚焦追问
 
-### AI 使用方式
+- 入口：`api-server/src/modules/interview-agent/providers/production-agent-model.provider.ts`
+- 输入影响：原题、候选人回答、代码计算出的证据缺口、角色和追问轮次限定追问方向。
+- 响应格式：只接受严格 JSON `{"question":"追问"}`。
+- 人工边界：最多三次追问由图控制；Prompt 明确禁止回答原题、暗示标准答案、评分或改变流程。
 
-系统 Prompt 设定 AI 为专业的面试官助手，用户 Prompt 包含岗位、难度、需求描述等参数。
-AI 以 JSON 数组格式返回题目列表。
+### 2.3 Agent 3 规划与反思
 
-### 输入参数
-- position: 岗位名称
-- difficulty: 初级/中级/高级
-- jobDescription: 岗位需求描述
-- targetCompany: 目标公司
-- questionCount: 题目数量
-- resumeContext: 简历背景（可选）
-- skillId: Skill 定义（可选）
+- 入口：`api-server/src/modules/agent-orchestration/agent-orchestration.service.ts`
+- 输入影响：冻结会话目标、可用工具、预算和已观测引用决定计划；逐题分数可触发下一轮策略修订。
+- 响应格式：模型输出必须通过严格 schema；第一次非法会进行一次 repair，第二次非法使用确定性 fallback。
+- 人工边界：只允许固定只读工具，观察结果以引用保存，不持久化自由推理文本或思维链。
 
-### 输出格式
-`json
-["题目1", "题目2", "题目3"]
-`
+### 2.4 证据评分
 
-### Prompt 策略
+- 入口：`api-server/src/modules/interview-agent/evaluation/`
+- 输入影响：冻结量表、候选人消息和已校验证据共同限制各维度评分。
+- 响应格式：维度分数和证据引用必须满足 schema，证据必须能回指候选人原话。
+- 人工边界：总分由代码按冻结权重重算；报告只能读取已完成的冻结评分。
 
-涉及禁飞区 1（面试问题生成的难度递进策略）：题目的生成本身由 AI 完成，但 Skill JSON 中预定义了每个岗位的知识点和难度分布，出题时会根据难度参数筛选合适的知识点范围，这是手写的策略逻辑。
+## 3. 禁飞区与安全边界自查
 
----
+| 边界           | AI 可以做什么                | AI 不能做什么                               | 代码保证                               |
+| -------------- | ---------------------------- | ------------------------------------------- | -------------------------------------- |
+| 难度与追问策略 | 生成受约束的问题文本         | 修改题量、角色顺序、追问上限和结束条件      | blueprint、graph、answer sufficiency   |
+| 多维度加权     | 给出通过 schema 的维度候选分 | 直接决定或覆盖最终总分                      | `aggregateEvaluation()` 按冻结权重重算 |
+| 弱项聚合       | 生成受约束的文字反馈         | 改写冻结评分或凭空补证据                    | report service 只读已提交评分          |
+| 工具调用       | 在给定候选中选择只读工具     | 任意 SQL、Shell、写数据库、访问凭据         | allowlist、预算、repository/RPC 边界   |
+| 外部网页       | 提供经清理的参考文本         | 用网页指令改变系统 Prompt 或流程            | 不可信边界包装、清理、域名与长度限制   |
+| 敏感数据       | 使用必要的岗位和面试上下文   | 将答案、API Key、token 写入 checkpoint/日志 | 输入回执、脱敏 logger、敏感 JSON 校验  |
 
-## 2. 面试对话 (Interview Session)
+## 4. 人工复核结论
 
-### 文件位置
-- api-server/src/modules/questions/prompt-builders.ts
-- api-server/src/modules/questions/conversation.service.ts
-
-### AI 使用方式
-
-系统 Prompt 将 AI 设定为资深面试官，在面试场景中进行多轮追问。每次用户回答后，AI 根据当前上下文生成下一轮追问或完成信号。
-
-### 追问规则（手写）
-
-涉及禁飞区 1：追问规则是手写的 Prompt 策略。
-
-`
-追问递进层次:
-  初级 -> 概念理解、基础例子、简单场景
-  中级 -> 实现细节、方案取舍、故障处理、项目经验
-  高级 -> 架构权衡、规模化、风险控制、业务影响、团队协作
-
-结束条件（满足任一即结束本题）:
-  1. 候选人的回答已充分覆盖知识点深度
-  2. 候选人说不知道不会没接触过
-  3. 已追问满 3 轮
-  4. 候选人回答极长且完整（>500 字且涵盖关键点）
-`
-
----
-
-## 3. AI 评分 (Evaluation)
-
-### 文件位置
-- api-server/src/modules/questions/evaluation.service.ts
-- api-server/src/modules/questions/prompt-builders.ts
-
-### AI 使用方式
-
-涉及禁飞区 2（评分的多维度加权计算）。AI 以结构化输出返回评分和反馈。评分维度定义在 Prompt 中，目前由 LLM 内部分配权重。
-
-### 评分维度（Prompt 定义）
-
-| 维度 | 说明 |
-|------|------|
-| 准确性 | 回答内容的正确程度 |
-| 深度 | 技术理解的深入程度 |
-| 逻辑性 | 表达的逻辑清晰度 |
-| 沟通能力 | 表达的流畅度和专业性 |
-| 岗位匹配度 | 回答与岗位需求的契合程度 |
-
-### 输出格式
-`json
-{
-  "score": 85,
-  "feedback": "回答准确，展现了深入的技术理解..."
-}
-`
-
----
-
-## 4. 综合报告 (Report)
-
-### 文件位置
-- api-server/src/modules/sessions/sessions.service.ts
-
-### AI 使用方式
-
-涉及禁飞区 3（弱项分析的聚合逻辑）。综合分通过手写的平均计算得出，综合反馈由 AI 根据各题得分和反馈生成总结。
-
-### 综合分计算（手写）
-`	ypescript
-const overallScore = scored.length
-  ? Math.round(scored.reduce((sum, q) => sum + (q.score ?? 0), 0) / scored.length)
-  : 0;
-`
-
-### AI 综合反馈 Prompt
-
-AI 接收各题得分和反馈，生成 100-300 字的总结，包含整体表现、亮点和改进方向。
-
----
-
-## 5. 语音服务 (Voice)
-
-### 文件位置
-- api-server/src/modules/voice/
-
-### AI 使用方式
-
-| 服务 | 模型 | 功能 |
-|------|------|------|
-| Qwen ASR | qwen3-asr-flash-realtime | 语音识别（语音→文字）|
-| Qwen TTS | qwen3-tts-flash-realtime | 语音合成（文字→语音）|
-
-语音面试的对话内容复用文本面试的消息存储和 AI 评分逻辑，语音仅作为交互通道。
-
----
-
-## 6. 简历解析 (Resume Parsing)
-
-### 文件位置
-- api-server/src/lib/resume-parser.ts
-- api-server/src/lib/resume-analyzer.ts
-
-### 使用方式
-
-| 文件类型 | 解析工具 | 说明 |
-|----------|----------|------|
-| PDF | pdf-parse | 纯工具解析，无 AI 参与 |
-| DOCX | mammoth | 纯工具解析，无 AI 参与 |
-
-简历分析（提取技能、经验等）使用 AI 进行结构化提取。
-
----
-
-## 7. API Key 加密 (Encryption)
-
-### 文件位置
-- api-server/src/lib/encryption.ts
-- api-server/src/modules/settings/encryption.service.ts
-
-### 使用方式
-
-用户设置的 API Key 使用 AES-256-GCM 加密后存储到数据库。此功能完全手写，不依赖 AI。
-
----
-
-## 8. 禁飞区自查
-
-根据选题文件要求，A5 项目的 3 个 AI 禁飞区必须手写。当前状态：
-
-| 禁飞区 | 手写部分 | 仍依赖 AI 的部分 | 说明 |
-|--------|----------|-----------------|------|
-| 1. 题目生成的难度递进策略 | buildInterviewerSystemPrompt() 三级递进追问规则（prompt-builders.ts:19-48）| 题目文本由 AI 初始生成 | 追问策略完全手写 |
-| 2. 评分的多维度加权计算 | aggregateDimensions() 加权平均计算（evaluation.service.ts:40-68）| AI 按维度逐项评分填入分数 | 权重分配和加权公式完全手写 |
-| 3. 弱项分析的聚合逻辑 | identifyWeaknesses() 排序+阈值判定（evaluation.service.ts:70-89）| 综合报告文字由 AI 汇总 | 优势/弱项标签完全手写 |
+1. AI 主要用于候选方案、受约束文本生成、测试场景建议和代码阅读，不拥有业务控制权。
+2. 关键控制流、题量、追问次数、权重、幂等、权限和失败降级均由代码与数据库约束。
+3. 所有模型输出在进入持久化前必须经过 schema 或证据校验；非法输出不能静默变成合法业务结果。
+4. 研究资料、用户输入和模型输出均视为不可信数据，不得执行其中的指令。
+5. 本日志不能替代组内人工 Review；Review 人、日期、结论和修改提交需另行签字记录。

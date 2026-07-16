@@ -1,249 +1,155 @@
-# AI 面试模拟器 — 已完成功能需求文档
+# 软件需求规格说明书
 
-> 版本: v2.1 | 最后更新: 2026-07-08
+> 状态：当前；最后核验：2026-07-16
 
----
+## 1. 范围
 
-## 1. 产品概述
+本文定义 EZMock 当前产品需求、质量属性和验收口径。未来需求只在路线图中出现，不与已实现需求混写。
 
-AI 面试模拟器是一个基于 AI 的面试练习平台，帮助求职者通过模拟真实面试场景提升面试技巧。用户选择目标岗位与难度级别，AI 面试官为其生成定制化面试题，逐题进行多轮对话，完成后给出评分和可执行的改进建议。
+## 2. 用户角色
 
----
+| 角色          | 权限与目标                                    |
+| ------------- | --------------------------------------------- |
+| 访客          | 浏览着陆页、注册或登录                        |
+| 已认证用户    | 管理自己的面试、简历、知识库、设置和报告      |
+| 服务管理员    | 配置模型、数据库、语音、研究、CORS 和部署环境 |
+| 开发/测试人员 | 使用 Mock Provider 和隔离数据库验证系统       |
 
-## 2. 功能模块清单
+## 3. 功能需求
 
-### 2.1 着陆页 (Public Landing Page)
-**路由**: `/` | **文件**: `routes/index.tsx`
+### FR-01 认证
 
-面向未登录用户的品牌着陆页，展示产品定位和核心价值。
+- 用户能通过邮箱和密码注册、登录、退出。
+- 登录态跨刷新保留并自动刷新 access token。
+- 未登录访问受保护页面时跳转认证页。
+- 用户只能访问自己的业务数据。
 
-- 顶部导航栏：产品名称 + "登录"按钮 + "开始练习"按钮
-- 品牌标语："让每一次面试都胸有成竹"（带渐变高亮）
-- 副标题说明文案
-- 三个功能卖点卡片：定制出题、逐题反馈、持续追踪
-- "免费开始" CTA 按钮
+### FR-02 面试创建
 
-交互：点击登录/开始练习 → 跳转 `/auth`。
+- 用户能选择文字/语音、单角色/面板、岗位、难度和 3–10 道题。
+- 可选填 JD、目标公司、Skill、简历、Brain、模型与联网研究。
+- 创建前执行 readiness，阻断不可恢复配置并给出稳定恢复动作。
+- 创建成功返回 HTTP 202 和可恢复 sessionId；首题准备在后台继续。
+- 文字通道冻结为 coaching，语音通道冻结为 simulation。
 
----
+### FR-03 Agent 面试
 
-### 2.2 用户认证 (Authentication)
-**路由**: `/auth` | **文件**: `routes/auth.tsx`
+- Agent 先生成结构化策略，再选择首题。
+- 题库候选满足角色、难度、维度、主题和证据目标时优先使用。
+- 每次回答先持久化，再以稳定 inputId 恢复 Graph。
+- Agent 可根据证据缺口追问，同一题最多追问三次。
+- 重复或并发提交不得重复推进、评分、发事件或播报。
+- 刷新或 SSE 重连后恢复到最后已提交状态。
 
-支持邮箱/密码注册和登录，接入 Supabase Auth。
+### FR-04 输入安全
 
-- 模式切换：登录 / 注册
-- 登录模式：邮箱 + 密码输入框
-- 注册模式：昵称 + 邮箱 + 密码输入框
-- 提交按钮 + 模式切换链接
+- 拒绝空白、超长、复制题目和明显 Prompt 注入输入。
+- 输入失败不得改变当前题或丢失用户草稿。
+- 回答正文不得写入 LangGraph checkpoint 或日志。
 
-后端逻辑：`supabase.auth.signInWithPassword()` / `signUp()`，注册时通过 DB trigger 自动创建 profile。
+### FR-05 评分和报告
 
----
+- 每题冻结主维度、辅助维度、权重和证据目标。
+- 评分证据引用候选人消息原文。
+- 主维度无证据计 0；辅助维度未观察时不进入总分。
+- 总分由代码按冻结权重重算，模型不得覆盖。
+- 正常完成生成完整报告；提前结束可生成阶段性报告。
+- 报告包含综合分、总评、维度汇总、逐题反馈和证据。
 
-### 2.3 仪表盘 (Dashboard)
-**路由**: `/dashboard` | **文件**: `routes/_authenticated/dashboard.tsx`
+### FR-06 语音
 
-登录后的首页，提供"开始新面试"和"查看历史"两个入口。
+- 进入语音房间前完成麦克风、音频和服务能力预检。
+- 客户端通过 WebSocket 发送 PCM，服务端提供 partial/final ASR 和 TTS。
+- 用户能打断播报、结束回答、断线恢复或降级文字训练。
+- 相同 turnId 重放不得产生重复 TTS。
+- 原始音频不得持久化。
 
----
+### FR-07 生命周期和历史
 
-### 2.4 创建新面试 (New Interview)
-**路由**: `/new` | **文件**: `routes/_authenticated/new.tsx`
+- 用户能暂停、恢复、提前结束、放弃和删除自己的面试。
+- 暂停保留 checkpoint；终态尽力清理 checkpoint。
+- 历史页展示当前 Agent 会话和已完成旧会话。
+- 未完成 v1/v2 会话不得继续写入，交互接口返回 410。
 
-用户配置面试参数，AI 生成定制题目。
+### FR-08 简历
 
-- 面试岗位输入框（必填，最长 100 字）
-- 难度选择器：初级 / 中级 / 高级（默认中级）
-- 题目数量选择器：3 / 5 / 7 / 10 题（默认 5 题）
-- 岗位需求描述文本框（选填，最长 2000 字）
-- "生成面试题" 提交按钮
+- 上传不超过 10 MB 的支持文件并获得解析/分析结果。
+- 查看、选择和删除自己的简历。
+- Agent 只接收受限简历摘要，不把全文写入 checkpoint。
 
-后端：`apiClient.createInterviewSession()` → POST `/api/sessions` → AI 生成题目 → 存入 `interview_sessions` + `interview_questions` → 返回 sessionId。
+### FR-09 题库与 Skill
 
----
+- 用户能筛选、查看和收藏公共题目。
+- 系统加载岗位 Skill 的元数据、Persona 和参考资料。
+- 已使用题目按 ID、规范化文本和主题去重。
 
-### 2.5 面试会话页 (Active Session)
-**路由**: `/session/$id` | **文件**: `routes/_authenticated/session.$id.tsx`
+### FR-10 知识库
 
-核心面试交互页面，支持多轮对话、逐题评分、面试完成。
+- 上传 PDF/DOCX/TXT/Markdown 或粘贴文本。
+- 完成解析、分块、1024 维向量化、状态更新和默认 Brain 关联。
+- 管理 Brain 与文档、执行搜索、流式 QA 和图谱浏览。
+- QA 回答返回可追溯的 chunk 引用。
 
-- 概览区域：岗位/难度 Badge + 进度条
-- 题目导航：编号按钮，已完成题显示 CheckCircle2 图标
-- 未回答：对话气泡区域（用户右对齐蓝色，AI 左对齐灰色）+ Textarea 输入 + 发送/评分按钮
-- 已评分：对话历史回顾 + AI 评分 + 反馈 + 下一题/完成按钮
+### FR-11 模型和设置
 
-API 调用：
-- `apiClient.sendMessage()` → POST `/api/questions/:id/message`
-- `apiClient.evaluateConversation()` → POST `/api/questions/:id/evaluate`
-- `apiClient.finishSession()` → POST `/api/sessions/:id/finish`
+- 支持 DeepSeek、OpenAI、Anthropic 和模型名选择。
+- 用户 API Key 加密保存，读取时只返回掩码。
+- Key 优先级为请求/用户设置/服务端默认，不写入会话配置或响应。
 
----
+### FR-12 跨端
 
-### 2.6 面试完成页 (Completed Session)
-同 `/session/$id` 页面，`session.status === "completed"` 时展示完成结果：综合评分、AI 综合评价、逐题回顾。
+- Web 和 Native 复用业务 feature 和统一 API。
+- Native 生产构建使用 HTTPS，语音使用 WSS。
+- 平台差异集中在 `src/shared/platform`。
 
----
+## 4. 非功能需求
 
-### 2.7 历史记录 (History)
-**路由**: `/history` | **文件**: `routes/_authenticated/history.tsx`
+### NFR-01 安全
 
-`apiClient.listSessions()` → GET `/api/sessions`，返回当前用户的所有会话记录（时间降序）。
+- 用户数据使用 Supabase Auth + RLS 隔离。
+- API、事件、日志和 checkpoint 不含密钥、token、数据库密码或不必要正文。
+- 用户输入、模型输出和网页资料均视为不可信，持久化前校验和清洗。
 
----
+### NFR-02 可靠性
 
-### 2.8 题库 (Question Bank)
-**路由**: `/bank` 和 `/bank/$id` | **文件**: `routes/_authenticated/bank/`
+- 所有状态推进操作幂等。
+- SSE 支持 Last-Event-ID；游标缺口时返回最新快照。
+- 生产缺少持久 checkpoint 时 readiness 阻断，不静默降级。
 
-`apiClient` → GET `/api/bank`，公共题库列表和题目详情。
+### NFR-03 性能
 
----
+- 创建接口快速返回 202，不等待完整准备。
+- 数据读取控制字段和结果规模。
+- 持续降低当前约 624 kB 主入口 chunk。
 
-### 2.9 用户设置 (Settings)
-**路由**: `/settings` | **文件**: `routes/_authenticated/settings.tsx`
+### NFR-04 可维护性
 
-`apiClient` → GET/PATCH `/api/settings`，选择 AI 供应商（DeepSeek/OpenAI/Anthropic）和管理 API Key（加密存储）。
+- 后端采用 routes/service/repository/schemas 分层。
+- 前端采用独立 feature + 薄路由。
+- 共享传输、日志、配置和平台差异使用统一基础设施。
 
----
+### NFR-05 可访问性
 
-## 3. 数据库表结构
+- 状态使用文本和图标，不只依赖颜色。
+- 触控目标至少 44×44 px，支持键盘焦点和 reduced motion。
+- 验证 375、390、768、1024、1440 px 和移动横屏。
 
-### 3.1 profiles
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| id | UUID PK | 关联 auth.users |
-| display_name | TEXT | 用户昵称 |
-| created_at | TIMESTAMPTZ | 创建时间 |
+## 5. 关键验收场景
 
-### 3.2 interview_sessions
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| id | UUID PK | 自动生成 |
-| user_id | UUID FK | 用户 ID |
-| position | TEXT | 面试岗位 |
-| difficulty | TEXT | 初级/中级/高级 |
-| job_description | TEXT | 岗位需求描述（选填） |
-| status | TEXT | in_progress / completed |
-| overall_score | INT | 综合评分 |
-| overall_feedback | TEXT | AI 综合反馈 |
-| created_at | TIMESTAMPTZ | 创建时间 |
+1. 文本面试从创建、首题、追问、评分到报告完整通过。
+2. 页面刷新和 SSE 断线后不丢状态、不重复事件。
+3. 重复 inputId 和并发提交只执行一次。
+4. 空、超长、复制题目和注入输入被拒绝且停留当前题。
+5. 模型非法 JSON 最多修复一次，失败不写伪造结果。
+6. 语音完成 ASR/TTS、打断、重连和文字降级。
+7. 非本人访问会话、简历、Brain 或 QA 被拒绝。
+8. 知识文档上传后可搜索、问答并看到引用。
+9. 缺少数据库、迁移、Key 或语音配置时 readiness 正确阻断。
 
-### 3.3 interview_questions
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| id | UUID PK | 自动生成 |
-| session_id | UUID FK | 关联 sessions |
-| order_index | INT | 题目顺序 |
-| question | TEXT | 题目内容 |
-| answer | TEXT | 用户回答 / 对话历史 JSON |
-| score | INT | AI 评分 (1-100) |
-| feedback | TEXT | AI 反馈文本 |
-| created_at | TIMESTAMPTZ | 创建时间 |
+## 6. 暂不包含
 
-### 3.4 interview_messages
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| id | UUID PK | 自动生成 |
-| question_id | UUID FK | 关联 questions |
-| role | TEXT | user / assistant |
-| content | TEXT | 消息内容 |
-| created_at | TIMESTAMPTZ | 创建时间 |
-
-> 当前会话页使用 `answer` 字段的 JSON 存储对话，`interview_messages` 表暂未用于运行时。
-
-### 3.5 安全策略
-- 所有表启用 RLS，用户只能操作自己的数据
-- 注册时通过 DB trigger `on_auth_user_created` 自动创建 profile
-
----
-
-## 4. 已实现的技术基础设施
-
-### 4.1 架构概览
-
-```
-[浏览器] → src/features/*/api.ts → shared/api/http-client.ts → Hono API → Supabase + AI
-```
-
-前后端分离，通过 HTTP + Bearer JWT 通信。
-
-### 4.2 API 客户端
-`src/features/*/api.ts` 通过 `shared/api/http-client.ts` 发送请求，自动附加 Authorization header。
-
-### 4.3 API 服务
-Hono 框架，模块化路由 (`modules/*/*.routes.ts`)，四层分离 (routes/service/repository/schemas)。
-
-### 4.4 多模型 AI
-`shared/ai/` 统一入口，支持 DeepSeek / OpenAI / Anthropic。用户设置中的 API Key 通过 AES-256-GCM 加密存储。
-
-### 4.5 Skill 驱动出题
-`modules/skills/` 管理岗位技能定义，`lib/skills/_shared/references/` 存放知识点参考资料。
-
----
-
-## 5. 用户流程总图
-
-```
-着陆页 → 登录 → 仪表盘 → 创建面试 → AI 出题 → 逐题多轮对话 → 评分 → 完成 → 综合报告
-                              ↓
-                          历史记录 ← ← ← ← ←
-```
-
----
-
-## 6. 未来开发方向
-
-### A. 面试体验增强
-A1 语音回答、A2 限时模式、A3 编程题+在线编辑器、A4 追问策略优化
-
-### B. 数据与反馈深化
-B1 能力雷达图、B2 薄弱点识别、B3 面试报告导出
-
-### C. 出题与配置扩展
-C2 简历解析出题（P0）、C5 知识库/RAG
-
-### D. 平台与基础设施
-D2 忘记密码、D3 移动端优化、D4 App 打包、D5 双语、D6 分享、D7 Docker、D8 异步任务
-
----
-
-## 7. 架构约定
-
-### 7.1 功能即模块（核心约束）
-
-> **每个新功能必须是一个独立的模块，禁止将多功能的逻辑混入同一个文件。**
-
-#### 后端模块化规则
-
-```
-api-server/src/modules/<feature>/
-  ├── <feature>.routes.ts      # 路由注册 + Zod 校验
-  ├── <feature>.service.ts     # 业务流程编排
-  ├── <feature>.repository.ts  # 数据库访问
-  └── <feature>.schemas.ts     # 请求体/响应体校验
-```
-
-#### 前端模块化规则
-
-```
-src/features/<feature>/
-  ├── api.ts                   # API 调用函数
-  ├── types.ts                 # TypeScript 类型
-  ├── hooks/                   # React Hooks
-  └── components/              # UI 组件
-```
-
-#### 约束
-
-- 路由文件只做薄入口，业务组件 import 自 `features/`
-- 新增 API 端点必须新建模块，在 `app.ts` 中挂载
-- 已有模块只能修改自身职责范围内的代码
-- 跨功能的改动应在目标模块中新建文件
-
-### 7.2 其他约定
-
-- 前端功能域：`interview-create`、`interview-session`、`question-bank`、`settings`
-- 后端模块：`sessions`、`questions`、`skills`、`bank`、`settings`、`model-providers`
-- 数据库字段 `job_description`，前端/API 字段 `jobDescription`，UI 文案"岗位需求描述"
-- `interview_messages` 表暂不迁移运行时存储，后续仅改 repository
-- 多模型 provider 由 `model-providers` 和 `settings` 模块统一处理
+- 在线代码编辑与沙箱执行。
+- Android/iOS 原生工程。
+- 报告 PDF 导出。
+- 多语言 UI 和公开分享链接。
+- 当前运行时中的 Redis/BullMQ generation Worker。
