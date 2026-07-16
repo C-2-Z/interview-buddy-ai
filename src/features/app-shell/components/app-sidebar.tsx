@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_NAVIGATION, APP_VERSION } from "../constants";
 import { useAppNavigation } from "../hooks/use-app-navigation";
+import type { Profile } from "@/features/profile/types";
 
 /**
  * app sidebar
@@ -32,10 +33,11 @@ import { useAppNavigation } from "../hooks/use-app-navigation";
  * @param userEmail -
  * @returns
  */
-export function AppSidebar({ userEmail }: { userEmail?: string }) {
+export function AppSidebar({ userEmail, profile }: { userEmail?: string; profile?: Profile | null }) {
   const navigation = useAppNavigation();
   const { setOpenMobile } = useSidebar();
 
+  const label = profile?.displayName || userEmail || "当前账户";
   return (
     <Sidebar collapsible="icon" className="border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border p-3">
@@ -96,17 +98,17 @@ export function AppSidebar({ userEmail }: { userEmail?: string }) {
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton size="lg" tooltip="账户菜单">
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-accent-foreground">
-                    <UserRound className="size-4" />
+                    {profile?.avatarUrl ? <img src={profile.avatarUrl} alt="" className="size-full object-cover" /> : label.slice(0, 1).toUpperCase()}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-left text-xs">
-                    {userEmail || "当前账户"}
+                    {label}
                   </span>
                   <ChevronUp className="ml-auto" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="start" className="w-60">
                 <DropdownMenuLabel className="truncate font-normal text-muted-foreground">
-                  {userEmail || "当前账户"}
+                  {label}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

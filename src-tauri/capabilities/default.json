@@ -2,5 +2,5 @@
   "identifier": "default",
   "description": "默认权限：文件选择、在系统浏览器中打开 URL",
   "windows": ["main"],
-  "permissions": ["core:default", "dialog:default", "shell:allow-open"]
+  "permissions": ["core:default", "dialog:default", "shell:allow-open", "deep-link:default"]
 }

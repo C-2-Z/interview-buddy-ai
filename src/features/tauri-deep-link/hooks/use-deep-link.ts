@@ -1,5 +1,6 @@
 /** Tauri 深链监听 Hook：注册深链事件并提取 auth callback 参数。 */
 import { useEffect } from "react";
+import { isTauri } from "@/shared/platform/env-detect";
 import type { DeepLinkPayload } from "../types";
 
 /** 深链事件的处理回调类型。 */
@@ -12,22 +13,27 @@ export type DeepLinkHandler = (payload: DeepLinkPayload) => void;
  * @param onDeepLink - 收到深链时触发的回调函数。
  * @param deps - 可选的依赖数组，默认仅在挂载时注册。
  */
-export function useDeepLink(_onDeepLink: DeepLinkHandler, deps: React.DependencyList = []) {
+export function useDeepLink(onDeepLink: DeepLinkHandler, deps: React.DependencyList = []) {
   useEffect(() => {
-    // Tauri 深链插件注入：@tauri-apps/plugin-deep-link
-    // 当前为预留骨架，实际集成 OAuth 时替换为：
-    // import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
-    // const unlisten = await onOpenUrl((urls) => { onDeepLink({ url: urls[0] }) });
-    // return () => { unlisten(); };
+    if (typeof window === "undefined" || !isTauri()) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
 
-    if (typeof window === "undefined") return;
-
-    // 监听 Tauri 原生事件（当前为占位，待集成实际插件后启用）
-    const cleanup = () => {
-      // 取消监听的占位
+    /** 冷启动与运行中 URL 都通过同一安全处理器逐个派发。 */
+    const emitUrls = (urls: string[] | null) => {
+      if (disposed || !urls) return;
+      for (const url of urls) onDeepLink({ url });
     };
 
-    return cleanup;
+    void import("@tauri-apps/plugin-deep-link").then(async ({ getCurrent, onOpenUrl }) => {
+      emitUrls(await getCurrent());
+      unlisten = await onOpenUrl(emitUrls);
+    });
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 }

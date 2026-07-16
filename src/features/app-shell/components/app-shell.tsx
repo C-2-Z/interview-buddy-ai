@@ -3,6 +3,7 @@ import { useRouterState } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
+import type { Profile } from "@/features/profile/types";
 import { getApiOrigin } from "@/shared/runtime/runtime-config";
 
 /**
@@ -12,7 +13,7 @@ import { getApiOrigin } from "@/shared/runtime/runtime-config";
  * @param userEmail -
  * @returns
  */
-export function AppShell({ children, userEmail }: { children: ReactNode; userEmail?: string }) {
+export function AppShell({ children, userEmail, profile }: { children: ReactNode; userEmail?: string; profile?: Profile | null }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   useEffect(() => {
@@ -39,7 +40,7 @@ export function AppShell({ children, userEmail }: { children: ReactNode; userEma
       >
         跳到主要内容
       </a>
-      <AppSidebar userEmail={userEmail} />
+      <AppSidebar userEmail={userEmail} profile={profile} />
       <SidebarInset className="min-h-dvh overflow-x-hidden">
         <header
           data-print-hidden="true"

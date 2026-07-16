@@ -16,6 +16,7 @@ import { sessions } from "./modules/sessions/sessions.routes.js";
 import { createModuleLogger } from "./shared/logger/voice-logger.js";
 import { knowledge } from "./modules/knowledge/knowledge.routes.js";
 import { swaggerUI } from "@hono/swagger-ui";
+import { profile } from "./modules/profile/profile.routes.js";
 import { CURRENT_OPENAPI_DOC } from "./config/openapi-current.js";
 
 const app = new Hono();
@@ -32,6 +33,7 @@ app.use("*", honoLogger());
 
 app.route("/api/bank", bank);
 app.route("/api/settings", settings);
+app.route("/api/profile", profile);
 app.route("/api/skills", skills);
 app.route("/api/resumes", resumes);
 app.route("/api/performance", performanceRoutes);

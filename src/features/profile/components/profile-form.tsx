@@ -1,0 +1,12 @@
+/** profile：个人资料编辑卡片 */
+import { useState } from "react";
+import { Loader2, Trash2, Upload, UserRound } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useProfile } from "../hooks/use-profile";
+import { AvatarCropper } from "./avatar-cropper";
+export function ProfileForm() { const { profile, loading, saving, saveName, saveAvatar, clearAvatar } = useProfile(); const [name, setName] = useState(""); const [file, setFile] = useState<File | null>(null); if (loading || !profile) return <Card><CardContent className="py-8 text-center"><Loader2 className="mx-auto animate-spin" /></CardContent></Card>; const label = profile.displayName || profile.email || "U"; return <><Card><CardHeader><CardTitle>个人资料</CardTitle><CardDescription>设置应用中显示的昵称和头像。</CardDescription></CardHeader><CardContent className="space-y-5"><div className="flex items-center gap-4"><div className="flex size-20 items-center justify-center overflow-hidden rounded-full bg-muted text-lg font-semibold">{profile.avatarUrl ? <img src={profile.avatarUrl} alt="" className="size-full object-cover" /> : <UserRound />}</div><div className="flex gap-2"><Button type="button" variant="outline" disabled={saving} onClick={() => document.getElementById("avatar-file")?.click()}><Upload className="mr-2 size-4" />上传头像</Button>{profile.avatarUrl && <Button type="button" variant="ghost" disabled={saving} onClick={() => void clearAvatar()}><Trash2 className="mr-2 size-4" />移除</Button>}<input id="avatar-file" hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const selected = event.target.files?.[0]; if (!selected) return; if (selected.size > 2 * 1024 * 1024) { toast.error("头像大小不能超过 2 MB"); return; } setFile(selected); event.target.value = ""; }} /></div></div><div className="space-y-2"><Label htmlFor="display-name">昵称</Label><Input id="display-name" value={name || label} maxLength={30} onChange={(event) => setName(event.target.value)} /></div><Button disabled={saving} onClick={() => void saveName(name || label)}>保存资料</Button></CardContent></Card><AvatarCropper file={file} onCancel={() => setFile(null)} onComplete={(blob) => { setFile(null); void saveAvatar(blob); }} /></>;
+}

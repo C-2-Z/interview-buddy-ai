@@ -24,6 +24,13 @@
       "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:* https://*.supabase.co https://backend.ezmock.site wss://backend.ezmock.site https://*.openai.azure.com; img-src 'self' data: blob:; font-src 'self' data:;"
     }
   },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["interviewbuddy"]
+      }
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "msi",

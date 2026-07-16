@@ -1,23 +1,8 @@
 /** 全局深链处理组件：在 __root.tsx 中挂载，自动处理 auth callback。 */
 import { useNavigate } from "@tanstack/react-router";
-import { exchangeAuthCodeForSession } from "../api";
+import { PASSWORD_RECOVERY_MARKER } from "@/features/password-recovery/hooks/use-password-recovery";
+import { exchangeAuthCodeForSession, parseAuthDeepLink } from "../api";
 import { useDeepLink } from "../hooks/use-deep-link";
-import type { AuthCallbackParams } from "../types";
-
-/**
- * 解析 interviewbuddy://auth/callback?code=xxx 格式的 URL。
- */
-function parseAuthCallbackUrl(url: string): AuthCallbackParams | null {
-  try {
-    const parsed = new URL(url);
-    const code = parsed.searchParams.get("code");
-    const state = parsed.searchParams.get("state");
-    if (!code) return null;
-    return { code, state: state ?? undefined };
-  } catch {
-    return null;
-  }
-}
 
 /**
  * 深链处理器组件：监听 interviewbuddy:// 协议的回调，
@@ -29,11 +14,16 @@ export function DeepLinkHandler() {
   const navigate = useNavigate();
 
   useDeepLink(async (payload) => {
-    const params = parseAuthCallbackUrl(payload.url);
+    const params = parseAuthDeepLink(payload.url);
     if (!params) return;
     const ok = await exchangeAuthCodeForSession(params);
     if (ok) {
-      navigate({ to: "/interview-hub", replace: true });
+      if (params.kind === "password-recovery") {
+        window.sessionStorage.setItem(PASSWORD_RECOVERY_MARKER, "true");
+        void navigate({ to: "/auth/reset-password", replace: true });
+      } else {
+        void navigate({ to: "/interview-hub", replace: true });
+      }
     }
   });
 

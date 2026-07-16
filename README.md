@@ -101,4 +101,13 @@ docs/                        全部项目文档、设计资料、周报与验收
 - 新面试只允许 `agent-v3`；不得恢复 Agent v1/v2 写链路。
 - 未治理 Supabase 迁移历史前，不得直接执行全量 `supabase db push` 或 `db reset`。
 
+## 密码恢复回跳
+
+Supabase Auth 的 Redirect URLs 必须加入 Web 生产地址
+`https://<your-domain>/auth/reset-password` 和桌面端协议
+`interviewbuddy://auth/reset-password`。Web 默认基于当前 origin 生成恢复地址，
+Native 默认使用 `interviewbuddy://`；只有需要独立认证域名或 HTTPS 中转页时才配置
+`VITE_PASSWORD_RECOVERY_REDIRECT_URL`。中转页不得记录或持久化回调中的 `code`、
+`token` 或其他认证参数。
+
 完整协作规则见 [AGENTS.md](AGENTS.md)。
