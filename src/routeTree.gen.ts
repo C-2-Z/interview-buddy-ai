@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as FocusRouteRouteImport } from './routes/_focus/route'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedNewRouteImport } from './routes/_authenticated/new'
 import { Route as AuthenticatedKnowledgeRouteImport } from './routes/_authenticated/knowledge'
@@ -46,6 +47,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
@@ -127,13 +133,14 @@ const FocusVoiceSessionIdRoute = FocusVoiceSessionIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/interview-hub': typeof AuthenticatedInterviewHubRoute
   '/knowledge': typeof AuthenticatedKnowledgeRoute
   '/new': typeof AuthenticatedNewRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/bank/$id': typeof AuthenticatedBankIdRoute
   '/legacy/$id': typeof AuthenticatedLegacyIdRoute
   '/report/$id': typeof AuthenticatedReportIdRoute
@@ -146,13 +153,14 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/interview-hub': typeof AuthenticatedInterviewHubRoute
   '/knowledge': typeof AuthenticatedKnowledgeRoute
   '/new': typeof AuthenticatedNewRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/bank/$id': typeof AuthenticatedBankIdRoute
   '/legacy/$id': typeof AuthenticatedLegacyIdRoute
   '/report/$id': typeof AuthenticatedReportIdRoute
@@ -168,13 +176,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/_focus': typeof FocusRouteRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/interview-hub': typeof AuthenticatedInterviewHubRoute
   '/_authenticated/knowledge': typeof AuthenticatedKnowledgeRoute
   '/_authenticated/new': typeof AuthenticatedNewRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/_authenticated/bank/$id': typeof AuthenticatedBankIdRoute
   '/_authenticated/legacy/$id': typeof AuthenticatedLegacyIdRoute
   '/_authenticated/report/$id': typeof AuthenticatedReportIdRoute
@@ -196,6 +205,7 @@ export interface FileRouteTypes {
     | '/knowledge'
     | '/new'
     | '/settings'
+    | '/auth/reset-password'
     | '/bank/$id'
     | '/legacy/$id'
     | '/report/$id'
@@ -215,6 +225,7 @@ export interface FileRouteTypes {
     | '/knowledge'
     | '/new'
     | '/settings'
+    | '/auth/reset-password'
     | '/bank/$id'
     | '/legacy/$id'
     | '/report/$id'
@@ -236,6 +247,7 @@ export interface FileRouteTypes {
     | '/_authenticated/knowledge'
     | '/_authenticated/new'
     | '/_authenticated/settings'
+    | '/auth/reset-password'
     | '/_authenticated/bank/$id'
     | '/_authenticated/legacy/$id'
     | '/_authenticated/report/$id'
@@ -251,7 +263,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   FocusRouteRoute: typeof FocusRouteRouteWithChildren
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -283,6 +295,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
@@ -441,11 +460,21 @@ const FocusRouteRouteWithChildren = FocusRouteRoute._addFileChildren(
   FocusRouteRouteChildren,
 )
 
+interface AuthRouteChildren {
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthResetPasswordRoute: AuthResetPasswordRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   FocusRouteRoute: FocusRouteRouteWithChildren,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
