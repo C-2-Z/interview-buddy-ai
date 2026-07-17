@@ -1,4 +1,4 @@
-# EZMock AI 面试模拟器
+﻿# EZMock AI 面试模拟器
 
 EZMock 是一个面向求职者的 AI 面试训练平台。系统支持文字与实时语音面试，可结合岗位描述、目标公司、简历、公共题库、岗位 Skill、个人知识库和受控联网研究进行提问，并基于候选人原话完成证据化评分与综合报告。
 
@@ -71,7 +71,7 @@ apps/
 api/                         Vercel SSR 函数入口
 supabase/migrations/         数据库增量迁移
 docs/                        规范化项目软件工程文档
-  api.md                     当前 API 契约
+  API参考.md                  当前 HTTP、SSE、WebSocket 契约
   *.md                       中文命名的需求、设计、质量和运维文档
 ```
 
@@ -83,7 +83,7 @@ docs/                        规范化项目软件工程文档
 | [需求规格说明书](docs/需求规格说明书.md)     | 产品、开发、测试 | 用户流程、功能/非功能需求与验收标准         |
 | [系统架构设计](docs/系统架构设计.md)         | 架构、开发       | 系统上下文、状态边界、数据流与 ADR          |
 | [详细设计说明书](docs/详细设计说明书.md)     | 开发、设计       | 模块、Agent、语音、知识库、UI/UX 与错误设计 |
-| [API 参考](docs/api.md)                      | 前后端、测试     | 当前 HTTP、SSE、WebSocket 契约              |
+| [API 参考](docs/API参考.md)                      | 前后端、测试     | 当前 HTTP、SSE、WebSocket 契约              |
 | [数据模型设计](docs/数据模型设计.md)         | 后端、DBA        | 表、关系、RLS、RPC、Checkpoint 与迁移规则   |
 | [安全与隐私设计](docs/安全与隐私设计.md)     | 全体成员         | 威胁边界、密钥、隐私、保留与事件响应        |
 | [开发指南](docs/开发指南.md)                 | 开发、AI         | 环境、模块规范、Review、Git 与接手流程      |
