@@ -22,6 +22,17 @@ async function strategyHotfixSql(): Promise<string> {
   );
 }
 
+/** 读取 Agent 3 选题审计兼容增量。 */
+async function questionSelectionSql(): Promise<string> {
+  return readFile(
+    resolve(
+      ROOT,
+      "supabase/migrations/20260717170000_align_agent_v3_question_selection_contract.sql",
+    ),
+    "utf8",
+  );
+}
+
 test("Agent 3 migration adds the new persistence and retirement contracts", async () => {
   const sql = await migrationSql();
   for (const required of [
@@ -62,4 +73,25 @@ test("Agent 3 strategy JSONB validation is parenthesized and hotfixed incrementa
   assert.match(base, /\(\(p_strategy->'questionCriteria'\) - ARRAY\[/);
   assert.match(hotfix, /commit_agent_v3_strategy_revision/);
   assert.match(hotfix, /20260715000002/);
+});
+
+test("question selection migration aligns audited preparation and runtime commits", async () => {
+  const sql = await questionSelectionSql();
+  for (const required of [
+    "question_family_key",
+    "selection_tier",
+    "selection_score",
+    "selection_reason_code",
+    "_validate_agent_v3_question_selection",
+    "commit_agent_v3_preparation",
+    "commit_agent_v3_question",
+  ]) {
+    assert.equal(
+      sql.includes(required),
+      true,
+      `missing question selection contract: ${required}`,
+    );
+  }
+  assert.match(sql, /model_generated/);
+  assert.match(sql, /bank_exact/);
 });

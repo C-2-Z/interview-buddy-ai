@@ -20,6 +20,7 @@ const CANDIDATES: AgentQuestionCandidate[] = [
     dimensionKeys: ["MYSQL"],
     topicKeys: ["database"],
     evidenceGoalKeys: ["action", "result"],
+    questionFamilyKey: "mysql-index-tradeoff",
     source: "bank",
   },
   {
@@ -33,6 +34,7 @@ const CANDIDATES: AgentQuestionCandidate[] = [
     dimensionKeys: ["COMMUNICATION"],
     topicKeys: ["collaboration"],
     evidenceGoalKeys: ["situation", "action", "result"],
+    questionFamilyKey: "cross-team-collaboration",
     source: "bank",
   },
 ];
@@ -48,6 +50,10 @@ test("selector prefers dimension and role matching bank question", () => {
     excludedTopicKeys: new Set(),
   });
   assert.equal(selected?.id, "b");
+  assert.equal(selected?.questionFamilyKey, "mysql-index-tradeoff");
+  assert.equal(selected?.selectionTier, "bank_exact");
+  assert.equal(selected?.selectionScore, 27);
+  assert.equal(selected?.selectionReasonCode, "bank_exact_match");
 });
 
 test("selector removes repeated IDs, normalized text and covered topics", () => {
@@ -117,5 +123,9 @@ test("model fallback runs only when no bank question remains", async () => {
     },
   );
   assert.equal(generated.source, "model");
+  assert.equal(generated.questionFamilyKey, "model-model-1");
+  assert.equal(generated.selectionTier, "model_generated");
+  assert.equal(generated.selectionScore, null);
+  assert.equal(generated.selectionReasonCode, "no_eligible_bank_question");
   assert.equal(fallbackCalls, 1);
 });

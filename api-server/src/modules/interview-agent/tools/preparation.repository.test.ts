@@ -101,6 +101,7 @@ class FakeDatabase implements PreparationDatabaseClient {
         type: "技术题",
         question: `${position}问题`,
         tags: ["technical_depth"],
+        question_family_key: position === "通用" ? "general-backend" : "backend-technical-depth",
       }], error: null };
     }
     if (query.tableName === "agent_research_sources") {
@@ -132,7 +133,7 @@ function planFixture(): PreparedInterviewPlan {
     questionDimensions: ["technical_depth", "technical_depth", "technical_depth"],
     questionApplicableDimensions: [["technical_depth", "COMMUNICATION", "LOGICAL_THINKING"], ["technical_depth", "COMMUNICATION", "LOGICAL_THINKING"], ["technical_depth", "COMMUNICATION", "LOGICAL_THINKING"]],
     questionEvidenceGoals: [["situation", "action", "result"], ["situation", "action", "result"], ["situation", "action", "result"]],
-    firstQuestion: { id: QUESTION_ID, question: "后端工程师问题", position: "后端工程师", difficulty: "中级", type: "技术题", tags: [], roleIds: ["general"], dimensionKeys: ["technical_depth"], topicKeys: ["backend"], evidenceGoalKeys: ["situation", "action", "result"], source: "bank" },
+    firstQuestion: { id: QUESTION_ID, question: "后端工程师问题", position: "后端工程师", difficulty: "中级", type: "技术题", tags: [], roleIds: ["general"], dimensionKeys: ["technical_depth"], topicKeys: ["backend"], evidenceGoalKeys: ["situation", "action", "result"], questionFamilyKey: "backend-technical-depth", selectionTier: "bank_exact", selectionScore: 31, selectionReasonCode: "bank_exact_match", source: "bank" },
     researchStatus: "skipped",
     researchSources: [],
   };
@@ -168,11 +169,23 @@ test("research cache maps snake_case rows and preparation uses one RPC", async (
     nodeName: "prepare_interview",
     currentRole: "general",
     plan: planFixture(),
-    question: { id: QUESTION_ID, question: "后端工程师问题", roleId: "general", dimensionKey: "technical_depth", source: "bank", bankQuestionId: QUESTION_ID },
+    question: { id: QUESTION_ID, question: "后端工程师问题", roleId: "general", dimensionKey: "technical_depth", source: "bank", bankQuestionId: QUESTION_ID, questionFamilyKey: "backend-technical-depth", selectionTier: "bank_exact", selectionScore: 31, selectionReasonCode: "bank_exact_match" },
     result: { phase: "awaiting_answer" },
     events: [{ type: "agent.phase", data: { phase: "awaiting_answer" } }],
   });
   assert.equal(result.committed, true);
   assert.equal(database.rpcCall?.name, "commit_agent_v3_preparation");
   assert.deepEqual(database.rpcCall?.args.p_sources, []);
+  assert.deepEqual(database.rpcCall?.args.p_question, {
+    id: QUESTION_ID,
+    question: "后端工程师问题",
+    roleId: "general",
+    dimensionKey: "technical_depth",
+    source: "bank",
+    bankQuestionId: QUESTION_ID,
+    questionFamilyKey: "backend-technical-depth",
+    selectionTier: "bank_exact",
+    selectionScore: 31,
+    selectionReasonCode: "bank_exact_match",
+  });
 });

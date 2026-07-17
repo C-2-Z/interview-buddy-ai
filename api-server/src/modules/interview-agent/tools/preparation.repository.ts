@@ -52,6 +52,14 @@ export type PreparedQuestionWrite = {
   source: "bank" | "model";
   /** 题库来源 UUID；模型题为 null。 */
   bankQuestionId: string | null;
+  /** 跨题目变体稳定的题目家族键。 */
+  questionFamilyKey: string;
+  /** 题库命中或模型兜底层级。 */
+  selectionTier: "bank_exact" | "bank_rotated" | "bank_reused" | "model_generated";
+  /** 确定性题库评分；模型兜底为 null。 */
+  selectionScore: number | null;
+  /** 稳定的选择原因代码。 */
+  selectionReasonCode: string;
 };
 
 /** 准备阶段原子提交输入。 */
@@ -105,6 +113,7 @@ const QuestionRowSchema = z.object({
   dimension_keys: z.array(z.string()).nullable().optional(),
   topic_keys: z.array(z.string()).nullable().optional(),
   evidence_goal_keys: z.array(z.string()).nullable().optional(),
+  question_family_key: z.string().nullable().optional(),
 }).strict();
 const ResearchRowSchema = z.object({
   category: z.enum(["company", "role", "industry"]),
@@ -194,7 +203,7 @@ export class InterviewPreparationRepository implements PreparationCommitReposito
       const raw = unwrapDatabaseResponse(
         await this.database
           .from("question_bank")
-          .select("id, position, difficulty, type, question, tags, role_ids, dimension_keys, topic_keys, evidence_goal_keys")
+          .select("id, position, difficulty, type, question, tags, role_ids, dimension_keys, topic_keys, evidence_goal_keys, question_family_key")
           .eq("position", position)
           .eq("difficulty", input.difficulty)
           .order("created_at", { ascending: true })
@@ -216,6 +225,7 @@ export class InterviewPreparationRepository implements PreparationCommitReposito
       dimensionKeys: row.dimension_keys ?? [],
       topicKeys: row.topic_keys ?? [],
       evidenceGoalKeys: row.evidence_goal_keys ?? [],
+      questionFamilyKey: row.question_family_key ?? undefined,
       source: "bank",
     }));
   }

@@ -4,7 +4,10 @@ import type {
   RoleId,
   RoleStage,
 } from "../interview-agent.types.js";
-import type { PreparedInterviewPlan } from "../tools/preparation.types.js";
+import type {
+  AgentQuestionSelectionTier,
+  PreparedInterviewPlan,
+} from "../tools/preparation.types.js";
 
 /** 数据库中已经使用的题目投影。 */
 export type RuntimeQuestionHistory = {
@@ -48,6 +51,14 @@ export type CommitRuntimeQuestionInput = {
   source: "bank" | "model";
   /** 题库 UUID；模型题为 null。 */
   bankQuestionId: string | null;
+  /** 跨题目变体稳定的题目家族键。 */
+  questionFamilyKey: string;
+  /** 题库命中或模型兜底层级。 */
+  selectionTier: AgentQuestionSelectionTier;
+  /** 确定性题库评分；模型兜底为 null。 */
+  selectionScore: number | null;
+  /** 稳定的选择原因代码。 */
+  selectionReasonCode: string;
 };
 
 /** 后续题目提交结果。 */

@@ -98,6 +98,10 @@ export class DefaultQuestionRuntimeService implements QuestionRuntimeService {
       sessionId: input.sessionId, id: questionId, orderIndex: input.questionIndex,
       question: selected.question, roleId: input.roleId, dimensionKey, source: selected.source,
       bankQuestionId: selected.source === "bank" ? selected.id : null,
+      questionFamilyKey: selected.questionFamilyKey,
+      selectionTier: selected.selectionTier,
+      selectionScore: selected.selectionScore,
+      selectionReasonCode: selected.selectionReasonCode,
     });
     return { questionId: receipt.questionId, roleId: receipt.roleId, dimensionKey: receipt.dimensionKey };
   }

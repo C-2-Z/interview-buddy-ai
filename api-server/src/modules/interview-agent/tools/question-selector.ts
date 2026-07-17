@@ -1,6 +1,9 @@
 /** Interview Agent 题库优先、模型兜底和重复主题过滤。 */
 import type { AgentDifficulty, RoleId } from "../interview-agent.types.js";
-import type { AgentQuestionCandidate } from "./preparation.types.js";
+import type {
+  AgentQuestionCandidate,
+  SelectedAgentQuestion,
+} from "./preparation.types.js";
 
 /** 动态选题所需的确定性上下文。 */
 export type SelectQuestionInput = {
@@ -89,9 +92,8 @@ function candidateScore(
 export function selectQuestionFromBank(
   candidates: readonly AgentQuestionCandidate[],
   input: SelectQuestionInput,
-): AgentQuestionCandidate | null {
-  return (
-    candidates
+): SelectedAgentQuestion | null {
+  const selected = candidates
       .filter((candidate) => candidate.source === "bank")
       .filter((candidate) => candidate.difficulty === input.difficulty)
       .filter((candidate) => candidate.roleIds.includes(input.roleId))
@@ -126,8 +128,28 @@ export function selectQuestionFromBank(
         (left, right) =>
           right.score - left.score ||
           left.candidate.id.localeCompare(right.candidate.id),
-      )[0]?.candidate ?? null
-  );
+      )[0];
+  if (!selected) return null;
+  return {
+    ...selected.candidate,
+    questionFamilyKey:
+      selected.candidate.questionFamilyKey ??
+      `legacy-${selected.candidate.id.toLowerCase()}`,
+    selectionTier: "bank_exact",
+    selectionScore: selected.score,
+    selectionReasonCode: "bank_exact_match",
+  };
+}
+
+/** 将模型临时 ID 规范为数据库允许的题目家族键片段。 */
+function normalizeModelFamilySegment(id: string): string {
+  const normalized = id
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^[^a-z0-9]+/, "")
+    .slice(0, 113);
+  return normalized.length >= 3 ? normalized : `generated-${normalized || "question"}`;
 }
 
 /**
@@ -142,7 +164,7 @@ export async function selectQuestionWithFallback(
   candidates: readonly AgentQuestionCandidate[],
   input: SelectQuestionInput,
   generateFallback: () => Promise<AgentQuestionCandidate>,
-): Promise<AgentQuestionCandidate> {
+): Promise<SelectedAgentQuestion> {
   const bankQuestion = selectQuestionFromBank(candidates, input);
   if (bankQuestion) return bankQuestion;
   const generated = await generateFallback();
@@ -157,5 +179,11 @@ export async function selectQuestionWithFallback(
   ) {
     throw new Error("Model fallback returned an invalid or duplicate question");
   }
-  return generated;
+  return {
+    ...generated,
+    questionFamilyKey: `model-${normalizeModelFamilySegment(generated.id)}`,
+    selectionTier: "model_generated",
+    selectionScore: null,
+    selectionReasonCode: "no_eligible_bank_question",
+  };
 }

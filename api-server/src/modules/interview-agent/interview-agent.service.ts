@@ -943,6 +943,10 @@ export class InterviewAgentService {
         dimensionKey,
         source: plan.firstQuestion.source,
         bankQuestionId: plan.firstQuestion.source === "bank" ? plan.firstQuestion.id : null,
+        questionFamilyKey: plan.firstQuestion.questionFamilyKey,
+        selectionTier: plan.firstQuestion.selectionTier,
+        selectionScore: plan.firstQuestion.selectionScore,
+        selectionReasonCode: plan.firstQuestion.selectionReasonCode,
       },
       result: {
         phase: "awaiting_answer",

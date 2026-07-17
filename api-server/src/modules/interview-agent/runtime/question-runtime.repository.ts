@@ -53,7 +53,37 @@ const CandidateSchema = z.object({
   dimensionKeys: z.array(z.string()),
   topicKeys: z.array(z.string()),
   evidenceGoalKeys: z.array(z.string()),
-}).strict();
+  questionFamilyKey: z.string().optional(),
+  selectionTier: z.enum(["bank_exact", "bank_rotated", "bank_reused", "model_generated"]).optional(),
+  selectionScore: z.number().nullable().optional(),
+  selectionReasonCode: z.string().optional(),
+}).strict().refine((candidate) => {
+  const auditFields = [
+    candidate.questionFamilyKey,
+    candidate.selectionTier,
+    candidate.selectionScore,
+    candidate.selectionReasonCode,
+  ];
+  const presentCount = auditFields.filter((value) => value !== undefined).length;
+  return presentCount === 0 || presentCount === auditFields.length;
+}, "Question selection audit must be complete").transform((candidate) => {
+  const normalizedId = candidate.id
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^[^a-z0-9]+/, "") || "generated-question";
+  return {
+    ...candidate,
+    questionFamilyKey: candidate.questionFamilyKey ?? (
+      candidate.source === "bank" ? `legacy-${candidate.id.toLowerCase()}` : `model-${normalizedId}`
+    ),
+    selectionTier: candidate.selectionTier ?? (
+      candidate.source === "bank" ? "bank_exact" as const : "model_generated" as const
+    ),
+    selectionScore: candidate.selectionScore ?? null,
+    selectionReasonCode: candidate.selectionReasonCode ?? "legacy_plan",
+  };
+});
 const PlanSchema = z.object({
   version: z.literal("plan-v3"),
   rolePlan: z.array(RoleStageSchema).min(1).max(3),
@@ -123,6 +153,8 @@ export class SupabaseQuestionRuntimeRepository implements QuestionRuntimeReposit
       p_question: {
         id: input.id, orderIndex: input.orderIndex, question: input.question, roleId: input.roleId,
         dimensionKey: input.dimensionKey, source: input.source, bankQuestionId: input.bankQuestionId,
+        questionFamilyKey: input.questionFamilyKey, selectionTier: input.selectionTier,
+        selectionScore: input.selectionScore, selectionReasonCode: input.selectionReasonCode,
       },
     })));
   }

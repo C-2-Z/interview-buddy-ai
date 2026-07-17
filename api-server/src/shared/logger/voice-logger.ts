@@ -34,9 +34,14 @@ const SANITIZE_REPORTER: ConsolaReporter = {
   },
 };
 
-export const voiceLogger = createConsola({
-  reporters: [SANITIZE_REPORTER],
-}).withTag("voice");
+/** 创建先脱敏、再交给默认 reporter 输出的 consola 实例。 */
+function createSanitizedConsola() {
+  const logger = createConsola();
+  logger.setReporters([SANITIZE_REPORTER, ...logger.options.reporters]);
+  return logger;
+}
+
+export const voiceLogger = createSanitizedConsola().withTag("voice");
 
 /** 记录语音事件；高频事件仅在 verbose 模式输出。 */
 export function voiceLog(event: string, meta: Record<string, unknown> = {}): void {
@@ -63,7 +68,5 @@ export function voiceError(
 
 /** 创建带固定 tag 且共享脱敏 reporter 的模块 logger。 */
 export function createModuleLogger(tag: string) {
-  return createConsola({
-    reporters: [SANITIZE_REPORTER],
-  }).withTag(tag);
+  return createSanitizedConsola().withTag(tag);
 }

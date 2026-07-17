@@ -106,9 +106,34 @@ export type AgentQuestionCandidate = {
   /** 该题可作为主评分维度的键。 */ dimensionKeys: string[];
   /** 用于与 Planner 意图做相关性匹配的主题键。 */ topicKeys: string[];
   /** 该题天然适合收集的事实证据目标。 */ evidenceGoalKeys: string[];
+  /** 题目变体共享的稳定家族键；旧题库行可在选择时兼容生成。 */
+  questionFamilyKey?: string;
   /** 优先使用题库，模型只作兜底。 */
   source: "bank" | "model";
 };
+
+/** 数据库审计使用的选题层级。 */
+export type AgentQuestionSelectionTier =
+  | "bank_exact"
+  | "bank_rotated"
+  | "bank_reused"
+  | "model_generated";
+
+/** 每道已选题必须持久化的选择审计。 */
+export type AgentQuestionSelectionAudit = {
+  /** 跨题目变体稳定的题目家族键。 */
+  questionFamilyKey: string;
+  /** 题库命中或模型兜底层级。 */
+  selectionTier: AgentQuestionSelectionTier;
+  /** 确定性题库评分；模型兜底为 null。 */
+  selectionScore: number | null;
+  /** 稳定、可聚合的选择原因代码。 */
+  selectionReasonCode: string;
+};
+
+/** 已通过选择器并具备完整数据库审计字段的题目。 */
+export type SelectedAgentQuestion = AgentQuestionCandidate &
+  AgentQuestionSelectionAudit;
 
 /** 准备阶段交给后续 Graph 的冻结计划。 */
 export type PreparedInterviewPlan = {
@@ -127,7 +152,7 @@ export type PreparedInterviewPlan = {
   /** 每题冻结的证据目标。 */
   questionEvidenceGoals: string[][];
   /** 已选首题；没有题库命中时由模型兜底。 */
-  firstQuestion: AgentQuestionCandidate;
+  firstQuestion: SelectedAgentQuestion;
   /** 是否成功使用了联网来源。 */
   researchStatus: "completed" | "skipped" | "failed";
   /** 报告附录使用的已清洗来源。 */

@@ -33,7 +33,7 @@ function contextFixture(): RuntimeQuestionContext {
       questionDimensions: ["technical_depth", "problem_solving", "technical_depth"],
       questionApplicableDimensions: [["technical_depth", "COMMUNICATION", "LOGICAL_THINKING"], ["problem_solving", "COMMUNICATION", "LOGICAL_THINKING"], ["technical_depth", "COMMUNICATION", "LOGICAL_THINKING"]],
       questionEvidenceGoals: [["situation", "action", "result"], ["situation", "action", "result"], ["situation", "action", "result"]],
-      firstQuestion: { id: FIRST_BANK_ID, question: "第一题", position: "后端工程师", difficulty: "中级", type: "技术题", tags: ["technical_depth"], roleIds: ["general"], dimensionKeys: ["technical_depth"], topicKeys: ["backend"], evidenceGoalKeys: ["situation", "action", "result"], source: "bank" },
+      firstQuestion: { id: FIRST_BANK_ID, question: "第一题", position: "后端工程师", difficulty: "中级", type: "技术题", tags: ["technical_depth"], roleIds: ["general"], dimensionKeys: ["technical_depth"], topicKeys: ["backend"], evidenceGoalKeys: ["situation", "action", "result"], questionFamilyKey: "backend-first", selectionTier: "bank_exact", selectionScore: 31, selectionReasonCode: "bank_exact_match", source: "bank" },
       researchStatus: "skipped", researchSources: [],
     },
     questions: [{ id: "44444444-4444-4444-8444-444444444444", question: "第一题", orderIndex: 0, dimensionKey: "technical_depth", bankQuestionId: FIRST_BANK_ID }],
@@ -58,8 +58,8 @@ test("runtime excludes used questions and commits the frozen index dimension", a
     preparationRepository: {
       async searchQuestionBank() {
         return [
-          { id: FIRST_BANK_ID, question: "第一题", position: "后端工程师", difficulty: "中级", type: "技术题", tags: ["technical_depth"], roleIds: ["general"], dimensionKeys: ["technical_depth"], topicKeys: ["backend"], evidenceGoalKeys: ["situation", "action", "result"], source: "bank" },
-          { id: NEXT_BANK_ID, question: "请说明一次线上问题排查过程。", position: "后端工程师", difficulty: "中级", type: "问题解决", tags: ["problem_solving"], roleIds: ["general"], dimensionKeys: ["problem_solving"], topicKeys: ["backend"], evidenceGoalKeys: ["situation", "action", "result"], source: "bank" },
+          { id: FIRST_BANK_ID, question: "第一题", position: "后端工程师", difficulty: "中级", type: "技术题", tags: ["technical_depth"], roleIds: ["general"], dimensionKeys: ["technical_depth"], topicKeys: ["backend"], evidenceGoalKeys: ["situation", "action", "result"], questionFamilyKey: "backend-first", source: "bank" },
+          { id: NEXT_BANK_ID, question: "请说明一次线上问题排查过程。", position: "后端工程师", difficulty: "中级", type: "问题解决", tags: ["problem_solving"], roleIds: ["general"], dimensionKeys: ["problem_solving"], topicKeys: ["backend"], evidenceGoalKeys: ["situation", "action", "result"], questionFamilyKey: "backend-incident", source: "bank" },
         ];
       },
     },
@@ -69,6 +69,9 @@ test("runtime excludes used questions and commits the frozen index dimension", a
   assert.equal(committed?.bankQuestionId, NEXT_BANK_ID);
   assert.equal(committed?.dimensionKey, "problem_solving");
   assert.equal(committed?.orderIndex, 1);
+  assert.equal(committed?.questionFamilyKey, "backend-incident");
+  assert.equal(committed?.selectionTier, "bank_exact");
+  assert.equal(committed?.selectionReasonCode, "bank_exact_match");
   assert.equal(selected.questionId, committed?.id);
 });
 
