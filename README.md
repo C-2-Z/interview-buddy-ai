@@ -33,9 +33,6 @@ EZMock 是一个面向求职者的 AI 面试训练平台。系统支持文字与
 
 ```powershell
 npm install
-Set-Location api-server
-npm install
-Set-Location ..
 ```
 
 在仓库根目录根据 `.env.example` 创建 `.env`，至少配置 Supabase、模型和 Agent Checkpoint 所需变量。
@@ -56,58 +53,63 @@ npm run lint
 npm run build
 npm run build:native:dev
 npm run verify:native
-
-Set-Location api-server
-npm test
-npm run build
+npm run build:api
 ```
 
 ## 项目结构
 
 ```text
-src/                         前端、SSR 与跨端共享代码
-  routes/                    TanStack Router 薄路由
-  features/                  前端业务 feature
-  shared/                    HTTP、运行配置、平台适配
-api-server/src/
-  modules/                   后端业务模块
-  shared/                    Auth、DB、AI、日志基础设施
+apps/
+  web/                       TanStack Start Web 与 Native SPA
+    src/                     路由、业务 feature 与共享能力
+    public/                  Web 静态资源
+  api/                       Hono API 服务
+    src/modules/             后端业务模块
+    src/shared/              Auth、DB、AI、日志基础设施
+  desktop/                   Tauri 桌面应用 workspace
+    src-tauri/               Rust、权限与打包配置
+api/                         Vercel SSR 函数入口
 supabase/migrations/         数据库增量迁移
-src-tauri/                   Windows Tauri 2 工程
-docs/                        全部项目文档、设计资料、周报与验收证据
-  design-system/             UI 设计系统
-  platform/                  Android 与桌面端专项技术方案
-  weekly-reports/            团队与项目周报
-  acceptance-evidence/       验收截图等证据
+docs/                        规范化项目软件工程文档
+  api.md                     当前 API 契约
+  *.md                       中文命名的需求、设计、质量和运维文档
 ```
 
-## 文档
+## 文档中心
 
-从 [文档中心](docs/README.md) 开始阅读。关键入口：
+| 文档                                         | 主要读者         | 职责                                        |
+| -------------------------------------------- | ---------------- | ------------------------------------------- |
+| [项目概述](docs/项目概述.md)                 | 全体成员         | 产品定位、系统边界、功能与技术全景          |
+| [需求规格说明书](docs/需求规格说明书.md)     | 产品、开发、测试 | 用户流程、功能/非功能需求与验收标准         |
+| [系统架构设计](docs/系统架构设计.md)         | 架构、开发       | 系统上下文、状态边界、数据流与 ADR          |
+| [详细设计说明书](docs/详细设计说明书.md)     | 开发、设计       | 模块、Agent、语音、知识库、UI/UX 与错误设计 |
+| [API 参考](docs/api.md)                      | 前后端、测试     | 当前 HTTP、SSE、WebSocket 契约              |
+| [数据模型设计](docs/数据模型设计.md)         | 后端、DBA        | 表、关系、RLS、RPC、Checkpoint 与迁移规则   |
+| [安全与隐私设计](docs/安全与隐私设计.md)     | 全体成员         | 威胁边界、密钥、隐私、保留与事件响应        |
+| [开发指南](docs/开发指南.md)                 | 开发、AI         | 环境、模块规范、Review、Git 与接手流程      |
+| [测试与质量保证](docs/测试与质量保证.md)     | 开发、测试       | 测试分层、关键不变量、验收与发布门禁        |
+| [部署与运维指南](docs/部署与运维指南.md)     | 运维、发布       | Web/API/Native 部署、监控、Runbook 与回滚   |
+| [产品与技术路线图](docs/产品与技术路线图.md) | 产品、项目负责人 | 当前基线、优先级、技术债与退出条件          |
+| [变更日志](docs/变更日志.md)                 | 全体成员         | 可核验的重要项目变更和未发布变更            |
 
-- [项目概述](docs/project-overview.md)
-- [需求规格说明](docs/requirements.md)
-- [系统架构](docs/architecture.md)
-- [详细设计](docs/detailed-design.md)
-- [开发指南](docs/development.md)
-- [AI 接手指南](docs/ai-handoff.md)
+推荐阅读：新成员按“概述 → 需求 → 架构 → 开发 → 测试”；AI 接手先读本文件和 [AGENTS.md](AGENTS.md)，再阅读任务相关文档。
 
 ## 重要约束
 
-- 后端新增功能必须创建独立 `api-server/src/modules/<feature>/` 模块。
-- 前端新增功能必须创建独立 `src/features/<feature>/` feature。
-- `src/routes/*.tsx` 只做路由声明和页面壳；禁止手工编辑 `routeTree.gen.ts`。
+- 后端新增功能必须创建独立 `apps/api/src/modules/<feature>/` 模块。
+- 前端新增功能必须创建独立 `apps/web/src/features/<feature>/` feature。
+- `apps/web/src/routes/*.tsx` 只做路由声明和页面壳；禁止手工编辑 `routeTree.gen.ts`。
 - 禁止裸 `console.*`，统一使用带 tag 的 consola logger。
 - 新面试只允许 `agent-v3`；不得恢复 Agent v1/v2 写链路。
 - 未治理 Supabase 迁移历史前，不得直接执行全量 `supabase db push` 或 `db reset`。
 
-## 密码恢复回跳
-
-Supabase Auth 的 Redirect URLs 必须加入 Web 生产地址
-`https://<your-domain>/auth/reset-password` 和桌面端协议
-`interviewbuddy://auth/reset-password`。Web 默认基于当前 origin 生成恢复地址，
-Native 默认使用 `interviewbuddy://`；只有需要独立认证域名或 HTTPS 中转页时才配置
-`VITE_PASSWORD_RECOVERY_REDIRECT_URL`。中转页不得记录或持久化回调中的 `code`、
-`token` 或其他认证参数。
-
 完整协作规则见 [AGENTS.md](AGENTS.md)。
+
+## 文档维护规则
+
+1. 文档与代码冲突时，以当前代码为准，并在同一变更中修正文档。
+2. API 以 `apps/api/src/app.ts`、实际 `*.routes.ts` 和当前 OpenAPI 配置为准。
+3. 数据库以不可变增量 migration、Repository 与 RPC 调用为准。
+4. 规划内容只进入路线图或明确标记为“规划”的章节。
+5. 周报、截图、聊天记录和临时交接稿不进入项目文档。
+6. 文档不得包含真实凭据、用户简历、回答全文或生产敏感数据。
