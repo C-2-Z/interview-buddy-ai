@@ -1,201 +1,173 @@
 # API 参考
 
-> 状态：当前；最后核验：2026-07-16；事实源：`api-server/src/app.ts` 与各模块 `*.routes.ts`
+> 状态：当前｜维护者：后端团队｜最后核验：2026-07-16｜代码基线：`main@6958ac3`｜事实源：`apps/api/src/app.ts`、当前 `*.routes.ts`、Zod schema 与 `openapi-current.ts`
 
-## 1. 通用约定
+## 1. 通用契约
 
-- 本地 API：`http://localhost:3001`。
-- JSON 请求使用 `Content-Type: application/json`。
-- 用户数据接口使用 `Authorization: Bearer <Supabase access_token>`。
-- UUID 路径参数和请求体通过 Zod 校验。
-- 错误响应不包含原始模型、数据库或密钥信息。
-
-标准错误：
-
-```json
-{
-  "error": "用户可读说明",
-  "code": "stable_error_code",
-  "retryable": false
-}
-```
-
-公开接口：`GET /api/health`、`GET /api/skills`、`GET /api/openapi.json`、`GET /api/docs`。性能健康接口需要认证。
+- 本地默认基址：`http://localhost:3001`。
+- 除健康检查和 API 文档外，业务接口使用 `Authorization: Bearer <Supabase access token>`。
+- JSON 请求必须通过对应 Zod schema；未知字段在严格 schema 中被拒绝。
+- 常见响应码：`400` 参数错误、`401` 未认证、`403` 无权访问、`404` 不存在、`409` 状态冲突、`410` 旧能力退役、`500` 内部错误、`503` 依赖未就绪。
+- Agent 模块错误结构为 `{ error, code, retryable }`；其他模块至少返回安全的 `{ error }`。
+- 本文只列当前挂载接口；精确字段以 schema 和 OpenAPI 为准。
 
 ## 2. 基础接口
 
-| 方法 | 路径                      | 认证 | 用途                |
-| ---- | ------------------------- | ---- | ------------------- |
-| GET  | `/api/health`             | 否   | 服务健康            |
-| GET  | `/api/performance/health` | 是   | 日志/采样能力       |
-| GET  | `/api/skills`             | 否   | Skill 元数据        |
-| GET  | `/api/settings`           | 是   | 模型偏好和 Key 掩码 |
-| PUT  | `/api/settings`           | 是   | 更新模型和加密 Key  |
+| 方法 | 路径                      | 认证 | 用途                  |
+| ---- | ------------------------- | ---- | --------------------- |
+| GET  | `/api/health`             | 否   | API 存活检查          |
+| GET  | `/api/openapi.json`       | 否   | 当前 OpenAPI JSON     |
+| GET  | `/api/docs`               | 否   | Swagger UI            |
+| GET  | `/api/performance/health` | 是   | 当前进程性能/能力状态 |
 
-## 3. 历史会话
+## 3. Agent readiness 与记忆
 
-| 方法 | 路径                | 用途                 |
-| ---- | ------------------- | -------------------- |
-| GET  | `/api/sessions`     | 当前用户会话列表     |
-| GET  | `/api/sessions/:id` | 会话详情与旧记录兼容 |
+| 方法   | 路径                   | 用途                                       |
+| ------ | ---------------------- | ------------------------------------------ |
+| GET    | `/api/agent/readiness` | 校验 Agent、数据库、模型和语音依赖是否可用 |
+| GET    | `/api/agent/memory`    | 获取用户训练记忆授权和聚合摘要             |
+| PATCH  | `/api/agent/memory`    | 更新 `{ enabled: boolean }`                |
+| DELETE | `/api/agent/memory`    | 清除用户训练记忆                           |
 
-该模块当前只读。旧 `POST /api/sessions` 和 `/api/questions/*` 不在 `app.ts` 挂载。
+## 4. Agent 会话
 
-## 4. Agent
+| 方法   | 路径                                           | 用途                                     |
+| ------ | ---------------------------------------------- | ---------------------------------------- |
+| POST   | `/api/agent/sessions`                          | 创建 `agent-v3` 会话，成功返回 `202`     |
+| GET    | `/api/agent/sessions/:sessionId`               | 获取当前会话快照                         |
+| POST   | `/api/agent/sessions/:sessionId/input`         | 提交唯一 `inputId` 的文本输入            |
+| POST   | `/api/agent/sessions/:sessionId/interrupt`     | 请求打断当前模型或语音输出               |
+| POST   | `/api/agent/sessions/:sessionId/finish`        | 主动结束会话                             |
+| POST   | `/api/agent/sessions/:sessionId/retry`         | 重试最近失败阶段，成功返回 `202`         |
+| GET    | `/api/agent/sessions/:sessionId/events`        | SSE 快照、事件重放和心跳                 |
+| GET    | `/api/agent/sessions/:sessionId/workspace`     | 获取题目、消息、证据、评分和报告投影     |
+| GET    | `/api/agent/sessions/:sessionId/activities`    | 获取用户可见的阶段活动                   |
+| POST   | `/api/agent/sessions/:sessionId/lifecycle`     | 执行 `pause/resume/finish/abandon`       |
+| DELETE | `/api/agent/sessions/:sessionId`               | 删除当前用户会话及关联 Agent 数据        |
+| POST   | `/api/agent/sessions/:sessionId/voice/connect` | 为 voice 会话签发短期 WebSocket 连接信息 |
 
-| 方法   | 路径                                           | 说明                        |
-| ------ | ---------------------------------------------- | --------------------------- |
-| GET    | `/api/agent/readiness`                         | 创建前能力检查              |
-| POST   | `/api/agent/sessions`                          | 创建 Agent v3，返回 202     |
-| GET    | `/api/agent/sessions/:sessionId`               | 最新 snapshot               |
-| POST   | `/api/agent/sessions/:sessionId/input`         | 提交幂等文字输入            |
-| POST   | `/api/agent/sessions/:sessionId/interrupt`     | 打断输出                    |
-| POST   | `/api/agent/sessions/:sessionId/finish`        | 读取/确认完成结果           |
-| POST   | `/api/agent/sessions/:sessionId/retry`         | 重试失败准备阶段            |
-| GET    | `/api/agent/sessions/:sessionId/events`        | SSE 持久事件流              |
-| GET    | `/api/agent/sessions/:sessionId/workspace`     | 完整恢复投影                |
-| GET    | `/api/agent/sessions/:sessionId/activities`    | 脱敏活动时间线              |
-| POST   | `/api/agent/sessions/:sessionId/voice/connect` | 获取 WSS 地址和短期 token   |
-| POST   | `/api/agent/sessions/:sessionId/lifecycle`     | pause/resume/finish/abandon |
-| DELETE | `/api/agent/sessions/:sessionId`               | 删除会话                    |
-
-### 4.1 Readiness
-
-查询参数包含 `interviewMode=text|voice`、可选 Provider 和研究选择。响应状态为 `ready`、`degraded` 或 `blocked`，同时给出 checkpoint 模式、分能力状态、blockers、warnings 和恢复动作。
-
-### 4.2 创建会话
+创建请求核心字段：
 
 ```json
 {
   "mode": "single",
   "interviewMode": "text",
-  "position": "前端开发工程师",
+  "position": "前端工程师",
   "difficulty": "中级",
   "questionCount": 5,
-  "jobDescription": "可选",
+  "jobDescription": "可选，最多 2000 字",
   "targetCompany": "可选",
-  "skillId": "frontend",
+  "skillId": "可选",
   "resumeId": "可选 UUID",
   "brainId": "可选 UUID",
-  "useTrainingMemory": true,
+  "useTrainingMemory": false,
   "modelProvider": "deepseek",
-  "modelName": "deepseek-v4-flash",
+  "modelName": "可选",
   "webResearch": true
 }
 ```
 
-响应：
+`interviewMode=text` 固定映射 `coaching`，`voice` 固定映射 `simulation`。`questionCount` 范围为 3–10。
+
+新会话内部冻结 `graphVersion=interactive-v2`，但对外 `agentVersion` 仍为 `agent-v3`。历史会话没有 `graphVersion` 时继续使用旧 Graph 与旧 checkpoint namespace。
+
+输入请求：
 
 ```json
 {
-  "sessionId": "uuid",
-  "threadId": "uuid",
-  "phase": "preparing",
-  "eventCursor": 1
-}
-```
-
-### 4.3 提交输入
-
-```json
-{
-  "inputId": "client-stable-id",
+  "inputId": "客户端稳定操作标识",
   "type": "text",
-  "content": "候选人回答"
+  "content": "1–5000 字的回答"
 }
 ```
 
-相同 `inputId` 返回第一次结果并标记 `duplicate: true`。
-
-### 4.4 SSE
-
-- `Accept: text/event-stream`。
-- 重连使用 `Last-Event-ID`。
-- 事件名包括 `agent.snapshot`、`agent.phase`、`agent.question_ready`、`agent.message_completed`、`agent.score_completed`、`agent.session_completed`、`agent.activity` 和 `agent.error`。
-
-### 4.5 生命周期
-
-```json
-{ "action": "pause" }
-```
-
-允许 `pause`、`resume`、`finish`、`abandon`。
-
-## 5. Agent Memory
-
-| 方法   | 路径                | 用途                     |
-| ------ | ------------------- | ------------------------ |
-| GET    | `/api/agent/memory` | 授权和脱敏摘要           |
-| PATCH  | `/api/agent/memory` | `{ "enabled": true }`    |
-| DELETE | `/api/agent/memory` | 清除摘要，不删除历史报告 |
-
-## 6. 语音 WebSocket
-
-1. 调用 voice/connect 获取 `wsUrl`。
-2. 连接 `WS /api/voice/ws?token=...`。
-3. 发送 `hello`，并每 10 秒发送 `heartbeat`。
-4. 发送 `audio_start` JSON、二进制 PCM、`audio_end`；重连发送 `resume_session`。
-
-客户端控制事件：
+`POST /api/agent/sessions/:sessionId/retry` 只恢复服务端已记录的失败操作：
 
 ```json
 {
-  "type": "audio_start",
-  "protocolVersion": 1,
-  "eventId": "uuid",
-  "sequence": 3,
-  "sessionId": "uuid",
-  "questionId": "uuid",
-  "turnId": "stable",
-  "sampleRate": 16000
+  "duplicate": false,
+  "recoveryKind": "input",
+  "snapshot": {}
 }
 ```
 
-所有 JSON 事件统一携带 `protocolVersion`、`eventId`、`sequence`。服务端返回 ready、session_ready、connection_state、voice_stage、transcript_partial/final、assistant_audio_*、interrupted、turn_rejected、question_scored、next_question、session_completed 或 error。浏览器本地播放结束后发送 `playback_completed`。
+`recoveryKind=preparation` 表示重新执行首题准备；`input` 表示复用原 `inputId`、已持久化回答和 checkpoint，从失败节点继续。客户端不得为同一回答生成新 `inputId` 后再次提交。可恢复模型错误使用稳定码 `agent_question_unavailable`、`agent_decision_unavailable` 或 `agent_scoring_unavailable`，响应 `retryable=true`，并以脱敏 `agent.error` 事件通知客户端。
 
-## 7. 题库与简历
+### 4.1 SSE
 
-### 题库
+- 首连发送已提交快照。
+- 重连通过 `Last-Event-ID` 补发持久事件。
+- 只暴露当前模式和产品状态允许的事件，不发送回答或内部推理全文。
+- 游标无法继续时客户端应重新获取 workspace。
 
-- `GET /api/bank`
-- `GET /api/bank/favorites`
-- `GET /api/bank/:id`
-- `POST /api/bank/:id/favorite`
+### 4.2 语音 WebSocket
 
-### 简历
+连接信息响应包含 `wsUrl` 与 `expiresAt`，实际升级路径为 `/api/voice/ws`。连接必须验证短期 token、Supabase access token、用户、会话和 voice 模式。客户端控制事件与服务端事件的精确联合类型以 `voice.types.ts` 为准；二进制帧承载音频。
 
-- `POST /api/resumes`：multipart `file`，最大 10 MB。
-- `GET /api/resumes`
-- `GET /api/resumes/:id`
-- `DELETE /api/resumes/:id`
+## 5. 历史会话
+
+| 方法 | 路径                | 用途                 |
+| ---- | ------------------- | -------------------- |
+| GET  | `/api/sessions`     | 获取当前用户会话列表 |
+| GET  | `/api/sessions/:id` | 获取当前用户会话详情 |
+
+## 6. 题库与 Skill
+
+| 方法 | 路径                     | 用途              |
+| ---- | ------------------------ | ----------------- |
+| GET  | `/api/bank`              | 题库列表和筛选    |
+| GET  | `/api/bank/favorites`    | 当前用户收藏      |
+| GET  | `/api/bank/:id`          | 题目详情          |
+| POST | `/api/bank/:id/favorite` | 切换收藏状态      |
+| GET  | `/api/skills`            | 岗位 Skill 元数据 |
+
+## 7. 简历与设置
+
+| 方法   | 路径               | 用途                              |
+| ------ | ------------------ | --------------------------------- |
+| POST   | `/api/resumes`     | multipart 上传并解析简历          |
+| GET    | `/api/resumes`     | 当前用户简历列表                  |
+| GET    | `/api/resumes/:id` | 当前用户简历详情                  |
+| DELETE | `/api/resumes/:id` | 删除简历                          |
+| GET    | `/api/settings`    | 获取脱敏用户设置                  |
+| PUT    | `/api/settings`    | 更新 Provider、模型和可选 API Key |
+
+设置读取不得返回 API Key 明文。
 
 ## 8. 知识库
 
-### 文档
+### 8.1 文档
 
-- `GET/POST /api/knowledge/documents`
-- `POST /api/knowledge/documents/text`
-- `DELETE /api/knowledge/documents/:id`
-- `POST /api/knowledge/documents/batch-delete`
+| 方法   | 路径                                    | 用途                   |
+| ------ | --------------------------------------- | ---------------------- |
+| POST   | `/api/knowledge/documents`              | multipart 上传知识文档 |
+| POST   | `/api/knowledge/documents/text`         | 创建纯文本文档         |
+| GET    | `/api/knowledge/documents`              | 文档列表               |
+| DELETE | `/api/knowledge/documents/:id`          | 删除文档               |
+| POST   | `/api/knowledge/documents/batch-delete` | 批量删除文档           |
 
-### 搜索与 QA
+### 8.2 QA、搜索与图谱
 
-- `POST /api/knowledge/search`
-- `GET/POST /api/knowledge/qa/sessions`
-- `GET/PATCH/DELETE /api/knowledge/qa/sessions/:id`
-- `POST /api/knowledge/qa/sessions/:id/ask`（SSE）
+| 方法             | 路径                                 | 用途                       |
+| ---------------- | ------------------------------------ | -------------------------- |
+| POST/GET         | `/api/knowledge/qa/sessions`         | 创建/列出 QA 会话          |
+| GET/PATCH/DELETE | `/api/knowledge/qa/sessions/:id`     | 获取、重命名或删除 QA 会话 |
+| POST             | `/api/knowledge/qa/sessions/:id/ask` | 流式提问并返回引用         |
+| POST             | `/api/knowledge/search`              | 语义搜索                   |
+| GET              | `/api/knowledge/graph`               | 获取知识图谱               |
+| GET              | `/api/knowledge/graph/node/:chunkId` | 获取节点详情               |
+| PUT              | `/api/knowledge/graph/rebuild`       | 重建当前用户图谱           |
 
-### 图谱与 Brain
+### 8.3 Brain
 
-- `GET /api/knowledge/graph`
-- `GET /api/knowledge/graph/node/:chunkId`
-- `PUT /api/knowledge/graph/rebuild`
-- `GET/POST /api/knowledge/brains`
-- `GET /api/knowledge/brains/default`
-- `GET/PATCH/DELETE /api/knowledge/brains/:id`
-- `POST /api/knowledge/brains/:id/documents`
-- `DELETE /api/knowledge/brains/:id/documents/:docId`
+| 方法             | 路径                                         | 用途                   |
+| ---------------- | -------------------------------------------- | ---------------------- |
+| GET              | `/api/knowledge/brains/default`              | 获取默认 Brain         |
+| GET/POST         | `/api/knowledge/brains`                      | 列出/创建 Brain        |
+| GET/PATCH/DELETE | `/api/knowledge/brains/:id`                  | 获取、更新或删除 Brain |
+| POST             | `/api/knowledge/brains/:id/documents`        | 关联文档               |
+| DELETE           | `/api/knowledge/brains/:id/documents/:docId` | 解除文档关联           |
 
-## 9. 文档漂移说明
+## 9. 契约维护
 
-当前 OpenAPI 聚合仍可能包含未挂载的旧 sessions/questions 路径。修改 API 时必须同时更新 route、OpenAPI 和契约测试；调用方以实际路由为准。
+新增或修改端点时必须同步 routes、schema、OpenAPI、前端 API 类型、测试和本文档。`config/openapi.ts` 中残留但未被 `openapi-current.ts` 暴露的旧接口不是当前产品契约。

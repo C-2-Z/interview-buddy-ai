@@ -4,9 +4,9 @@
 
 开发前阅读：
 
-1. `docs/README.md`
+1. 根目录 `README.md` 的文档中心
 2. 与任务相关的需求、架构、设计、API、数据、安全和测试文档
-3. 当前代码、`api-server/src/app.ts`、实际 routes 和最新 migrations
+3. 当前代码、`apps/api/src/app.ts`、实际 routes 和最新 migrations
 
 文档与代码冲突时，以当前实际代码为准，并在同一变更中修正文档。
 
@@ -24,7 +24,7 @@
 后端新增功能必须创建独立模块：
 
 ```text
-api-server/src/modules/<feature>/
+apps/api/src/modules/<feature>/
   <feature>.routes.ts
   <feature>.service.ts
   <feature>.repository.ts
@@ -35,7 +35,7 @@ api-server/src/modules/<feature>/
 前端新增功能必须创建独立 feature：
 
 ```text
-src/features/<feature>/
+apps/web/src/features/<feature>/
   api.ts
   types.ts
   hooks/
@@ -47,9 +47,9 @@ src/features/<feature>/
 - Route 只做路由、认证、校验、调用和错误映射。
 - Service 编排业务流程和不变量。
 - Repository 负责数据库/RPC 和字段映射。
-- `src/routes/*.tsx` 只做 `createFileRoute` 和页面壳。
-- 后端路由在 `api-server/src/app.ts` 挂载。
-- 禁止手工编辑 `src/routeTree.gen.ts`。
+- `apps/web/src/routes/*.tsx` 只做 `createFileRoute` 和页面壳。
+- 后端路由在 `apps/api/src/app.ts` 挂载。
+- 禁止手工编辑 `apps/web/src/routeTree.gen.ts`。
 
 ## 4. 代码与注释
 
@@ -87,11 +87,7 @@ npm run lint
 npm run build
 npm run build:native:dev
 npm run verify:native
-
-Set-Location api-server
-npm test
-npm run build
-Set-Location ..
+npm run build:api
 
 git diff --check
 ```
@@ -109,4 +105,4 @@ Checkpoint 集成测试只能使用显式 `AGENT_TEST_DATABASE_URL`。
 - 禁止无授权 reset hard、clean、强推、部署或远端写操作。
 - 推送前测试、构建和 diff check 通过。
 
-更完整说明见 `docs/development.md`、`docs/security.md` 和 `docs/ai-handoff.md`。
+更完整说明见 `docs/开发指南.md`、`docs/安全与隐私设计.md` 和 `docs/系统架构设计.md`。
