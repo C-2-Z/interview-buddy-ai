@@ -462,32 +462,16 @@ const QuestionReadyDataSchema = z
     source: z.enum(["bank", "model"]),
   })
   .strict();
-const MessageMetadataSchema = z
-  .object({
-    roundType: z
-      .enum(["broad_opening", "keyword_deep_dive", "stress_test"])
-      .optional(),
-    keywords: z.array(z.string().trim().min(1).max(100)).max(20).optional(),
-  })
-  .strict();
-const MessageCompletedReferenceSchema = z
+const MessageCompletedDataSchema = z
   .object({
     id: z.string().trim().min(1).max(200),
+    role: z.enum(["user", "assistant"]),
+    content: z.string().max(100_000),
     roleId: RoleIdSchema,
     createdAt: IsoTimestampSchema,
     interrupted: z.boolean(),
   })
-  .strict()
-  .merge(MessageMetadataSchema);
-const MessageCompletedDataSchema = z.discriminatedUnion("role", [
-  MessageCompletedReferenceSchema.extend({
-    role: z.literal("user"),
-  }).strict(),
-  MessageCompletedReferenceSchema.extend({
-    role: z.literal("assistant"),
-    content: z.string().max(100_000),
-  }).strict(),
-]);
+  .strict();
 const ScoreCompletedDataSchema = z.object({
   questionId: SessionIdSchema,
   overallScore: z.number().int().min(0).max(100),

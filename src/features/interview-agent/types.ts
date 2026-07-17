@@ -94,7 +94,6 @@ export type AgentSSEEvent=
   |{sequence:number;type:"agent.phase";data:{phase:AgentPhase}}
   |{sequence:number;type:"agent.role_changed";data:{roleId:AgentRoleId}}
   |{sequence:number;type:"agent.question_ready";data:{id:string;question:string;orderIndex:number;roleId:AgentRoleId;dimensionKey:string;source:"bank"|"model"}}
-  |{sequence:number;type:"agent.message_completed";data:{id:string;role:"user";roleId:AgentRoleId;createdAt:string;interrupted:boolean}}
   |{sequence:number;type:"agent.message_completed";data:{id:string;role:"assistant";content:string;roleId:AgentRoleId;createdAt:string;interrupted:boolean}}
   |{sequence:number;type:"agent.score_completed";data:{questionId:string;overallScore:number;dimensions:Record<string,{status:"scored"|"not_observed";score:number|null;rationale:string;evidenceIds:string[]}>}}
   |{sequence:number;type:"agent.session_completed";data:{sessionId:string;completedAt:string;overallScore?:number;overallFeedback?:string;dimensionSummary?:unknown}}
