@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => ({
       },
     },
     watch: {
-      ignored: ["**/src-tauri/target/**"],
+      ignored: ["**/.runtime/**", "**/src-tauri/target/**"],
     },
   },
 }));
