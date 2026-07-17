@@ -19,11 +19,7 @@ import {
 } from "./voice.repository.js";
 import { verifyVoiceSocketToken } from "./voice-token.service.js";
 import { voiceError } from "../../shared/logger/voice-logger.js";
-import {
-  createVoiceConnectionState,
-  VOICE_PROTOCOL_VERSION,
-} from "./voice-protocol.service.js";
-import type { VoiceClientEvent, VoiceServerEventPayload } from "./voice.types.js";
+import type { VoiceClientEvent, VoiceServerEvent } from "./voice.types.js";
 
 /** 当前正在接收的候选人音频轮次。 */
 type AudioTurn = {
@@ -39,19 +35,8 @@ type AudioTurn = {
 type PendingAudio = {
   /** 客户端轮次 ID。 */ turnId: string;
   /** 验证期间到达的 PCM。 */ chunks: Buffer[];
-  /** 验证期间累计的 PCM 字节数。 */ bytes: number;
   /** 客户端是否已发送结束。 */ finishRequested: boolean;
 };
-
-const CONNECTION_LIMITS = {
-  heartbeatTimeoutMs: 30_000,
-  maxAnswerDurationMs: 120_000,
-  maxAudioBytes: 3_840_000,
-  maxPendingAudioBytes: 256_000,
-  maxProcessedEventIds: 512,
-} as const;
-
-const serverSequences = new WeakMap<WebSocket, number>();
 
 /** 当前正在播放的 TTS。 */
 type SpeechTurn = {
@@ -67,16 +52,8 @@ const ROLE_LABELS: Record<RoleId, string> = {
 };
 
 /** 只在连接仍打开时发送结构化事件。 */
-function sendJson(socket: WebSocket, event: VoiceServerEventPayload): void {
-  if (socket.readyState !== WebSocket.OPEN) return;
-  const sequence = (serverSequences.get(socket) ?? 0) + 1;
-  serverSequences.set(socket, sequence);
-  socket.send(JSON.stringify({
-    ...event,
-    protocolVersion: VOICE_PROTOCOL_VERSION,
-    eventId: crypto.randomUUID(),
-    sequence,
-  }));
+function sendJson(socket: WebSocket, event: VoiceServerEvent): void {
+  if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(event));
 }
 
 /** 将任意错误映射为不含 Provider 密钥的固定客户端错误。 */
@@ -141,13 +118,6 @@ async function attachAgentVoiceSession(
   let pendingAudio: PendingAudio | null = null;
   let activeSpeech: SpeechTurn | null = null;
   const interrupted = new Set<string>();
-  const promptedQuestionIds = new Set<string>();
-  const connectionState = createVoiceConnectionState(CONNECTION_LIMITS);
-  const heartbeatTimer = setInterval(() => {
-    if (!connectionState.isHeartbeatExpired(Date.now())) return;
-    sendJson(socket, { type: "connection_state", state: "closing" });
-    socket.close(1001, "Heartbeat timeout");
-  }, 5_000);
 
   /** 播放完整 Agent 文本；单 Provider 长连接可连续处理多轮 speak。 */
   async function speak(text: string, turnId: string): Promise<void> {
@@ -191,9 +161,6 @@ async function attachAgentVoiceSession(
       ? (questions.find((item) => item.id === questionId) ?? null)
       : currentQuestion(questions);
     if (!question) return;
-    // 初连自动播报与 SSE 监听补发可能并发到达，题目 ID 是共同幂等键。
-    if (promptedQuestionIds.has(question.id)) return;
-    promptedQuestionIds.add(question.id);
     const turnId = `question:${question.id}`;
     const text = `${opening ? "你好，我们开始面试。" : "下面进入下一题。"}第 ${question.order_index + 1} 题，共 ${questions.length} 题。${question.question}`;
     if (!opening) {
@@ -226,7 +193,7 @@ async function attachAgentVoiceSession(
           `接下来由${ROLE_LABELS[event.data.roleId]}继续面试。`,
           `${sourceTurnId}:role:${event.sequence}`,
         );
-      } else if (event.type === "agent.message_completed") {
+      } else if (event.type === "agent.message_completed" && event.data.role === "assistant") {
         await speak(event.data.content, `${sourceTurnId}:message:${event.sequence}`);
       } else if (event.type === "agent.score_completed") {
         sendJson(socket, {
@@ -343,28 +310,13 @@ async function attachAgentVoiceSession(
     pendingAudio = null;
     activeAudio = turn;
     void consumeAsr(turn);
-    for (const chunk of buffered?.chunks ?? []) receiveAudio(turn, chunk, false);
+    for (const chunk of buffered?.chunks ?? []) receiveAudio(turn, chunk);
     if (buffered?.finishRequested) turn.asr.finish();
     sendStage(socket, "listening", "正在接收麦克风音频", event.turnId);
   }
 
   /** 把一个 PCM 块送入当前 ASR。 */
-  function receiveAudio(turn: AudioTurn, chunk: Buffer, countResource = true): void {
-    const acceptance = countResource
-      ? connectionState.acceptAudio(chunk.length, false, Date.now())
-      : "accepted";
-    if (acceptance !== "accepted") {
-      turn.asr.abort();
-      turn.abortController.abort();
-      activeAudio = null;
-      sendJson(socket, {
-        type: "turn_rejected",
-        code: `VOICE_${acceptance.toUpperCase()}`,
-        message: "本次回答超过语音服务允许的时长或大小，请缩短后重试",
-        turnId: turn.turnId,
-      });
-      return;
-    }
+  function receiveAudio(turn: AudioTurn, chunk: Buffer): void {
     turn.chunks += 1;
     turn.bytes += chunk.length;
     turn.asr.sendAudio(chunk);
@@ -390,60 +342,13 @@ async function attachAgentVoiceSession(
   socket.on("message", (data, isBinary) => {
     if (isBinary) {
       const chunk = rawToBuffer(data);
-      if (pendingAudio) {
-        const acceptance = connectionState.acceptAudio(chunk.length, true, Date.now());
-        if (acceptance !== "accepted") {
-          sendJson(socket, {
-            type: "turn_rejected",
-            code: `VOICE_${acceptance.toUpperCase()}`,
-            message: "语音连接准备期间收到的音频过多，请重新回答",
-            turnId: pendingAudio.turnId,
-          });
-          pendingAudio = null;
-          return;
-        }
-        pendingAudio.bytes += chunk.length;
-        pendingAudio.chunks.push(chunk);
-      }
+      if (pendingAudio) pendingAudio.chunks.push(chunk);
       else if (activeAudio) receiveAudio(activeAudio, chunk);
       return;
     }
     const event = parseClientEvent(data);
     if (!event) {
       sendError(socket, "VOICE_EVENT_INVALID", "websocket", "语音控制事件格式无效");
-      return;
-    }
-    if (
-      event.protocolVersion !== VOICE_PROTOCOL_VERSION ||
-      !connectionState.acceptEvent(event.eventId, event.sequence)
-    ) {
-      sendJson(socket, {
-        type: "turn_rejected",
-        code: "VOICE_EVENT_DUPLICATE_OR_VERSION_MISMATCH",
-        message: "语音控制事件已处理或协议版本不兼容",
-        turnId: "turnId" in event ? event.turnId : "connection",
-      });
-      return;
-    }
-    if (event.type === "heartbeat") {
-      connectionState.markHeartbeat(Date.now());
-      sendJson(socket, { type: "connection_state", state: "connected" });
-      return;
-    }
-    if (event.type === "hello" || event.type === "resume_session") {
-      connectionState.markHeartbeat(Date.now());
-      sendJson(socket, {
-        type: "connection_state",
-        state: event.type === "hello" ? "connected" : "resumed",
-      });
-      return;
-    }
-    if (event.type === "playback_completed") {
-      sendStage(socket, "playback_completed", "浏览器已完成本轮语音播放", event.turnId);
-      return;
-    }
-    if (event.type === "prompt_question") {
-      void promptQuestion(event.questionId, true);
       return;
     }
     if (event.type === "audio_start") {
@@ -455,8 +360,7 @@ async function attachAgentVoiceSession(
         sendError(socket, "VOICE_AUDIO_INVALID", "audio_start", "语音轮次参数无效", event.turnId);
         return;
       }
-      connectionState.startTurn(event.turnId, Date.now());
-      pendingAudio = { turnId: event.turnId, chunks: [], bytes: 0, finishRequested: false };
+      pendingAudio = { turnId: event.turnId, chunks: [], finishRequested: false };
       void startAudio(event);
     } else if (event.type === "audio_end") {
       if (pendingAudio?.turnId === event.turnId) pendingAudio.finishRequested = true;
@@ -467,7 +371,6 @@ async function attachAgentVoiceSession(
   });
 
   socket.on("close", () => {
-    clearInterval(heartbeatTimer);
     activeAudio?.asr.abort();
     activeAudio?.abortController.abort();
     activeSpeech?.abortController.abort();
@@ -478,7 +381,6 @@ async function attachAgentVoiceSession(
   const questions = await listSessionQuestions(supabase, sessionId);
   const question = currentQuestion(questions);
   sendJson(socket, { type: "ready", sessionId });
-  sendJson(socket, { type: "connection_state", state: "connected" });
   sendJson(socket, {
     type: "session_ready",
     sessionId,
@@ -502,7 +404,7 @@ export function installVoiceWebSocket(server: ServerType): void {
   });
   websocketServer.on("connection", async (socket, request) => {
     const url = new URL(request.url ?? "", "http://localhost");
-    const payload = await verifyVoiceSocketToken(url.searchParams.get("token"));
+    const payload = verifyVoiceSocketToken(url.searchParams.get("token"));
     if (!payload) {
       sendError(socket, "VOICE_TOKEN_INVALID", "auth", "语音连接已过期，请重新连接");
       socket.close(1008, "Invalid token");

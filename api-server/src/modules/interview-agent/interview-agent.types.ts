@@ -233,25 +233,42 @@ export type AgentStrategyView = {
   /** 是否实际应用绑定 Brain 的引用。 */ brainApplied: boolean;
 };
 
-/** SSE 中展示的最小 Agent 消息。 */
-export type AgentMessageView = {
+/** 消息事件允许的追问轮次类型。 */
+export type AgentMessageRoundType =
+  | "broad_opening"
+  | "keyword_deep_dive"
+  | "stress_test";
+
+/** SSE 消息事件共享的业务消息引用。 */
+type AgentMessageReference = {
   /** 消息标识。 */
   id: string;
-  /** 消息发送方。 */
-  role: "user" | "assistant";
-  /** 已完成的消息文本。 */
-  content: string;
   /** 消息所属面试官角色。 */
   roleId: RoleId;
   /** ISO 8601 创建时间。 */
   createdAt: string;
   /** 消息是否在生成或播放过程中被打断。 */
   interrupted: boolean;
-  /** 本轮追问类型；broad_opening / keyword_deep_dive / stress_test */
-  roundType?: string;
-  /** 本轮提取的技术关键词 */
+  /** 本轮追问类型，仅允许三种已知策略枚举。 */
+  roundType?: AgentMessageRoundType;
+  /** 本轮提取的技术关键词，最多 20 项且每项 trim 后为 1..100 字符。 */
   keywords?: string[];
 };
+
+/** SSE 中展示的最小 Agent 消息；用户事件只携带引用，助手事件保留展示正文。 */
+export type AgentMessageView = AgentMessageReference &
+  (
+    | {
+        /** 用户消息事件不得携带候选人回答正文。 */
+        role: "user";
+      }
+    | {
+        /** 助手消息事件用于字幕和语音播放。 */
+        role: "assistant";
+        /** 已完成的助手消息文本。 */
+        content: string;
+      }
+  );
 
 /** SSE 中首题或后续题目准备完成后的只读视图。 */
 export type AgentQuestionView = {
